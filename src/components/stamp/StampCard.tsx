@@ -2,183 +2,142 @@
 
 import { useGuild } from '@/contexts/GuildContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Map, CheckCheck } from 'lucide-react';
+import { MapPin, CalendarDays, Trophy, Medal, Crown, TrendingUp } from 'lucide-react';
 
-/* ============================================================
-   マップの座標定義 (0〜100のパーセンテージ)
-   ============================================================ */
-const MAP_POINTS = [
-  { id: 1, x: 10, y: 15 },
-  { id: 2, x: 28, y: 35 },
-  { id: 3, x: 50, y: 18 },
-  { id: 4, x: 75, y: 25 },
-  { id: 5, x: 88, y: 50 },
-  { id: 6, x: 65, y: 70 },
-  { id: 7, x: 40, y: 55 },
-  { id: 8, x: 15, y: 75 },
-  { id: 9, x: 35, y: 90 },
-  { id: 10, x: 80, y: 85 },
-];
+// 月の表示名
+function formatMonth(yyyymm: string) {
+  const [year, month] = yyyymm.split('-');
+  return `${year}年${parseInt(month)}月`;
+}
 
 export default function StampCard() {
-  const { stamps, isLoggedIn } = useGuild();
-  const stampCount = stamps.filter(Boolean).length;
+  const { monthlyCheckInCount, checkinMonth, isLoggedIn, leaderboard, member } = useGuild();
 
-  // 達成済みのパスを描画するための座標群
-  const completedPointsStr = MAP_POINTS.slice(0, Math.max(1, stampCount))
-    .map((p) => `${p.x},${p.y}`)
-    .join(' ');
-    
-  // 全体のパス
-  const allPointsStr = MAP_POINTS.map((p) => `${p.x},${p.y}`).join(' ');
+  // 自分の順位を見つける
+  const myRank = leaderboard.findIndex(entry => entry.discord_id === member.id) + 1;
 
   return (
     <section id="stamp-card" className="w-full max-w-5xl mx-auto px-4 py-12">
       {/* タイトル */}
       <div className="flex items-center gap-3 mb-8">
         <div className="w-8 h-8 rounded-sm border-2 bg-[var(--gold)]/10 border border-[var(--gold)]/30 flex items-center justify-center">
-          <Map size={16} className="text-[var(--gold)]" />
+          <Trophy size={16} className="text-[var(--gold)]" />
         </div>
         <div>
-          <h2 className="font-rpg font-bold text-xl text-gold-gradient">Adventure Map</h2>
-          <p className="text-xs text-[var(--gold)]">旅の軌跡（スタンプカード）</p>
+          <h2 className="font-rpg font-bold text-xl text-gold-gradient">冒険者ランキング</h2>
+          <p className="text-xs text-[var(--gold)]">今月の拠点貢献度（チェックイン回数）</p>
         </div>
       </div>
 
-      <div className="rpg-card p-6 parchment-border relative overflow-hidden" style={{ minHeight: '400px' }}>
-        
-        {/* レトロな地図の背景テクスチャ */}
-        <div className="absolute inset-0 opacity-20 pointer-events-none" 
-             style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, transparent 20%, #000 120%)' }} />
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* 左側：自分のステータス */}
+        <div className="rpg-card p-8 parchment-border relative overflow-hidden flex flex-col items-center justify-center text-center">
+          <div className="absolute top-4 left-4 flex items-center gap-2 text-xs text-[#cfbeaf]">
+            <CalendarDays size={14} className="text-[var(--gold)]" />
+            <span>{formatMonth(checkinMonth)}</span>
+          </div>
 
-        {/* 進捗テキスト */}
-        <div className="relative z-10 flex items-center justify-between mb-8 bg-black/40 backdrop-blur-md p-3 rounded-sm border-2 border border-[var(--gold)]/20 inline-block w-full">
-          <span className="text-sm text-[#dfd8c8]">
-            {stampCount === 10 ? (
-              <span className="flex items-center gap-1 text-[var(--gold)] font-bold">
-                <CheckCheck size={16} />
-                旅の目的地に到達！
-              </span>
-            ) : (
-              <>
-                次の拠点まで あと <span className="font-bold text-[var(--gold)]">1</span> 歩
-              </>
-            )}
-          </span>
-          <span className="font-rpg text-xs text-[var(--gold)]">
-            {stampCount} / 10
-          </span>
-        </div>
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="mt-4"
+          >
+            <div className="text-xs text-[#cfbeaf] mb-2 uppercase tracking-widest">現在の訪問数</div>
+            <div className="text-6xl font-rpg font-bold text-gold-gradient mb-2" style={{ textShadow: '2px 2px 0 #000' }}>
+              {monthlyCheckInCount}
+            </div>
+            <div className="text-sm text-[#cfbeaf]">回</div>
+          </motion.div>
 
-        {/* =========================================
-            マップエリア (SVGパス + HTMLポイント)
-            ========================================= */}
-        <div className="relative w-full h-[320px] sm:h-[400px] mt-4">
-          
-          {/* 背景パス (SVG) */}
-          <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-            {/* 未踏の道 (破線) */}
-            <polyline
-              points={allPointsStr}
-              fill="none"
-              stroke="rgba(212, 175, 55, 0.2)"
-              strokeWidth="1.5"
-              strokeDasharray="2, 2"
-              vectorEffect="non-scaling-stroke"
-            />
-            {/* 踏破した道 (光る実線) */}
-            {stampCount > 1 && (
-              <polyline
-                points={completedPointsStr}
-                fill="none"
-                stroke="var(--gold)"
-                strokeWidth="2.5"
-                vectorEffect="non-scaling-stroke"
-                style={{ filter: 'drop-shadow(0 0 4px var(--gold))' }}
-              />
-            )}
-          </svg>
-
-          {/* 各チェックポイント (絶対配置) */}
-          {MAP_POINTS.map((point, i) => {
-            const isStamped = stamps[i];
-            const isCurrent = i === stampCount; // 次に押す場所
-            const isLast = i === MAP_POINTS.length - 1;
-
-            return (
-              <motion.div
-                key={point.id}
-                className="absolute"
-                style={{
-                  left: `${point.x}%`,
-                  top: `${point.y}%`,
-                  transform: 'translate(-50%, -50%)',
-                }}
-                initial={false}
-              >
-                {/* 拠点アイコン */}
-                <div
-                  className={`relative flex items-center justify-center transition-all duration-500
-                    ${isLast ? 'w-12 h-12 sm:w-14 sm:h-14' : 'w-8 h-8 sm:w-10 sm:h-10'}
-                  `}
-                >
-                  <div
-                    className={`absolute inset-0 rounded-full border-2 
-                      ${isStamped ? 'bg-[#1a140d] border-[var(--gold)]' : 'bg-[#0f0a05] border-[var(--border-outer)]'}
-                      ${isCurrent ? 'pulse-gold border-[var(--gold-light)]' : ''}
-                    `}
-                    style={{
-                      boxShadow: isStamped ? '0 0 10px var(--gold-glow)' : 'none',
-                    }}
-                  />
-                  
-                  {/* 中身 */}
-                  <AnimatePresence mode="popLayout">
-                    {isStamped ? (
-                      <motion.div
-                        key="stamped"
-                        initial={{ scale: 0, opacity: 0, rotate: -45 }}
-                        animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                        className={`font-rpg text-[var(--gold)] font-bold text-shadow-glow ${isLast ? 'text-2xl' : 'text-lg'}`}
-                      >
-                        {isLast ? '👑' : '⭐'}
-                      </motion.div>
-                    ) : (
-                      <motion.span
-                        key="empty"
-                        className={`font-rpg text-[#cfbeaf] font-bold ${isLast ? 'text-lg' : 'text-xs'}`}
-                      >
-                        {isLast ? 'GOAL' : point.id}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {/* コンプリートメッセージ */}
-        <AnimatePresence>
-          {stampCount === 10 && (
+          {isLoggedIn && myRank > 0 && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-8 p-4 rounded-sm border-2 text-center bg-[var(--gold)]/10 border border-[var(--gold)]/30 backdrop-blur-sm"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="mt-8 px-4 py-2 bg-black/40 rounded-sm border border-[var(--gold)]/30 flex items-center gap-3"
             >
-              <p className="text-base font-bold text-[var(--gold)]">🎉 全ての踏破を達成！「開拓者」の証を授かる…</p>
+              <TrendingUp size={16} className="text-green-400" />
+              <span className="text-sm">現在の順位: <span className="font-bold text-[var(--gold-light)]">{myRank}位</span></span>
             </motion.div>
           )}
-        </AnimatePresence>
 
-        {/* ログイン促進 */}
-        {!isLoggedIn && (
-          <p className="text-center text-xs text-[var(--gold)] mt-8 relative z-10">
-            冒険の記録を残すには、ヘッダーからログインせよ
-          </p>
-        )}
+          {!isLoggedIn && (
+            <p className="mt-8 text-xs text-[var(--gold)] opacity-60">
+              ログインするとランキングに参加できます
+            </p>
+          )}
+        </div>
+
+        {/* 右側：リーダーボード */}
+        <div className="rpg-card p-6 parchment-border flex flex-col">
+          <h3 className="text-sm font-bold text-[var(--gold-light)] mb-4 flex items-center gap-2 border-b border-[var(--gold)]/20 pb-2">
+            <Crown size={16} />
+            今月のトップ冒険者
+          </h3>
+
+          <div className="flex-1 space-y-3">
+            {leaderboard.length === 0 ? (
+              <div className="h-full flex flex-center items-center justify-center text-[#cfbeaf] text-xs opacity-40 py-12">
+                まだデータがありません
+              </div>
+            ) : (
+              leaderboard.slice(0, 5).map((entry, i) => {
+                const isFirst = i === 0;
+                const isSecond = i === 1;
+                const isThird = i === 2;
+                const isMe = entry.discord_id === member.id;
+
+                return (
+                  <motion.div
+                    key={entry.discord_id}
+                    initial={{ x: 20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: i * 0.1 }}
+                    className={`relative flex items-center gap-3 p-3 rounded-sm border-2 transition-all ${
+                      isMe ? 'bg-[var(--gold)]/10 border-[var(--gold)]' : 'bg-black/20 border-white/5'
+                    }`}
+                  >
+                    {/* 順位アイコン */}
+                    <div className="w-8 flex-shrink-0 flex justify-center">
+                      {isFirst ? <Crown className="text-yellow-400" size={20} /> :
+                       isSecond ? <Medal className="text-gray-300" size={18} /> :
+                       isThird ? <Medal className="text-amber-600" size={18} /> :
+                       <span className="text-xs font-rpg text-[#cfbeaf]">{i + 1}</span>}
+                    </div>
+
+                    {/* アバター */}
+                    {entry.avatar_url ? (
+                      <img src={entry.avatar_url} alt="" className="w-8 h-8 rounded-full border border-white/10" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px]">?</div>
+                    )}
+
+                    {/* 名前 */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold truncate text-[#dfd8c8]">
+                        {entry.display_name}
+                        {isMe && <span className="ml-2 text-[10px] bg-[var(--gold)] text-black px-1 rounded-sm">YOU</span>}
+                      </div>
+                    </div>
+
+                    {/* カウント */}
+                    <div className="text-right">
+                      <div className="font-rpg text-[var(--gold)] font-bold">{entry.monthly_checkin_count}</div>
+                      <div className="text-[10px] text-[#cfbeaf]">pts</div>
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+          </div>
+          
+          <div className="mt-4 pt-2 border-t border-[var(--gold)]/10 text-center">
+            <p className="text-[10px] text-[#cfbeaf]">
+              ※ 上位3名には月末に特別な称号や特典が授与されます
+            </p>
+          </div>
+        </div>
       </div>
     </section>
   );
 }
-

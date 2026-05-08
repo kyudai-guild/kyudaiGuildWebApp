@@ -32,20 +32,24 @@ export async function POST(req: NextRequest) {
 
   const discordId = (session.user as any).id;
   const body = await req.json();
-  const { display_name, tags, avatar_url, last_check_in_date } = body;
+  const { display_name, tags, avatar_url, last_check_in_date, monthly_checkin_count, checkin_month } = body;
 
   const supabase = createAdminClient();
 
+  const upsertData: Record<string, unknown> = {
+    discord_id: discordId,
+    display_name: display_name || session.user.name,
+    tags: tags || [],
+    avatar_url: avatar_url || session.user.image,
+    updated_at: new Date().toISOString(),
+  };
+  if (last_check_in_date !== undefined) upsertData.last_check_in_date = last_check_in_date;
+  if (monthly_checkin_count !== undefined) upsertData.monthly_checkin_count = monthly_checkin_count;
+  if (checkin_month !== undefined) upsertData.checkin_month = checkin_month;
+
   const { data, error } = await supabase
     .from('member_profiles')
-    .upsert({
-      discord_id: discordId,
-      display_name: display_name || session.user.name,
-      tags: tags || [],
-      avatar_url: avatar_url || session.user.image,
-      last_check_in_date: last_check_in_date,
-      updated_at: new Date().toISOString(),
-    })
+    .upsert(upsertData)
     .select()
     .single();
 

@@ -1,12 +1,12 @@
 'use client';
 
 import { useGuild } from '@/contexts/GuildContext';
-import { QrCode, Sword, Bell, LogIn, LogOut } from 'lucide-react';
+import { Sword, Bell, LogIn, LogOut, Wifi } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { signIn, signOut, useSession } from 'next-auth/react';
 
 export default function Header() {
-  const { setQrScannerOpen, stamps, isLoggedIn } = useGuild();
+  const { stamps, isLoggedIn, autoCheckInEnabled, setAutoCheckInEnabled, isAtBase } = useGuild();
   const { data: session } = useSession();
   const stampCount = stamps.filter(Boolean).length;
 
@@ -58,6 +58,35 @@ export default function Header() {
             </motion.div>
           )}
 
+          {/* Wi-Fi自動チェックイン設定 */}
+          {isLoggedIn && (
+            <button
+              onClick={() => setAutoCheckInEnabled(!autoCheckInEnabled)}
+              className={`relative w-9 h-9 border-2 flex items-center justify-center transition-all duration-300 shadow-[inset_2px_2px_0_rgba(0,0,0,0.15)] ${
+                !autoCheckInEnabled
+                  ? 'bg-[var(--bg-base)] border-[var(--border-outer)] text-[var(--gold-dark)] opacity-40 hover:opacity-100'
+                  : isAtBase
+                  ? 'bg-green-700 border-green-400 text-white'
+                  : 'bg-[var(--gold-dark)] border-[var(--gold-light)] text-white'
+              }`}
+              title={
+                !autoCheckInEnabled
+                  ? 'Wi-Fi自動チェックイン: OFF（クリックで有効化）'
+                  : isAtBase
+                  ? '🏠 拠点のWi-Fi検出中！自動チェックイン有効'
+                  : '📡 拠点Wi-Fi外 — 拠点に到着すると自動チェックイン'
+              }
+            >
+              <Wifi size={16} />
+              {autoCheckInEnabled && (
+                <motion.span
+                  layoutId="wifi-active"
+                  className={`absolute -top-1 -right-1 w-2.5 h-2.5 border-2 border-[var(--bg-card)] rounded-full ${isAtBase ? 'bg-green-400' : 'bg-yellow-400'}`}
+                />
+              )}
+            </button>
+          )}
+
           {/* 通知ベル */}
           <button
             id="header-notification-btn"
@@ -66,26 +95,6 @@ export default function Header() {
           >
             <Bell size={17} />
           </button>
-
-          {/* QRスキャナーボタン */}
-          <motion.button
-            id="header-qr-btn"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setQrScannerOpen(true)}
-            className={`flex items-center gap-2 px-4 py-2 font-bold text-sm transition-colors border-2 shadow-[2px_2px_0_rgba(0,0,0,0.2)] ${
-              isLoggedIn
-                ? 'bg-[var(--bg-base)] border-[var(--border-outer)] text-[var(--gold-light)] hover:bg-[var(--border-inner)]'
-                : 'bg-[var(--rank-adventurer)] border-[#000] text-white'
-            }`}
-            style={!isLoggedIn ? { textShadow: '1px 1px 0 #000' } : {}}
-            aria-label="QRスキャン"
-          >
-            <QrCode size={16} />
-            <span className="hidden sm:inline">
-              {isLoggedIn ? 'スキャン済' : '読込・登録'}
-            </span>
-          </motion.button>
         </div>
       </div>
     </header>

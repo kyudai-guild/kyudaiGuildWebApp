@@ -41,19 +41,31 @@ export interface Quest {
   link?: string;
 }
 
+export interface LeaderboardEntry {
+  discord_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  monthly_checkin_count: number;
+}
+
 export interface GuildState {
   member: Member;
-  stamps: boolean[]; // 10スタンプ分
+  stamps: boolean[]; // 10スタンプ分（ガチャ用 TODO: 後で復活）
   isLoggedIn: boolean;
   gachaAvailable: boolean;
   quests: Quest[];
-  qrScannerOpen: boolean;
-  setQrScannerOpen: (open: boolean) => void;
+  monthlyCheckInCount: number; // 今月の拠点チェックイン回数
+  checkinMonth: string;        // 'YYYY-MM' 形式
   addStamp: () => void;
   processBaseCheckIn: () => { success: boolean; message: string };
   completeQuest: (id: string) => void;
   spinGacha: () => GachaResult | null;
-  updateProfile: (data: { name?: string; tags?: string[]; last_check_in_date?: string }) => Promise<void>;
+  updateProfile: (data: { name?: string; tags?: string[]; last_check_in_date?: string; monthly_checkin_count?: number; checkin_month?: string }) => Promise<void>;
+  autoCheckInEnabled: boolean;
+  setAutoCheckInEnabled: (enabled: boolean) => void;
+  isAtBase: boolean;
+  leaderboard: LeaderboardEntry[];
+  fetchLeaderboard: () => Promise<void>;
 }
 
 export interface GachaResult {
@@ -86,57 +98,7 @@ const INITIAL_MEMBER: Member = {
   ],
 };
 
-const INITIAL_QUESTS: Quest[] = [
-  {
-    id: 'q-001',
-    title: 'ギルドの掲示板を確認せよ',
-    description: '毎週の告知やイベント情報をチェックしよう',
-    reward: 'ギルドポイント×50',
-    difficulty: 'E',
-    category: 'みつける',
-    completed: false,
-    link: 'https://discord.com/channels/1492770006994522282/1497872024171708526',
-  },
-  {
-    id: 'q-002',
-    title: '新しい仲間に話しかけよ',
-    description: '今月入会したメンバーと交流しよう',
-    reward: '「交友家」称号',
-    difficulty: 'D',
-    category: 'つながる',
-    completed: false,
-    link: 'https://discord.com/channels/1492770006994522282/1497872024171708526',
-  },
-  {
-    id: 'q-003',
-    title: 'スキル講習会に参加せよ',
-    description: '動画編集 or コーディングのワークショップに参加',
-    reward: 'スキルポイント×100',
-    difficulty: 'C',
-    category: 'たかめる',
-    completed: true,
-  },
-  {
-    id: 'q-004',
-    title: '外部コンテストに挑戦せよ',
-    description: 'ハッカソンやデザインコンテストに参加する',
-    reward: '「挑戦者」称号 + ギルドポイント×300',
-    difficulty: 'B',
-    category: 'ひらく',
-    completed: false,
-    link: 'https://discord.com/channels/1492770006994522282/1497872024171708526',
-  },
-  {
-    id: 'q-005',
-    title: 'ナレッジを共有せよ',
-    description: '勉強したことをLT（ライトニングトーク）で発表',
-    reward: '「語り部」称号',
-    difficulty: 'C',
-    category: 'つむぐ',
-    completed: false,
-    link: 'https://discord.com/channels/1492770006994522282/1497872024171708526',
-  },
-];
+const INITIAL_QUESTS: Quest[] = [];
 
 const GACHA_TABLE: GachaResult[] = [
   { type: 'drink', label: 'ドリンク割引券', description: '学内カフェで使える10%割引券', rarity: 'common' },
@@ -158,8 +120,15 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [gachaAvailable, setGachaAvailable] = useState(false);
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
-  const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const [lastBaseCheckIn, setLastBaseCheckIn] = useState<string | null>(null);
+  const [autoCheckInEnabled, setAutoCheckInEnabled] = useState(false);
+  const [isAtBase, setIsAtBase] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [monthlyCheckInCount, setMonthlyCheckInCount] = useState(0);
+  const [checkinMonth, setCheckinMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   const { data: session } = useSession();
 
@@ -211,6 +180,22 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
         if (profile?.last_check_in_date) {
           setLastBaseCheckIn(profile.last_check_in_date);
         }
+
+        // 月次チェックイン回数を復元（月が変わっていたらリセット）
+        const currentMonth = (() => {
+          const now = new Date();
+          return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        })();
+        if (profile?.checkin_month === currentMonth) {
+          setMonthlyCheckInCount(profile.monthly_checkin_count || 0);
+          setCheckinMonth(currentMonth);
+        } else {
+          // 月が変わっていたらリセット
+          setMonthlyCheckInCount(0);
+          setCheckinMonth(currentMonth);
+        }
+
+        fetchLeaderboard();
       }).catch(err => {
         console.error('Data fetch error:', err);
         setMember(updatedMember);
@@ -220,7 +205,28 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session]);
 
+  // Load autoCheckInEnabled from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('guild_auto_checkin');
+    if (saved === 'true') setAutoCheckInEnabled(true);
+  }, []);
 
+  // Save to localStorage
+  useEffect(() => {
+    localStorage.setItem('guild_auto_checkin', autoCheckInEnabled.toString());
+  }, [autoCheckInEnabled]);
+
+  const fetchLeaderboard = useCallback(async () => {
+    try {
+      const res = await fetch('/api/member/leaderboard');
+      if (res.ok) {
+        const data = await res.json();
+        setLeaderboard(data);
+      }
+    } catch (err) {
+      console.error('Leaderboard fetch error:', err);
+    }
+  }, []);
 
   const addStamp = useCallback(() => {
     setStamps((prev) => {
@@ -234,7 +240,7 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
     setGachaAvailable(true);
   }, []);
 
-  const updateProfile = useCallback(async (data: { name?: string; tags?: string[]; last_check_in_date?: string }) => {
+  const updateProfile = useCallback(async (data: { name?: string; tags?: string[]; last_check_in_date?: string; monthly_checkin_count?: number; checkin_month?: string }) => {
     try {
       const res = await fetch('/api/profile', {
         method: 'POST',
@@ -242,7 +248,9 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({
           display_name: data.name,
           tags: data.tags,
-          last_check_in_date: data.last_check_in_date
+          last_check_in_date: data.last_check_in_date,
+          monthly_checkin_count: data.monthly_checkin_count,
+          checkin_month: data.checkin_month,
         }),
       });
       if (res.ok) {
@@ -271,9 +279,20 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
 
     addStamp();
     setLastBaseCheckIn(today);
-    
-    // DBにチェックイン日を保存
-    updateProfile({ last_check_in_date: today });
+
+    // 月次カウントアップ
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const newCount = checkinMonth === currentMonth ? monthlyCheckInCount + 1 : 1;
+    setMonthlyCheckInCount(newCount);
+    setCheckinMonth(currentMonth);
+
+    // DBに保存
+    updateProfile({
+      last_check_in_date: today,
+      monthly_checkin_count: newCount,
+      checkin_month: currentMonth,
+    });
     
     // Discordに通知を飛ばす
     fetch('/api/notify', {
@@ -285,8 +304,75 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
       }),
     }).catch(err => console.error('Notify error:', err));
     
+    // ランキングを更新
+    fetchLeaderboard();
+    
     return { success: true, message: '拠点到着！' };
-  }, [isLoggedIn, member.name, addStamp, lastBaseCheckIn, updateProfile]);
+  }, [isLoggedIn, member.name, addStamp, lastBaseCheckIn, updateProfile, monthlyCheckInCount, checkinMonth, fetchLeaderboard]);
+
+  // Network listener for auto check-in (IP prefix based)
+  useEffect(() => {
+    const ipPrefix = process.env.NEXT_PUBLIC_BASE_WIFI_IP_PREFIX || '';
+
+    const checkNetworkLocation = async () => {
+      if (!navigator.onLine) {
+        setIsAtBase(false);
+        return false;
+      }
+
+      // IPプレフィックスが未設定の場合はチェックをスキップ（常に拠点と見なす）
+      if (!ipPrefix.trim()) {
+        setIsAtBase(true);
+        return true;
+      }
+
+      try {
+        const res = await fetch('https://api.ipify.org?format=json');
+        const { ip } = await res.json();
+        console.log('Current public IP:', ip);
+
+        // カンマ区切りで複数プレフィックスに対応
+        const prefixes = ipPrefix.split(',').map(p => p.trim()).filter(Boolean);
+        const atBase = prefixes.some(prefix => ip.startsWith(prefix));
+        setIsAtBase(atBase);
+        return atBase;
+      } catch (err) {
+        console.error('IP check failed:', err);
+        setIsAtBase(false);
+        return false;
+      }
+    };
+
+    const tryAutoCheckIn = async () => {
+      if (!autoCheckInEnabled || !isLoggedIn || member.name === '冒険者') return;
+      const atBase = await checkNetworkLocation();
+      if (atBase) {
+        console.log('At base Wi-Fi — attempting auto check-in...');
+        processBaseCheckIn();
+      } else {
+        console.log('Not at base Wi-Fi — skipping auto check-in.');
+      }
+    };
+
+    // 起動時チェック（セッション安定を待つ）
+    const timer = setTimeout(() => {
+      checkNetworkLocation();
+      if (autoCheckInEnabled && isLoggedIn && member.name !== '冒険者') {
+        tryAutoCheckIn();
+      }
+    }, 3000);
+
+    // オンライン復帰時
+    const onOnline = () => tryAutoCheckIn();
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', () => setIsAtBase(false));
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', () => setIsAtBase(false));
+    };
+  }, [autoCheckInEnabled, isLoggedIn, member.name, processBaseCheckIn]);
 
   const completeQuest = useCallback((id: string) => {
     setQuests((prev) =>
@@ -316,14 +402,19 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
         isLoggedIn,
         gachaAvailable,
         quests,
-        qrScannerOpen,
-        setQrScannerOpen,
+        monthlyCheckInCount,
+        checkinMonth,
         addStamp,
 
         processBaseCheckIn,
         completeQuest,
         spinGacha,
         updateProfile,
+        autoCheckInEnabled,
+        setAutoCheckInEnabled,
+        isAtBase,
+        leaderboard,
+        fetchLeaderboard,
       }}
     >
       {children}

@@ -5,8 +5,7 @@ import { Sword, Users, Star, Zap } from 'lucide-react';
 import MemberCard from '@/components/member/MemberCard';
 import QuestBoard from '@/components/quest/QuestBoard';
 import StampCard from '@/components/stamp/StampCard';
-import Gacha from '@/components/gacha/Gacha';
-import QRScanner from '@/components/qr/QRScanner';
+// import Gacha from '@/components/gacha/Gacha'; // TODO: 後で復活
 import { useGuild } from '@/contexts/GuildContext';
 
 /* ============================================================
@@ -141,9 +140,6 @@ function MemberSection() {
 export default function Home() {
   return (
     <>
-      {/* QRスキャナーモーダル */}
-      <QRScanner />
-
       {/* ヒーロー */}
       <HeroSection />
 
@@ -153,10 +149,10 @@ export default function Home() {
       {/* クエストボード */}
       <QuestBoard />
 
-      {/* スタンプカード + ガチャ (横並び on desktop) */}
-      <div className="max-w-5xl mx-auto px-4 grid md:grid-cols-2 gap-6 pb-20">
+      {/* スタンプカード */}
+      <div className="max-w-5xl mx-auto px-4 pb-20">
         <StampCard />
-        <Gacha />
+        {/* <Gacha /> TODO: ガチャは後で復活 */}
       </div>
 
       {/* フッター */}
