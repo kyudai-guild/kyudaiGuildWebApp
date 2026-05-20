@@ -464,6 +464,15 @@ function EditView({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false);
   const config = member.isVisitor ? VISITOR_CONFIG : RANK_CONFIG[member.rank];
 
+  // Esc キーで閉じる
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
   const handleSave = async () => {
     setSaving(true);
     await updateProfile({ name, tags });
@@ -490,10 +499,20 @@ function EditView({ onClose }: { onClose: () => void }) {
         border: `1px solid ${config.borderColor}`,
         boxShadow: `0 0 30px ${config.glowColor}`,
       }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-profile-title"
     >
       <div className="flex justify-between items-center mb-4 border-b border-[rgba(139,115,85,0.3)] pb-2">
-        <h3 className="font-rpg text-xs text-[var(--gold-light)] uppercase tracking-widest">Character Profile</h3>
-        <button onClick={onClose} className="text-[#8b7355] hover:text-[#cfbeaf]"><X size={16} /></button>
+        <h3 id="edit-profile-title" className="font-rpg text-xs text-[var(--gold-light)] uppercase tracking-widest">Character Profile</h3>
+        <button
+          onClick={onClose}
+          className="text-[#8b7355] hover:text-[#cfbeaf]"
+          aria-label="プロフィール編集を閉じる"
+          type="button"
+        >
+          <X size={16} aria-hidden="true" />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto pr-1 space-y-4 scrollbar-hide">
@@ -586,14 +605,12 @@ export default function MemberCard() {
         </button>
       )}
 
-      {/* カード本体 */}
+      {/* カード本体 — 内部にインタラクティブ要素を含むため、外側はクリック領域に留めて role="button" は付けない（キーボード操作は下部のフリップインジケーターで提供） */}
       <div
         className="w-full cursor-pointer select-none"
         onClick={() => !isEditing && setIsFlipped((f) => !f)}
         style={{ perspective: '1000px' }}
         id="member-card"
-        role="button"
-        aria-label="会員証をフリップ"
       >
         <motion.div
           className="relative w-full h-[380px] md:h-[280px]"
