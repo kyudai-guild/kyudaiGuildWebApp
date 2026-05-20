@@ -52,11 +52,16 @@ function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-[#cfbeaf] text-base sm:text-lg mb-10 leading-relaxed font-bold"
+          className="text-[#cfbeaf] text-sm sm:text-lg mb-10 leading-relaxed font-bold break-words"
           style={{ textShadow: '2px 2px 0 rgba(0,0,0,0.8)' }}
         >
-          みつける・たかめる・つながる・つむぐ・ひらく<br />
-          <span className="text-[var(--gold-light)] bg-[var(--border-outer)] inline-block px-3 py-1 mt-3 border-2 border-[var(--border-shade)] shadow-[2px_2px_0_rgba(0,0,0,0.5)] rounded-sm text-sm font-normal">
+          <span className="inline-block">みつける・</span>
+          <span className="inline-block">たかめる・</span>
+          <span className="inline-block">つながる・</span>
+          <span className="inline-block">つむぐ・</span>
+          <span className="inline-block">ひらく</span>
+          <br />
+          <span className="text-[var(--gold-light)] bg-[var(--border-outer)] inline-block px-3 py-1 mt-3 border-2 border-[var(--border-shade)] shadow-[2px_2px_0_rgba(0,0,0,0.5)] rounded-sm text-xs sm:text-sm font-normal max-w-full">
             汝、大志を抱く者よ。この扉は常に開かれている。
           </span>
         </motion.p>
