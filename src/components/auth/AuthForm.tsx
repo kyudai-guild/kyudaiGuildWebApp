@@ -17,8 +17,9 @@ export default function AuthForm() {
   const router = useRouter();
   const supabase = createClient();
 
-  const validateEmail = (email: string) => {
-    return email.endsWith('@s.kyushu-u.ac.jp') || email.endsWith('@m.kyushu-u.ac.jp');
+  const validateEmail = (emailStr: string) => {
+    const cleanEmail = emailStr.trim().toLowerCase();
+    return cleanEmail.endsWith('@s.kyushu-u.ac.jp') || cleanEmail.endsWith('@m.kyushu-u.ac.jp');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,7 +27,9 @@ export default function AuthForm() {
     setError(null);
     setMessage(null);
 
-    if (!validateEmail(email)) {
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!validateEmail(cleanEmail)) {
       setError('九大のメールアドレス（@s.kyushu-u.ac.jp または @m.kyushu-u.ac.jp）のみ登録可能です。');
       return;
     }
@@ -36,7 +39,7 @@ export default function AuthForm() {
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: cleanEmail,
           password,
         });
         if (error) throw error;
@@ -49,7 +52,7 @@ export default function AuthForm() {
           return;
         }
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: cleanEmail,
           password,
           options: {
             data: {
