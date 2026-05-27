@@ -11,10 +11,11 @@ function formatMonth(yyyymm: string) {
 }
 
 export default function StampCard() {
-  const { monthlyCheckInCount, checkinMonth, isLoggedIn, leaderboard, member } = useGuild();
+  const { monthlyCheckInCount, checkinMonth, isLoggedIn, member } = useGuild();
 
-  // 自分の順位を見つける
-  const myRank = leaderboard.findIndex(entry => entry.discord_id === member.id) + 1;
+  // リーダーボードは現在改修中
+  const myRank = 0;
+  const leaderboard: any[] = [];
 
   return (
     <section id="stamp-card" className="w-full max-w-5xl mx-auto px-4 py-12">
@@ -85,11 +86,11 @@ export default function StampCard() {
                 const isFirst = i === 0;
                 const isSecond = i === 1;
                 const isThird = i === 2;
-                const isMe = entry.discord_id === member.id;
+                const isMe = entry.id === member.id;
 
                 return (
                   <motion.div
-                    key={entry.discord_id}
+                    key={entry.id}
                     initial={{ x: 20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     transition={{ delay: i * 0.1 }}

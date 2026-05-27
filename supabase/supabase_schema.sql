@@ -1,8 +1,42 @@
+-- ユーザープロフィール（Supabase Auth UIDに紐づく）
+create table profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  display_name text,
+  email text not null,
+  tags text[] default '{}',
+  created_at timestamptz default now()
+);
+
+-- クエスト（ユーザーが作成）
+create table quests (
+  id uuid primary key default gen_random_uuid(),
+  creator_id uuid references profiles(id) on delete cascade,
+  title text not null,
+  description text,
+  category text not null, -- 'みつける','たかめる','つながる','つむぐ','ひらく'
+  reward text,
+  skill_name text not null, -- 紐づけるスキル名
+  difficulty text default 'E',
+  deadline date,
+  status text default 'open', -- 'open', 'completed', 'cancelled'
+  created_at timestamptz default now()
+);
+
+-- スキルレベル（ユーザーごとのスキル別レベル）
+create table skill_levels (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles(id) on delete cascade,
+  skill_name text not null,
+  level int default 0,
+  updated_at timestamptz default now(),
+  unique(user_id, skill_name)
+);
+
 -- クエスト完了記録テーブル
 create table quest_completions (
   id uuid primary key default gen_random_uuid(),
-  member_discord_id text not null,
-  member_name text not null,
+  user_id uuid references profiles(id) on delete cascade,
+  quest_id uuid references quests(id) on delete cascade,
   quest_title text not null,
   quest_description text,
   skill_name text not null,
@@ -25,15 +59,34 @@ create table evaluations (
 );
 
 -- RLS（Row Level Security）を有効化
+alter table profiles enable row level security;
+alter table quests enable row level security;
+alter table skill_levels enable row level security;
 alter table quest_completions enable row level security;
 alter table evaluations enable row level security;
 
--- 誰でも読める（公開プロフィール用）
+-- profiles
+create policy "profiles_select" on profiles for select using (true);
+create policy "profiles_update" on profiles for update using (auth.uid() = id);
+create policy "profiles_insert" on profiles for insert with check (auth.uid() = id);
+
+-- quests
+create policy "quests_select" on quests for select using (true);
+create policy "quests_insert" on quests for insert with check (auth.uid() = creator_id);
+create policy "quests_update" on quests for update using (auth.uid() = creator_id);
+
+-- skill_levels
+create policy "skill_levels_select" on skill_levels for select using (true);
+-- ※insert/updateはサーバーサイドAPIからadmin経由で行うため、ユーザーには許可しないか適宜調整。
+-- 一旦はAPI側からservice_role keyで更新すると想定。
+create policy "skill_levels_insert" on skill_levels for insert with check (auth.uid() = user_id);
+create policy "skill_levels_update" on skill_levels for update using (auth.uid() = user_id);
+
+-- quest_completions
 create policy "quest_completions_select" on quest_completions for select using (true);
--- 認証済みユーザーのみ書き込み可
-create policy "quest_completions_insert" on quest_completions for insert with check (true);
+create policy "quest_completions_insert" on quest_completions for insert with check (auth.uid() = user_id);
 create policy "quest_completions_update" on quest_completions for update using (true);
 
--- 評価は誰でも読める・書ける（ログイン不要）
+-- evaluations
 create policy "evaluations_select" on evaluations for select using (true);
 create policy "evaluations_insert" on evaluations for insert with check (true);

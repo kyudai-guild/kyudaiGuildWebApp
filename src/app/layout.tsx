@@ -3,7 +3,6 @@ import { Noto_Sans_JP, Cinzel } from 'next/font/google';
 import './globals.css';
 import { GuildProvider } from '@/contexts/GuildContext';
 import Header from '@/components/ui/Header';
-import NextAuthProvider from '@/components/providers/NextAuthProvider';
 
 const notoSansJP = Noto_Sans_JP({
   variable: '--font-noto-sans',
@@ -36,12 +35,10 @@ export default function RootLayout({
       className={`${notoSansJP.variable} ${cinzel.variable}`}
     >
       <body className="min-h-screen bg-[var(--bg-base)] text-slate-200 antialiased">
-        <NextAuthProvider>
-          <GuildProvider>
-            <Header />
-            <main className="pt-16">{children}</main>
-          </GuildProvider>
-        </NextAuthProvider>
+        <GuildProvider>
+          <Header />
+          <main className="pt-16">{children}</main>
+        </GuildProvider>
       </body>
     </html>
   );
