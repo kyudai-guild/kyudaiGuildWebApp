@@ -66,30 +66,28 @@ alter table quest_completions enable row level security;
 alter table evaluations enable row level security;
 
 -- profiles
-create policy "profiles_select" on profiles for select using (true);
+create policy "profiles_select" on profiles for select using (auth.role() = 'authenticated');
 create policy "profiles_update" on profiles for update using (auth.uid() = id);
 create policy "profiles_insert" on profiles for insert with check (auth.uid() = id);
 
 -- quests
-create policy "quests_select" on quests for select using (true);
+create policy "quests_select" on quests for select using (auth.role() = 'authenticated');
 create policy "quests_insert" on quests for insert with check (auth.uid() = creator_id);
 create policy "quests_update" on quests for update using (auth.uid() = creator_id);
 
 -- skill_levels
-create policy "skill_levels_select" on skill_levels for select using (true);
--- ※insert/updateはサーバーサイドAPIからadmin経由で行うため、ユーザーには許可しないか適宜調整。
--- 一旦はAPI側からservice_role keyで更新すると想定。
+create policy "skill_levels_select" on skill_levels for select using (auth.role() = 'authenticated');
 create policy "skill_levels_insert" on skill_levels for insert with check (auth.uid() = user_id);
 create policy "skill_levels_update" on skill_levels for update using (auth.uid() = user_id);
 
 -- quest_completions
-create policy "quest_completions_select" on quest_completions for select using (true);
+create policy "quest_completions_select" on quest_completions for select using (auth.role() = 'authenticated');
 create policy "quest_completions_insert" on quest_completions for insert with check (auth.uid() = user_id);
-create policy "quest_completions_update" on quest_completions for update using (true);
+-- update はサーバーサイド(Admin権限)から行うため、クライアント(ユーザー)からの直接更新は許可しない
 
 -- evaluations
-create policy "evaluations_select" on evaluations for select using (true);
-create policy "evaluations_insert" on evaluations for insert with check (true);
+create policy "evaluations_select" on evaluations for select using (auth.role() = 'authenticated');
+-- insert はサーバーサイド(Admin権限)から行うため、クライアント(ユーザー)からの直接追加は許可しない
 
 -- 自動プロフィール作成トリガー
 create or replace function public.handle_new_user()

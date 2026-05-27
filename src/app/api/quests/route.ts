@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
     if (insertError) {
       console.error('Error inserting quest:', insertError);
-      return NextResponse.json({ error: 'Failed to create quest' }, { status: 500 });
+      return NextResponse.json({ error: `DBエラー: ${insertError.message} (${insertError.details || ''})` }, { status: 500 });
     }
 
     return NextResponse.json(quest);
