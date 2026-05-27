@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 // GET: トークンからクエスト情報を取得
 export async function GET(
   _req: NextRequest,

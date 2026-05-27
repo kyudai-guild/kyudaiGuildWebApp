@@ -103,30 +103,8 @@ function MemberSection() {
             </h2>
             <p className="text-[#ebdacf] font-bold text-sm leading-relaxed mb-6">
               カードをタップすると裏面に習得スキルが表示されます。
-              日々の活動を通じて、自分のスキルを磨いていきましょう！
+              日々の活動やクエストを通じて、自分のスキルレベルを上げていきましょう！
             </p>
-
-            {/* 役職説明 */}
-            <div className="grid grid-cols-2 gap-3 text-sm mb-6">
-              {[
-                { rank: '勇者', color: '#ef4444', desc: '果敢に挑む挑戦者' },
-                { rank: '魔術師', color: '#a855f7', desc: '知識を力に変える者' },
-                { rank: '学者', color: '#3b82f6', desc: '知を求め探究する者' },
-                { rank: '画家', color: '#f97316', desc: '世界を彩る表現者' },
-                { rank: '詩人', color: '#10b981', desc: '物語を紡ぐ表現者' },
-                { rank: '賢者', color: '#06b6d4', desc: '英知を授け導く者' },
-              ].map((r) => (
-                <div
-                  key={r.rank}
-                  className="flex items-start gap-2 p-3 bg-[var(--bg-base)] border-2 border-[var(--border-shade)] shadow-[inset_2px_2px_0_rgba(0,0,0,0.1),2px_2px_0_rgba(0,0,0,0.1)]"
-                >
-                  <span className="font-bold text-[10px] mt-0.5 px-2 py-0.5 text-[#fff] border-[1px] border-[#000] whitespace-nowrap" style={{ backgroundColor: r.color, textShadow: '1px 1px 0 #000' }}>
-                    {r.rank}
-                  </span>
-                  <span className="text-[10px] text-[#ebdacf] font-bold mt-0.5">{r.desc}</span>
-                </div>
-              ))}
-            </div>
           </motion.div>
         </div>
       </div>

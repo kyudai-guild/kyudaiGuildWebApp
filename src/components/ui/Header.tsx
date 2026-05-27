@@ -3,12 +3,20 @@
 import { useGuild } from '@/contexts/GuildContext';
 import { Sword, Bell, LogIn, LogOut, Wifi } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { signIn, signOut, useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase-client';
 
 export default function Header() {
   const { stamps, isLoggedIn, autoCheckInEnabled, setAutoCheckInEnabled, isAtBase } = useGuild();
-  const { data: session } = useSession();
+  const router = useRouter();
+  const supabase = createClient();
   const stampCount = stamps.filter(Boolean).length;
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.refresh();
+    window.location.reload();
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-16">
@@ -27,10 +35,10 @@ export default function Header() {
 
         {/* 右側コントロール */}
         <div className="flex items-center gap-3">
-          {/* Discordログインボタン */}
-          {session ? (
+          {/* ログイン/ログアウトボタン */}
+          {isLoggedIn ? (
             <button
-              onClick={() => signOut()}
+              onClick={handleSignOut}
               className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white transition-colors"
             >
               <LogOut size={14} />
@@ -38,11 +46,11 @@ export default function Header() {
             </button>
           ) : (
             <button
-              onClick={() => signIn('discord')}
-              className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold bg-[#5865F2] text-white hover:bg-[#4752C4] transition-colors border-2 border-[#4752C4] shadow-[2px_2px_0_rgba(0,0,0,0.3)]"
+              onClick={() => router.push('/auth')}
+              className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold bg-[var(--gold-dark)] text-white hover:brightness-110 transition-colors shadow-[2px_2px_0_rgba(0,0,0,0.3)]"
             >
               <LogIn size={14} />
-              <span className="hidden sm:inline">Discordで入室</span>
+              <span className="hidden sm:inline">ギルドへ入室</span>
             </button>
           )}
 
