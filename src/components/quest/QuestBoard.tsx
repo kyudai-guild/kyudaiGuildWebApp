@@ -175,50 +175,73 @@ const QuestBoard: React.FC = () => {
   return (
     <section id="quest-board">
       {/* Section Header */}
-      <div className="mb-8">
+      <div style={{ marginBottom: '2rem' }}>
         <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
           Quest Board
         </span>
-        <div className="flex items-end justify-between gap-4">
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '1rem' }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '0.02em' }}>
             クエスト掲示板
           </h2>
           {isLoggedIn && (
             <button
               onClick={() => setModalOpen(true)}
-              className="flex items-center gap-1.5 text-sm font-semibold px-5 py-2.5 rounded-full transition-all hover:-translate-y-px shrink-0"
-              style={{ background: 'var(--bg-dark)', color: 'var(--color-text-inverse)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 600, padding: '0.625rem 1.25rem', borderRadius: '9999px', background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', flexShrink: 0, transition: 'background 0.2s, transform 0.2s', cursor: 'pointer' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
             >
               <Plus size={14} />依頼を出す
             </button>
           )}
         </div>
-        <p className="mt-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>すべての公開依頼を閲覧できます</p>
+        <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>すべての公開依頼を閲覧できます</p>
       </div>
 
       {/* Search + Filters */}
-      <div className="mb-8 pb-8 space-y-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
-        <div className="relative max-w-sm">
-          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-tertiary)' }} />
+      <div style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* Search */}
+        <div style={{ position: 'relative', maxWidth: 400 }}>
+          <Search size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--color-text-tertiary)' }} />
           <input
             type="text" placeholder="クエストを探す..."
             value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full text-sm pl-10 pr-4 py-2.5 rounded-xl outline-none transition-all"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
-            onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-primary)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 3px rgba(26,74,58,0.1)'; }}
-            onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
+            style={{
+              width: '100%',
+              fontSize: '0.875rem',
+              paddingLeft: '2.5rem',
+              paddingRight: '1rem',
+              paddingTop: '0.625rem',
+              paddingBottom: '0.625rem',
+              borderRadius: '0.75rem',
+              outline: 'none',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-primary)',
+              transition: 'border-color 0.2s, box-shadow 0.2s',
+            }}
+            onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,74,58,0.1)'; }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
           />
         </div>
-        <div className="flex flex-wrap gap-2">
+        {/* Category Filters */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
           {CATEGORIES.map(cat => (
             <button key={cat} onClick={() => setCategory(cat)}
-              className="px-4 py-1.5 text-sm font-medium rounded-full border transition-all"
-              style={category === cat
-                ? { background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', borderColor: 'var(--bg-dark)' }
-                : { background: 'var(--bg-card)', color: 'var(--color-text-secondary)', borderColor: 'var(--color-border)' }
-              }
+              style={{
+                padding: '0.375rem 1rem',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                borderRadius: '9999px',
+                border: '1px solid',
+                transition: 'all 0.2s',
+                cursor: 'pointer',
+                ...(category === cat
+                  ? { background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', borderColor: 'var(--bg-dark)' }
+                  : { background: 'var(--bg-card)', color: 'var(--color-text-secondary)', borderColor: 'var(--color-border)' }
+                ),
+              }}
+              onMouseEnter={e => { if (category !== cat) { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border-strong)'; (e.currentTarget as HTMLElement).style.background = 'var(--bg-secondary)'; } }}
+              onMouseLeave={e => { if (category !== cat) { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)'; (e.currentTarget as HTMLElement).style.background = 'var(--bg-card)'; } }}
             >{cat}</button>
           ))}
         </div>
@@ -226,20 +249,21 @@ const QuestBoard: React.FC = () => {
 
       {/* Grid */}
       {filtered.length === 0 ? (
-        <div className="text-center py-16 rounded-2xl border border-dashed" style={{ borderColor: 'var(--color-border-strong)' }}>
-          <p className="text-base mb-4" style={{ color: 'var(--color-text-tertiary)' }}>
+        <div style={{ textAlign: 'center', padding: '4rem 2rem', borderRadius: '1rem', border: '1px dashed var(--color-border-strong)' }}>
+          <p style={{ fontSize: '1rem', color: 'var(--color-text-tertiary)', marginBottom: '1rem' }}>
             {approved.length === 0 ? '現在公開中のクエストはありません。' : '条件に合うクエストが見つかりません。'}
           </p>
           {(search || category !== 'すべて') && (
             <button onClick={() => { setSearch(''); setCategory('すべて'); }}
-              className="text-sm font-semibold px-5 py-2 rounded-full border transition-all"
-              style={{ color: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+              style={{ fontSize: '0.875rem', fontWeight: 600, padding: '0.5rem 1.25rem', borderRadius: '9999px', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', cursor: 'pointer', transition: 'all 0.2s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--color-primary)'; (e.currentTarget as HTMLElement).style.color = 'var(--color-text-inverse)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--color-primary)'; }}
             >フィルタをリセット</button>
           )}
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
             {filtered.map((quest, i) => {
               const catStyle = CATEGORY_STYLE[quest.quest_type] || CATEGORY_STYLE['その他'];
               const isFull = quest.application_count >= quest.max_applicants;
@@ -247,9 +271,14 @@ const QuestBoard: React.FC = () => {
                 <article
                   key={quest.id}
                   onClick={() => setSelectedQuest(quest)}
-                  className="animate-fade-in-up rounded-2xl p-5 sm:p-6 cursor-pointer relative overflow-hidden"
+                  className="animate-fade-in-up"
                   style={{
                     animationDelay: `${i * 80}ms`,
+                    borderRadius: '1rem',
+                    padding: '1.25rem 1.5rem',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    overflow: 'hidden',
                     background: 'var(--bg-card)',
                     border: '1px solid var(--color-border)',
                     boxShadow: 'var(--shadow-card)',
@@ -276,45 +305,45 @@ const QuestBoard: React.FC = () => {
                     if (title) title.style.color = 'var(--color-text-primary)';
                   }}
                 >
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full" style={{ color: catStyle.color, background: catStyle.bg }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '9999px', color: catStyle.color, background: catStyle.bg }}>
                       {quest.quest_type}
                     </span>
-                    <span className="text-xs font-medium" style={{ color: isFull ? 'var(--color-text-tertiary)' : catStyle.color }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 500, color: isFull ? 'var(--color-text-tertiary)' : catStyle.color }}>
                       {quest.application_count}/{quest.max_applicants}人
                     </span>
                   </div>
 
-                  <h3 className="card-title text-base font-bold mb-2 leading-snug transition-colors" style={{ color: 'var(--color-text-primary)' }}>
+                  <h3 className="card-title" style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem', lineHeight: 1.4, color: 'var(--color-text-primary)', transition: 'color 0.2s' }}>
                     {quest.title}
                   </h3>
 
-                  <p className="text-sm mb-4 line-clamp-2" style={{ color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+                  <p style={{ fontSize: '0.875rem', marginBottom: '1rem', color: 'var(--color-text-secondary)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                     {quest.description}
                   </p>
 
-                  <div className="flex justify-between items-end pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
                     <div>
-                      <p className="text-[10px] font-medium uppercase tracking-wide mb-0.5" style={{ color: 'var(--color-text-tertiary)' }}>依頼者</p>
-                      <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>{quest.creator?.display_name || '不明'}</p>
+                      <p style={{ fontSize: '0.625rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.125rem', color: 'var(--color-text-tertiary)' }}>依頼者</p>
+                      <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-secondary)' }}>{quest.creator?.display_name || '不明'}</p>
                     </div>
                     {quest.reward && (
-                      <span className="text-sm font-bold" style={{ color: 'var(--color-accent)' }}>{quest.reward}</span>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-accent)' }}>{quest.reward}</span>
                     )}
                   </div>
 
                   {isFull && (
-                    <div className="mt-3 py-1.5 text-center text-xs font-medium rounded-lg" style={{ background: 'var(--bg-secondary)', color: 'var(--color-text-tertiary)' }}>
+                    <div style={{ marginTop: '0.75rem', padding: '0.375rem', textAlign: 'center', fontSize: '0.75rem', fontWeight: 500, borderRadius: '0.5rem', background: 'var(--bg-secondary)', color: 'var(--color-text-tertiary)' }}>
                       定員に達しました
                     </div>
                   )}
 
-                  <div className="hover-line absolute bottom-0 left-0 right-0 h-[3px] rounded-b-2xl" style={{ background: catStyle.color, transform: 'scaleX(0)', transformOrigin: 'left', transition: 'transform 0.5s cubic-bezier(0.4,0,0,1)' }} />
+                  <div className="hover-line" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: catStyle.color, transform: 'scaleX(0)', transformOrigin: 'left', transition: 'transform 0.5s cubic-bezier(0.4,0,0,1)' }} />
                 </article>
               );
             })}
           </div>
-          <p className="mt-6 text-right text-sm font-medium" style={{ color: 'var(--color-text-tertiary)' }}>{filtered.length} 件のクエスト</p>
+          <p style={{ marginTop: '1.5rem', textAlign: 'right', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-tertiary)' }}>{filtered.length} 件のクエスト</p>
         </>
       )}
 
