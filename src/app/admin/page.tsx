@@ -24,9 +24,9 @@ const STATUS: Record<string, { label: string; color: string; bg: string; Icon: a
 
 const S = {
   page: { minHeight: '100vh' } as React.CSSProperties,
-  pageHeader: { background: 'var(--bg-card)', borderBottom: '1px solid var(--color-border)', padding: '1.5rem 2rem', marginBottom: '1.5rem' } as React.CSSProperties,
+  pageHeader: { background: 'var(--bg-card)', borderBottom: '1px solid var(--color-border)', padding: 'clamp(1rem, 4vw, 1.5rem) clamp(1rem, 4vw, 2rem)', marginBottom: '1.5rem' } as React.CSSProperties,
   inner: { maxWidth: 900, margin: '0 auto' } as React.CSSProperties,
-  content: { maxWidth: 900, margin: '0 auto', padding: '0 2rem 3rem' } as React.CSSProperties,
+  content: { maxWidth: 900, margin: '0 auto', padding: '0 clamp(1rem, 4vw, 2rem) 3rem' } as React.CSSProperties,
   backBtn: { display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 500, marginBottom: '1rem', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--color-text-tertiary)', transition: 'color 0.2s' } as React.CSSProperties,
   filterRow: { display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', overflowX: 'auto', paddingBottom: '0.25rem' } as React.CSSProperties,
   stack: { display: 'flex', flexDirection: 'column', gap: '0.75rem' } as React.CSSProperties,

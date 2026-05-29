@@ -27,13 +27,13 @@ const STATUS: Record<string, { label: string; color: string; bg: string; Icon: R
 
 const S = {
   page: { minHeight: '100vh' } as React.CSSProperties,
-  pageHeader: { background: 'var(--bg-card)', borderBottom: '1px solid var(--color-border)', padding: '1.5rem 2rem', marginBottom: '1.5rem' } as React.CSSProperties,
+  pageHeader: { background: 'var(--bg-card)', borderBottom: '1px solid var(--color-border)', padding: 'clamp(1rem, 4vw, 1.5rem) clamp(1rem, 4vw, 2rem)', marginBottom: '1.5rem' } as React.CSSProperties,
   inner: { maxWidth: 900, margin: '0 auto' } as React.CSSProperties,
   backBtn: { display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 500, marginBottom: '1rem', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--color-text-tertiary)', transition: 'color 0.2s' } as React.CSSProperties,
   titleRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' } as React.CSSProperties,
   iconBox: { width: 40, height: 40, borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'var(--bg-dark)' } as React.CSSProperties,
   titleGroup: { display: 'flex', alignItems: 'center', gap: '0.75rem' } as React.CSSProperties,
-  content: { maxWidth: 900, margin: '0 auto', padding: '0 2rem 3rem' } as React.CSSProperties,
+  content: { maxWidth: 900, margin: '0 auto', padding: '0 clamp(1rem, 4vw, 2rem) 3rem' } as React.CSSProperties,
   filterRow: { display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', overflowX: 'auto', paddingBottom: '0.25rem' } as React.CSSProperties,
   alertBanner: { display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' } as React.CSSProperties,
   spinner: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', textAlign: 'center', padding: '5rem 0' } as React.CSSProperties,
