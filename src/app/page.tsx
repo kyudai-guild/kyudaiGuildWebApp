@@ -31,40 +31,42 @@ function MyQuestsBanner() {
   if (!isLoggedIn || !counts || dismissed) return null;
 
   return (
-    <div className="flex items-stretch gap-1 mb-8">
+    <div style={{ display: 'flex', alignItems: 'stretch', gap: '0.25rem', marginBottom: '2rem' }}>
       <button
         onClick={() => router.push('/my-quests')}
-        className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all hover:-translate-y-px"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}
+        style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', textAlign: 'left', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)', cursor: 'pointer', transition: 'transform 0.2s' }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
       >
         <Scroll size={16} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>マイクエストの状況を確認</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>マイクエストの状況を確認</p>
+          <p style={{ fontSize: '0.75rem', marginTop: '0.125rem', color: 'var(--color-text-secondary)' }}>
             {counts.pending > 0 && (
-              <span className="inline-flex items-center gap-1 mr-3">
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginRight: '0.75rem' }}>
                 <Clock size={10} style={{ color: '#d97706' }} />審査中 {counts.pending}件
               </span>
             )}
             {counts.rejected > 0 && (
-              <span className="inline-flex items-center gap-1" style={{ color: '#dc2626' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#dc2626' }}>
                 <XCircle size={10} />リジェクト {counts.rejected}件
               </span>
             )}
           </p>
         </div>
-        <span className="text-xs flex-shrink-0" style={{ color: 'var(--color-text-tertiary)' }}>詳細 →</span>
+        <span style={{ fontSize: '0.75rem', flexShrink: 0, color: 'var(--color-text-tertiary)' }}>詳細 →</span>
       </button>
-      <button onClick={() => setDismissed(true)} aria-label="閉じる"
-        className="px-3 rounded-xl text-sm"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text-tertiary)' }}
+      <button
+        onClick={() => setDismissed(true)}
+        aria-label="閉じる"
+        style={{ padding: '0 0.75rem', borderRadius: '0.75rem', fontSize: '0.875rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text-tertiary)', cursor: 'pointer' }}
       >✕</button>
     </div>
   );
 }
 
 /* ============================================================
-   UserStatus — horizontal panel (replaces MemberCard)
+   UserStatus — horizontal panel
    ============================================================ */
 function UserStatus() {
   const { isLoggedIn, member, updateProfile } = useGuild();
@@ -85,30 +87,40 @@ function UserStatus() {
     } finally { setSaving(false); }
   };
 
+  const panelStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '1.5rem',
+    padding: '1.5rem 2rem',
+    borderRadius: '1rem',
+    marginBottom: '2rem',
+    background: 'var(--bg-card)',
+    border: '1px solid var(--color-border)',
+    boxShadow: 'var(--shadow-card)',
+  };
+
   if (!isLoggedIn) {
     return (
-      <div className="flex items-center justify-between gap-6 px-8 py-6 rounded-2xl mb-8"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}
-      >
-        <div className="flex items-center gap-5">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-dark)' }}>
+      <div style={panelStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{ width: 56, height: 56, borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'var(--bg-dark)' }}>
             <Shield size={24} style={{ color: 'var(--color-accent)' }} />
           </div>
           <div>
-            <h3 className="text-base font-bold mb-0.5" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem', color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>
               ギルドに参加する
             </h3>
-            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
               九大メールアドレスで登録すると、クエストへの応募や依頼の掲示ができます。
             </p>
           </div>
         </div>
         <button
           onClick={() => router.push('/auth')}
-          className="flex items-center gap-2 text-sm font-semibold px-6 py-3 rounded-full flex-shrink-0 transition-all hover:-translate-y-px"
-          style={{ background: 'var(--bg-dark)', color: 'var(--color-text-inverse)' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 600, padding: '0.75rem 1.5rem', borderRadius: '9999px', flexShrink: 0, background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', cursor: 'pointer', transition: 'background 0.2s, transform 0.2s' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
         >
           <LogIn size={14} />ログイン / 新規登録
         </button>
@@ -117,65 +129,61 @@ function UserStatus() {
   }
 
   return (
-    <div className="flex items-center justify-between gap-6 px-8 py-6 rounded-2xl mb-8 animate-fade-in"
-      style={{ background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}
-    >
-      <div className="flex items-center gap-5 flex-1 min-w-0">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl font-extrabold"
-          style={{ background: 'var(--bg-dark)', color: 'var(--color-accent)', fontFamily: 'var(--font-display)' }}
-        >{initial}</div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
+    <div style={panelStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flex: 1, minWidth: 0 }}>
+        <div style={{ width: 56, height: 56, borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '1.25rem', fontWeight: 800, background: 'var(--bg-dark)', color: 'var(--color-accent)', fontFamily: 'var(--font-display)' }}>
+          {initial}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
             {editing ? (
-              <div className="flex items-center gap-2">
-                <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
-                  className="text-base font-semibold px-3 py-1 rounded-lg outline-none"
-                  style={{ border: '1px solid var(--color-primary)', color: 'var(--color-text-primary)', background: 'var(--bg-base)', boxShadow: '0 0 0 3px rgba(26,74,58,0.1)' }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  type="text" value={newName} onChange={e => setNewName(e.target.value)}
+                  style={{ fontSize: '1rem', fontWeight: 600, padding: '0.25rem 0.75rem', borderRadius: '0.5rem', outline: 'none', border: '1px solid var(--color-primary)', color: 'var(--color-text-primary)', background: 'var(--bg-base)', boxShadow: '0 0 0 3px rgba(26,74,58,0.1)' }}
                   autoFocus
                   onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(false); }}
                 />
-                <button onClick={saveEdit} disabled={saving} className="p-1.5 rounded-lg" style={{ color: '#16a34a' }}
+                <button onClick={saveEdit} disabled={saving} style={{ padding: '0.375rem', borderRadius: '0.5rem', color: '#16a34a', cursor: 'pointer' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f0fdf4'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                 ><Check size={14} /></button>
-                <button onClick={() => setEditing(false)} className="p-1.5 rounded-lg" style={{ color: 'var(--color-text-tertiary)' }}
+                <button onClick={() => setEditing(false)} style={{ padding: '0.375rem', borderRadius: '0.5rem', color: 'var(--color-text-tertiary)', cursor: 'pointer' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-secondary)'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                 ><X size={14} /></button>
               </div>
             ) : (
               <>
-                <h3 className="text-xl font-bold truncate" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)', letterSpacing: '0.02em' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)', letterSpacing: '0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {member.name || '名無しの冒険者'}
                 </h3>
-                <button onClick={() => { setNewName(member.name || ''); setEditing(true); }} className="p-1 rounded flex-shrink-0" style={{ color: 'var(--color-text-tertiary)' }}
+                <button onClick={() => { setNewName(member.name || ''); setEditing(true); }} style={{ padding: '0.25rem', borderRadius: '0.25rem', flexShrink: 0, color: 'var(--color-text-tertiary)', cursor: 'pointer' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-primary)'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-tertiary)'; }}
                 ><Edit2 size={12} /></button>
               </>
             )}
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>九州大学</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)' }}>九州大学</span>
             {member.role === 'admin' && (
-              <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full" style={{ background: '#ecfdf5', color: '#059669' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.125rem 0.625rem', borderRadius: '9999px', background: '#ecfdf5', color: '#059669' }}>
                 <Shield size={10} />管理者
               </span>
             )}
             {member.joinDate && (
-              <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
                 {new Date(member.joinDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short' })}参加
               </span>
             )}
           </div>
         </div>
       </div>
-
       {member.tags && member.tags.length > 0 && (
-        <div className="hidden md:flex flex-wrap gap-1.5 max-w-xs">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', maxWidth: 280 }}>
           {member.tags.slice(0, 4).map(tag => (
-            <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>
+            <span key={tag} style={{ fontSize: '0.75rem', padding: '0.25rem 0.625rem', borderRadius: '9999px', fontWeight: 500, color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>
               {tag}
             </span>
           ))}
@@ -214,24 +222,19 @@ function HeroSection() {
             が始まる。
           </h1>
           <p style={{ fontSize: '1rem', color: 'var(--color-text-secondary)', lineHeight: 1.8, maxWidth: 440 }}>
-            研究協力、業務委託、仲間探し ——<br className="hidden sm:block" />
+            研究協力、業務委託、仲間探し ——<br />
             大学生活のあらゆる依頼が集まるクエスト掲示板
           </p>
         </div>
-
-        <div className="flex gap-10 animate-fade-in-up delay-2">
+        <div style={{ display: 'flex', gap: '2.5rem', flexShrink: 0 }} className="animate-fade-in-up delay-2">
           {[
             { num: String(approvedCount), label: '公開中のクエスト' },
             { num: '6', label: 'カテゴリ' },
             { num: '九大', label: '学内限定' },
           ].map(s => (
             <div key={s.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(2rem, 4vw, 2.5rem)', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                {s.num}
-              </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                {s.label}
-              </span>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(2rem, 4vw, 2.5rem)', fontWeight: 800, color: 'var(--color-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>{s.num}</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', fontWeight: 500, whiteSpace: 'nowrap' }}>{s.label}</span>
             </div>
           ))}
         </div>
@@ -241,23 +244,21 @@ function HeroSection() {
 }
 
 /* ============================================================
-   Main Page — vertical stack matching reference layout
+   Main Page
    ============================================================ */
 export default function Home() {
   return (
     <>
       <HeroSection />
-
       <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto', padding: '3rem 2rem' }}>
         <MyQuestsBanner />
         <UserStatus />
         <QuestBoard />
       </div>
-
       <footer style={{ borderTop: '1px solid var(--color-border)', background: 'var(--bg-card)', marginTop: '2rem' }}>
         <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto', padding: '3rem 2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, background: 'var(--bg-dark)', color: 'var(--color-accent)', fontSize: '0.875rem', fontWeight: 800, borderRadius: 'var(--radius-md)', flexShrink: 0 }}>G</span>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, background: 'var(--bg-dark)', color: 'var(--color-accent)', fontSize: '0.875rem', fontWeight: 800, borderRadius: '0.5rem', flexShrink: 0 }}>G</span>
             <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>Guild</span>
           </div>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.7, maxWidth: 320 }}>
