@@ -99,9 +99,10 @@ export async function POST(request: Request) {
         title,
         description,
         quest_type,
-        category: quest_type, // 旧スキーマの category カラム（NOT NULL）との互換性
+        category: quest_type,  // 旧スキーマ互換
+        skill_name: quest_type, // 旧スキーマ互換 (NOT NULL)
         max_applicants: max_applicants || 1,
-        reward,
+        reward: reward || '',
         tags: tags || [],
         listing_duration_type,
         listing_duration_weeks,
