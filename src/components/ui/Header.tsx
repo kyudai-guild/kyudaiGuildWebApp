@@ -92,7 +92,7 @@ export default function Header() {
 
           {/* Desktop Nav */}
           <nav className="header-desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            <a href="#quest-board" className="header-nav-link">掲示板</a>
+            <a href="/#quest-board" className="header-nav-link">掲示板</a>
             {isLoggedIn && (
               <button onClick={() => router.push('/my-quests')} className="header-nav-link">
                 <Scroll size={14} />マイクエスト
@@ -135,7 +135,7 @@ export default function Header() {
           padding: '2rem',
           display: 'flex', flexDirection: 'column', gap: '0.25rem',
         }}>
-          <a href="#quest-board" onClick={() => setMobileOpen(false)}
+          <a href="/#quest-board" onClick={() => setMobileOpen(false)}
             style={{ display: 'block', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)' }}
           >掲示板</a>
           {isLoggedIn && (
