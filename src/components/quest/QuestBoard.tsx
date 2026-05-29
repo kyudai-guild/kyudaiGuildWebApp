@@ -50,93 +50,83 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
     }
   };
 
+  const metaItem: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)' };
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(15,10,5,0.4)', backdropFilter: 'blur(4px)' }} onClick={onClose}>
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(15,10,5,0.4)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
         transition={{ duration: 0.2 }}
-        className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl shadow-xl p-6"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}
+        style={{ position: 'relative', width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', borderRadius: '1.25rem', padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)' }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex justify-between items-start mb-5">
-          <div className="flex-1 min-w-0 pr-4">
-            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full" style={{ color: catStyle.color, background: catStyle.bg }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+          <div style={{ flex: 1, minWidth: 0, paddingRight: '1rem' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '9999px', color: catStyle.color, background: catStyle.bg }}>
               {quest.quest_type}
             </span>
-            <h2 className="mt-2 text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>{quest.title}</h2>
-            <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
+            <h2 style={{ marginTop: '0.5rem', fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1.4 }}>{quest.title}</h2>
+            <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>
               掲示者: {quest.creator?.display_name || '不明'} / {new Date(quest.created_at).toLocaleDateString('ja-JP')}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg transition-colors" style={{ color: 'var(--color-text-tertiary)' }}
+          <button onClick={onClose}
+            style={{ padding: '0.375rem', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', flexShrink: 0, transition: 'background 0.2s' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-secondary)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           ><X size={18} /></button>
         </div>
 
-        <div className="space-y-4">
-          <div className="p-4 rounded-xl" style={{ background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
-            <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--color-text-secondary)' }}>{quest.description}</p>
+        {/* Body */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ padding: '1rem', borderRadius: '0.75rem', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
+            <p style={{ fontSize: '0.875rem', lineHeight: 1.7, whiteSpace: 'pre-wrap', color: 'var(--color-text-secondary)' }}>{quest.description}</p>
           </div>
 
-          <div className="flex flex-wrap gap-4">
-            <span className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-              <Users size={14} style={{ color: 'var(--color-primary)' }} />
-              {quest.application_count}/{quest.max_applicants}人
-            </span>
-            {quest.reward && (
-              <span className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                <Tag size={14} style={{ color: 'var(--color-accent)' }} />
-                {quest.reward}
-              </span>
-            )}
-            {quest.effective_end_date && (
-              <span className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                <Calendar size={14} style={{ color: 'var(--color-text-tertiary)' }} />
-                期限: {new Date(quest.effective_end_date).toLocaleDateString('ja-JP')}
-              </span>
-            )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+            <span style={metaItem}><Users size={14} style={{ color: 'var(--color-primary)' }} />{quest.application_count}/{quest.max_applicants}人</span>
+            {quest.reward && <span style={metaItem}><Tag size={14} style={{ color: 'var(--color-accent)' }} />{quest.reward}</span>}
+            {quest.effective_end_date && <span style={metaItem}><Calendar size={14} style={{ color: 'var(--color-text-tertiary)' }} />期限: {new Date(quest.effective_end_date).toLocaleDateString('ja-JP')}</span>}
           </div>
 
           {quest.tags && quest.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
               {quest.tags.map(tag => (
-                <span key={tag} className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>
-                  #{tag}
-                </span>
+                <span key={tag} style={{ fontSize: '0.75rem', padding: '0.25rem 0.625rem', borderRadius: '9999px', fontWeight: 500, color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>#{tag}</span>
               ))}
             </div>
           )}
 
           {error && (
-            <div className="flex items-start gap-2 p-3 rounded-lg text-sm font-medium" style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
-              <AlertCircle size={14} className="mt-0.5 shrink-0" />{error}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 500, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
+              <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />{error}
             </div>
           )}
 
           {success ? (
-            <div className="p-4 rounded-xl text-center" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-              <CheckCircle2 size={24} style={{ color: '#16a34a' }} className="mx-auto mb-2" />
-              <p className="text-sm font-semibold" style={{ color: '#16a34a' }}>応募が完了しました</p>
-              <p className="text-xs mt-1" style={{ color: 'var(--color-text-tertiary)' }}>掲示者からの連絡をお待ちください。</p>
+            <div style={{ padding: '1rem', borderRadius: '0.75rem', textAlign: 'center', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+              <CheckCircle2 size={24} style={{ color: '#16a34a', margin: '0 auto 0.5rem' }} />
+              <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#16a34a' }}>応募が完了しました</p>
+              <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>掲示者からの連絡をお待ちください。</p>
             </div>
           ) : isLoggedIn && !isCreator && !isFull && !isExpired ? (
-            <div className="space-y-3 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
-              <label className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)', display: 'block' }}>応募メッセージ（任意）</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>応募メッセージ（任意）</label>
               <textarea
                 value={message} onChange={e => setMessage(e.target.value)}
-                className="w-full text-sm rounded-xl px-4 py-3 resize-none outline-none transition-all"
-                style={{ background: 'var(--bg-base)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', minHeight: 80 }}
-                onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-primary)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 3px rgba(26,74,58,0.1)'; }}
-                onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)'; (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
+                style={{ width: '100%', fontSize: '0.875rem', borderRadius: '0.75rem', padding: '0.75rem 1rem', resize: 'none', outline: 'none', background: 'var(--bg-base)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', minHeight: 80, boxSizing: 'border-box', transition: 'border-color 0.2s, box-shadow 0.2s' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,74,58,0.1)'; }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
                 placeholder="自己紹介やアピールなど..."
               />
               <button onClick={handleApply} disabled={loading}
-                className="w-full py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                style={{ background: 'var(--bg-dark)', color: 'var(--color-text-inverse)' }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1, background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', border: 'none', transition: 'background 0.2s' }}
                 onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; }}
               >
@@ -144,11 +134,11 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
               </button>
             </div>
           ) : isFull && !success ? (
-            <div className="py-3 text-center text-sm font-medium rounded-xl" style={{ background: 'var(--bg-secondary)', color: 'var(--color-text-tertiary)' }}>
+            <div style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 500, borderRadius: '0.75rem', background: 'var(--bg-secondary)', color: 'var(--color-text-tertiary)' }}>
               定員に達しました
             </div>
           ) : isExpired && !success ? (
-            <div className="py-3 text-center text-sm font-medium rounded-xl" style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>
+            <div style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 500, borderRadius: '0.75rem', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>
               掲示期間が終了しました
             </div>
           ) : null}
