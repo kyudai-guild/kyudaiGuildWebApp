@@ -19,7 +19,11 @@ export default function AuthForm() {
 
   const validateEmail = (emailStr: string) => {
     const cleanEmail = emailStr.trim().toLowerCase();
-    return cleanEmail.endsWith('@s.kyushu-u.ac.jp') || cleanEmail.endsWith('@m.kyushu-u.ac.jp');
+    // 九大アドレスは常に許可
+    if (cleanEmail.endsWith('@s.kyushu-u.ac.jp') || cleanEmail.endsWith('@m.kyushu-u.ac.jp')) return true;
+    // 開発用ホワイトリスト（NEXT_PUBLIC_DEV_EMAILS にカンマ区切りで設定）
+    const devEmails = (process.env.NEXT_PUBLIC_DEV_EMAILS ?? '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    return devEmails.includes(cleanEmail);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
