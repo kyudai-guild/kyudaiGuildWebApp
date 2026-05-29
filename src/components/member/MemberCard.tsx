@@ -130,19 +130,6 @@ function CardFront() {
 
         <div className="mt-4 flex items-end justify-between border-t border-[var(--border-shade)] pt-3">
           <div className="flex gap-1.5 flex-wrap flex-1">
-            {member.skills.slice(0, 3).map((skill) => (
-              <span
-                key={skill.name}
-                className="px-2 py-0.5 rounded-full text-[9px] font-medium"
-                style={{
-                  color: skill.color,
-                  background: `${skill.color}15`,
-                  border: `1px solid ${skill.color}30`,
-                }}
-              >
-                {skill.name} Lv.{skill.level}
-              </span>
-            ))}
           </div>
           <div className="flex items-center gap-1 text-[9px] text-[#cfbeaf] opacity-60 whitespace-nowrap ml-2">
             <ChevronRight size={10} />
@@ -203,32 +190,7 @@ function CardBack() {
                 )}
               </div>
 
-              {member.skills.map((skill, i) => (
-                <div key={skill.name} className="bg-[rgba(139,115,85,0.05)] p-2 rounded-sm border border-[rgba(139,115,85,0.1)]">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[10px] font-bold text-[var(--gold-light)]">{skill.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black" style={{ color: skill.color }}>
-                        Lv.{skill.level}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="xp-bar h-1 bg-[rgba(0,0,0,0.3)] rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full"
-                      style={{
-                        background: `linear-gradient(90deg, ${skill.color}, ${skill.color}aa)`,
-                      }}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min((skill.level / 20) * 100, 100)}%` }}
-                      transition={{ duration: 0.8, ease: 'easeOut', delay: i * 0.05 }}
-                    />
-                  </div>
-                </div>
-              ))}
-              {member.skills.length === 0 && (
-                <p className="text-center text-[10px] text-[#8b7355] py-10">まだ獲得したスキルがありません</p>
-              )}
+              <p className="text-center text-[10px] text-[#8b7355] py-10">まだ獲得したスキルがありません</p>
             </motion.div>
           </AnimatePresence>
         </div>

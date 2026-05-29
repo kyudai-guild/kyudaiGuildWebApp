@@ -11,7 +11,9 @@ function formatMonth(yyyymm: string) {
 }
 
 export default function StampCard() {
-  const { monthlyCheckInCount, checkinMonth, isLoggedIn, member } = useGuild();
+  const { isLoggedIn, member } = useGuild();
+  const monthlyCheckInCount = 0;
+  const checkinMonth = new Date().toISOString().slice(0, 7);
 
   // リーダーボードは現在改修中
   const myRank = 0;

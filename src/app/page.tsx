@@ -1,11 +1,12 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Sword, Users, Star, Zap } from 'lucide-react';
+import { Star, Scroll, Clock, XCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import MemberCard from '@/components/member/MemberCard';
 import QuestBoard from '@/components/quest/QuestBoard';
 import StampCard from '@/components/stamp/StampCard';
-// import Gacha from '@/components/gacha/Gacha'; // TODO: 後で復活
 import { useGuild } from '@/contexts/GuildContext';
 
 /* ============================================================
@@ -68,10 +69,75 @@ function HeroSection() {
 }
 
 /* ============================================================
+   マイクエスト通知バナー
+   ============================================================ */
+function MyQuestsBanner() {
+  const { isLoggedIn } = useGuild();
+  const router = useRouter();
+  const [counts, setCounts] = useState<{ pending: number; rejected: number } | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    fetch('/api/my-quests')
+      .then(r => r.ok ? r.json() : [])
+      .then((quests: Array<{ status: string }>) => {
+        const pending = quests.filter(q => q.status === 'pending').length;
+        const rejected = quests.filter(q => q.status === 'rejected').length;
+        if (pending > 0 || rejected > 0) setCounts({ pending, rejected });
+      })
+      .catch(() => {});
+  }, [isLoggedIn]);
+
+  if (!isLoggedIn || !counts || dismissed) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-5xl mx-auto px-4 pt-4 relative"
+    >
+      <div className="flex items-stretch gap-1">
+        <button
+          onClick={() => router.push('/my-quests')}
+          className="flex-1 flex items-center gap-3 px-4 py-3 bg-[var(--bg-card)] border-2 border-[var(--border-outer)] rounded-sm shadow-[2px_2px_0_rgba(0,0,0,0.2)] hover:brightness-110 transition-all text-left"
+        >
+          <Scroll size={16} className="text-[var(--gold)] flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-[var(--gold-light)]">マイクエストの状況を確認</p>
+            <p className="text-[10px] text-[#cfbeaf] mt-0.5">
+              {counts.pending > 0 && (
+                <span className="inline-flex items-center gap-1 mr-3">
+                  <Clock size={10} className="text-amber-400" />
+                  審査中 {counts.pending}件
+                </span>
+              )}
+              {counts.rejected > 0 && (
+                <span className="inline-flex items-center gap-1 text-red-400">
+                  <XCircle size={10} />
+                  リジェクト {counts.rejected}件
+                </span>
+              )}
+            </p>
+          </div>
+          <span className="text-[10px] text-[#8b7355] flex-shrink-0">詳細 →</span>
+        </button>
+        <button
+          onClick={() => setDismissed(true)}
+          className="px-3 bg-[var(--bg-card)] border-2 border-[var(--border-outer)] rounded-sm text-[#8b7355] hover:text-[var(--gold-light)] transition-colors text-xs"
+          aria-label="閉じる"
+        >
+          ✕
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ============================================================
    会員証セクション
    ============================================================ */
 function MemberSection() {
-  const { member } = useGuild();
 
   return (
     <section className="relative px-4 py-8">
@@ -120,6 +186,9 @@ export default function Home() {
     <>
       {/* ヒーロー */}
       <HeroSection />
+
+      {/* マイクエスト通知バナー */}
+      <MyQuestsBanner />
 
       {/* 会員証 */}
       <MemberSection />

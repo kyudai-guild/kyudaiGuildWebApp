@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 import { useGuild } from '@/contexts/GuildContext';
-import type { GachaResult } from '@/contexts/GuildContext';
+
+type GachaResult = {
+  rarity: 'common' | 'rare' | 'epic';
+  type: string;
+  label: string;
+  description: string;
+};
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Lock, RotateCcw } from 'lucide-react';
 
@@ -28,7 +34,9 @@ const RARITY_STYLES: Record<GachaResult['rarity'], { border: string; glow: strin
 };
 
 export default function Gacha() {
-  const { gachaAvailable, spinGacha, isLoggedIn } = useGuild();
+  const { isLoggedIn } = useGuild();
+  const gachaAvailable = false;
+  const spinGacha = (): GachaResult => ({ rarity: 'common', type: '', label: '', description: '' });
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<GachaResult | null>(null);
 
