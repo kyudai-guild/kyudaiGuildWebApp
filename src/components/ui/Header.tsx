@@ -1,16 +1,14 @@
 'use client';
 
 import { useGuild } from '@/contexts/GuildContext';
-import { Sword, Bell, LogIn, LogOut, Wifi } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Sword, LogIn, LogOut, Scroll, Shield } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 
 export default function Header() {
-  const { stamps, isLoggedIn, autoCheckInEnabled, setAutoCheckInEnabled, isAtBase } = useGuild();
+  const { isLoggedIn, isAdmin } = useGuild();
   const router = useRouter();
   const supabase = createClient();
-  const stampCount = stamps.filter(Boolean).length;
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -24,27 +22,48 @@ export default function Header() {
 
       <div className="relative h-full max-w-5xl mx-auto px-4 flex items-center justify-between">
         {/* ロゴ */}
-        <div className="flex items-center gap-2">
+        <button onClick={() => router.push('/')} className="flex items-center gap-2">
           <div className="w-8 h-8 flex items-center justify-center bg-[var(--bg-base)] border-2 border-[var(--border-outer)] shadow-[inset_2px_2px_0_rgba(0,0,0,0.15)]">
             <Sword size={16} className="text-[var(--gold-light)]" />
           </div>
           <span className="font-rpg font-black text-sm tracking-widest text-[var(--gold-light)] hidden sm:block" style={{ textShadow: '2px 2px 0 var(--border-inner)' }}>
             九大ギルド
           </span>
-        </div>
+        </button>
 
         {/* 右側コントロール */}
-        <div className="flex items-center gap-3">
-          {/* ログイン/ログアウトボタン */}
-          {isLoggedIn ? (
-            <button
-              onClick={handleSignOut}
-              className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white transition-colors"
-            >
-              <LogOut size={14} />
-              <span className="hidden sm:inline">退出</span>
-            </button>
-          ) : (
+        <div className="flex items-center gap-2">
+          {isLoggedIn && (
+            <>
+              <button
+                onClick={() => router.push('/my-quests')}
+                className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-[#cfbeaf] hover:text-[var(--gold-light)] transition-colors border border-[rgba(139,115,85,0.3)] hover:border-[var(--gold-dark)] rounded-sm"
+              >
+                <Scroll size={13} />
+                <span className="hidden sm:inline">マイクエスト</span>
+              </button>
+
+              {isAdmin && (
+                <button
+                  onClick={() => router.push('/admin')}
+                  className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-100 transition-colors border border-amber-500/30 hover:border-amber-400 rounded-sm"
+                >
+                  <Shield size={13} />
+                  <span className="hidden sm:inline">管理</span>
+                </button>
+              )}
+
+              <button
+                onClick={handleSignOut}
+                className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white transition-colors"
+              >
+                <LogOut size={14} />
+                <span className="hidden sm:inline">退出</span>
+              </button>
+            </>
+          )}
+
+          {!isLoggedIn && (
             <button
               onClick={() => router.push('/auth')}
               className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold bg-[var(--gold-dark)] text-white hover:brightness-110 transition-colors shadow-[2px_2px_0_rgba(0,0,0,0.3)]"
@@ -53,56 +72,6 @@ export default function Header() {
               <span className="hidden sm:inline">ギルドへ入室</span>
             </button>
           )}
-
-          {/* スタンプ数バッジ */}
-          {stampCount > 0 && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-[var(--bg-base)] border-2 border-[var(--border-outer)] text-xs font-bold text-[var(--gold-light)] shadow-[inset_2px_2px_0_rgba(0,0,0,0.15)]"
-            >
-              <span>🎫</span>
-              <span>{stampCount} / 10</span>
-            </motion.div>
-          )}
-
-          {/* Wi-Fi自動チェックイン設定 */}
-          {isLoggedIn && (
-            <button
-              onClick={() => setAutoCheckInEnabled(!autoCheckInEnabled)}
-              className={`relative w-9 h-9 border-2 flex items-center justify-center transition-all duration-300 shadow-[inset_2px_2px_0_rgba(0,0,0,0.15)] ${
-                !autoCheckInEnabled
-                  ? 'bg-[var(--bg-base)] border-[var(--border-outer)] text-[var(--gold-dark)] opacity-40 hover:opacity-100'
-                  : isAtBase
-                  ? 'bg-green-700 border-green-400 text-white'
-                  : 'bg-[var(--gold-dark)] border-[var(--gold-light)] text-white'
-              }`}
-              title={
-                !autoCheckInEnabled
-                  ? 'Wi-Fi自動チェックイン: OFF（クリックで有効化）'
-                  : isAtBase
-                  ? '🏠 拠点のWi-Fi検出中！自動チェックイン有効'
-                  : '📡 拠点Wi-Fi外 — 拠点に到着すると自動チェックイン'
-              }
-            >
-              <Wifi size={16} />
-              {autoCheckInEnabled && (
-                <motion.span
-                  layoutId="wifi-active"
-                  className={`absolute -top-1 -right-1 w-2.5 h-2.5 border-2 border-[var(--bg-card)] rounded-full ${isAtBase ? 'bg-green-400' : 'bg-yellow-400'}`}
-                />
-              )}
-            </button>
-          )}
-
-          {/* 通知ベル */}
-          <button
-            id="header-notification-btn"
-            className="relative w-9 h-9 bg-[var(--bg-base)] border-2 border-[var(--border-outer)] flex items-center justify-center text-[var(--gold-light)] hover:bg-[var(--border-inner)] transition-colors shadow-[inset_2px_2px_0_rgba(0,0,0,0.15)]"
-            aria-label="通知"
-          >
-            <Bell size={17} />
-          </button>
         </div>
       </div>
     </header>

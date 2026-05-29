@@ -15,7 +15,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({
             request,
           })
@@ -31,7 +31,40 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // 未ログインでアクセス制限をかける場合はここに記述
+  const pathname = request.nextUrl.pathname
+
+  // 保護ルート: ログインが必要なページ
+  const protectedRoutes = ['/my-quests', '/admin']
+  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
+
+  if (isProtectedRoute && !user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth'
+    return NextResponse.redirect(url)
+  }
+
+  // メール未認証のユーザーは保護ルートからブロック
+  if (isProtectedRoute && user && !user.email_confirmed_at) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth'
+    url.searchParams.set('error', 'メールアドレスの認証が完了していません。')
+    return NextResponse.redirect(url)
+  }
+
+  // 管理者ページのアクセス制御（profilesテーブルのroleで判定）
+  if (pathname.startsWith('/admin') && user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile || profile.role !== 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+  }
 
   return supabaseResponse
 }

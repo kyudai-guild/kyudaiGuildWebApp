@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import { motion } from 'framer-motion';
-import { Sword, Mail, Lock, User, AlertCircle } from 'lucide-react';
+import { Sword, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -14,6 +14,7 @@ export default function AuthForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [signUpComplete, setSignUpComplete] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -38,11 +39,20 @@ export default function AuthForm() {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email: cleanEmail,
           password,
         });
         if (error) throw error;
+
+        // メール認証が完了しているかチェック
+        if (data.user && !data.user.email_confirmed_at) {
+          // 未確認の場合はサインアウトしてエラー表示
+          await supabase.auth.signOut();
+          setError('メールアドレスの認証が完了していません。確認メールのリンクをクリックしてから再度ログインしてください。');
+          return;
+        }
+
         router.push('/');
         router.refresh();
       } else {
@@ -62,14 +72,13 @@ export default function AuthForm() {
           },
         });
         if (error) throw error;
-        
+
+        // signUp後は常に確認メール画面を表示（data.sessionがあっても自動遷移しない）
+        // Supabaseはconfirm emailがオンでも仮セッションを返す場合があるため
         if (data.session) {
-          // Supabaseの設定によっては自動ログインされる
-          router.push('/');
-          router.refresh();
-        } else {
-          setMessage('確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。');
+          await supabase.auth.signOut();
         }
+        setSignUpComplete(true);
       }
     } catch (err: any) {
       setError(err.message || '認証エラーが発生しました。');
@@ -77,6 +86,35 @@ export default function AuthForm() {
       setLoading(false);
     }
   };
+
+  // 登録完了画面
+  if (signUpComplete) {
+    return (
+      <div className="w-full max-w-md mx-auto rpg-card p-6 md:p-8">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto bg-emerald-950/30 border-2 border-emerald-500/50 flex items-center justify-center text-emerald-400 mb-6 rounded-sm">
+            <CheckCircle2 size={32} />
+          </div>
+          <h2 className="font-rpg text-xl font-black text-[var(--gold-light)] mb-4" style={{ textShadow: '2px 2px 0 var(--border-inner)' }}>
+            確認メールを送信しました
+          </h2>
+          <p className="text-sm text-[#cfbeaf] leading-relaxed mb-6">
+            入力いただいたメールアドレス宛に確認メールを送信しました。
+            メール内のリンクをクリックして、登録を完了してください。
+          </p>
+          <p className="text-xs text-[#8b7355] mb-8">
+            メールが届かない場合は、迷惑メールフォルダもご確認ください。
+          </p>
+          <button
+            onClick={() => { setSignUpComplete(false); setIsLogin(true); }}
+            className="w-full py-3 bg-[var(--gold-dark)] text-white font-black text-sm rounded-sm hover:brightness-110 transition-all shadow-[inset_0_-3px_0_rgba(0,0,0,0.3)]"
+          >
+            ログイン画面に戻る
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-md mx-auto rpg-card p-6 md:p-8">
