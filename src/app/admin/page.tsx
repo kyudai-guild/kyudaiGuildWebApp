@@ -125,19 +125,32 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => router.push('/')} className="text-[#8b7355] hover:text-[var(--gold-light)] transition-colors">
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="text-xl font-rpg font-black text-[var(--gold-light)] flex items-center gap-2" style={{ textShadow: '2px 2px 0 var(--border-inner)' }}>
-            <Shield size={20} />
-            管理者ダッシュボード
-          </h1>
-          <p className="text-xs text-[#8b7355]">クエストの審査・管理</p>
+    <div className="min-h-screen">
+      {/* ページヘッダー */}
+      <div className="bg-[var(--bg-card)] border-b-4 border-[var(--border-outer)] px-4 py-6 mb-6">
+        <div className="max-w-4xl mx-auto">
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center gap-1.5 text-xs text-[#8b7355] hover:text-[var(--gold-light)] transition-colors mb-4 font-bold"
+          >
+            <ArrowLeft size={14} />
+            ホームへ戻る
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 flex items-center justify-center bg-[var(--bg-base)] border-2 border-[var(--border-outer)] shadow-[inset_2px_2px_0_rgba(0,0,0,0.15)]">
+              <Shield size={18} className="text-amber-400" />
+            </div>
+            <div>
+              <h1 className="font-rpg font-black text-xl text-[var(--gold-light)]" style={{ textShadow: '2px 2px 0 var(--border-inner)' }}>
+                管理者ダッシュボード
+              </h1>
+              <p className="text-[10px] text-[#8b7355] font-bold">クエストの審査・承認・リジェクト</p>
+            </div>
+          </div>
         </div>
       </div>
+
+    <div className="max-w-4xl mx-auto px-4 pb-8">
 
       {/* フィルター */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
@@ -317,6 +330,7 @@ export default function AdminPage() {
           })}
         </div>
       )}
+    </div>
     </div>
   );
 }

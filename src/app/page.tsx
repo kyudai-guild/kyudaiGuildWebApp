@@ -1,12 +1,11 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Star, Scroll, Clock, XCircle } from 'lucide-react';
+import { Star, Scroll, Clock, XCircle, Users, BookOpen, Handshake, Heart, Briefcase, HelpCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import MemberCard from '@/components/member/MemberCard';
 import QuestBoard from '@/components/quest/QuestBoard';
-import StampCard from '@/components/stamp/StampCard';
 import { useGuild } from '@/contexts/GuildContext';
 
 /* ============================================================
@@ -15,15 +14,11 @@ import { useGuild } from '@/contexts/GuildContext';
 function HeroSection() {
   return (
     <section className="relative min-h-[60vh] flex flex-col items-center justify-center px-4 py-20 overflow-hidden">
-      {/* 背景エフェクト (ソリッドなレトロ背景に合わせてシンプルに) */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* レトロなドット柄や罫線風の装飾をCSSのみで表現 */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M 20 0 L 0 20\' fill=\'none\' stroke=\'%23593c22\' stroke-width=\'0.5\' opacity=\'0.1\'/%3E%3C/svg%3E')] opacity-30 mask-image:linear-gradient(to_bottom,black,transparent)]" />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M 20 0 L 0 20\' fill=\'none\' stroke=\'%23593c22\' stroke-width=\'0.5\' opacity=\'0.1\'/%3E%3C/svg%3E')] opacity-30" />
       </div>
 
-      {/* コンテンツ */}
       <div className="relative z-10 text-center max-w-2xl mx-auto">
-        {/* レトロな看板風バッジ */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -36,33 +31,32 @@ function HeroSection() {
           <Star size={12} fill="currentColor" />
         </motion.div>
 
-        {/* タイトル */}
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
           className="font-rpg font-black text-5xl sm:text-6xl md:text-7xl leading-tight mb-6 tracking-wider"
         >
-          {/* 画像風の「白テキスト＋太いこげ茶フチ」 */}
-          <span className="text-rpg-title">
-            九大ギルド
-          </span>
+          <span className="text-rpg-title">九大ギルド</span>
         </motion.h1>
 
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-[#cfbeaf] text-base sm:text-lg mb-10 leading-relaxed font-bold"
+          className="text-[#cfbeaf] text-sm sm:text-lg mb-10 leading-relaxed font-bold break-words"
           style={{ textShadow: '2px 2px 0 rgba(0,0,0,0.8)' }}
         >
-          みつける・たかめる・つながる・つむぐ・ひらく<br />
-          <span className="text-[var(--gold-light)] bg-[var(--border-outer)] inline-block px-3 py-1 mt-3 border-2 border-[var(--border-shade)] shadow-[2px_2px_0_rgba(0,0,0,0.5)] rounded-sm text-sm font-normal">
+          <span className="inline-block">みつける・</span>
+          <span className="inline-block">たかめる・</span>
+          <span className="inline-block">つながる・</span>
+          <span className="inline-block">つむぐ・</span>
+          <span className="inline-block">ひらく</span>
+          <br />
+          <span className="text-[var(--gold-light)] bg-[var(--border-outer)] inline-block px-3 py-1 mt-3 border-2 border-[var(--border-shade)] shadow-[2px_2px_0_rgba(0,0,0,0.5)] rounded-sm text-xs sm:text-sm font-normal max-w-full">
             汝、大志を抱く者よ。この扉は常に開かれている。
           </span>
         </motion.p>
-
-
       </div>
     </section>
   );
@@ -95,7 +89,7 @@ function MyQuestsBanner() {
     <motion.div
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-5xl mx-auto px-4 pt-4 relative"
+      className="max-w-5xl mx-auto px-4 pt-4"
     >
       <div className="flex items-stretch gap-1">
         <button
@@ -137,13 +131,20 @@ function MyQuestsBanner() {
 /* ============================================================
    会員証セクション
    ============================================================ */
-function MemberSection() {
+const QUEST_TYPES = [
+  { type: '仲間探し', color: '#3b82f6', icon: Users, desc: '共に活動する仲間を募集' },
+  { type: '研究協力', color: '#8b5cf6', icon: BookOpen, desc: '研究・調査への参加募集' },
+  { type: '業務委託', color: '#f59e0b', icon: Briefcase, desc: 'スキルを活かした業務依頼' },
+  { type: 'ボランティア', color: '#10b981', icon: Heart, desc: '地域・学内への社会貢献' },
+  { type: '雇用契約', color: '#ec4899', icon: Handshake, desc: 'アルバイト・長期雇用募集' },
+  { type: 'その他', color: '#94a3b8', icon: HelpCircle, desc: '上記に当てはまらない依頼' },
+];
 
+function MemberSection() {
   return (
     <section className="relative px-4 py-8">
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col lg:flex-row items-center gap-10">
-          {/* 会員証 */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -153,7 +154,6 @@ function MemberSection() {
             <MemberCard />
           </motion.div>
 
-          {/* サイドテキスト */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -168,9 +168,32 @@ function MemberSection() {
               ギルド会員証
             </h2>
             <p className="text-[#ebdacf] font-bold text-sm leading-relaxed mb-6">
-              カードをタップすると裏面に習得スキルが表示されます。
-              日々の活動やクエストを通じて、自分のスキルレベルを上げていきましょう！
+              カードをタップすると裏面が表示されます。
+              クエストを通じて、特技やスキルを増やしていきましょう！
             </p>
+
+            {/* クエスト種別説明 */}
+            <div className="grid grid-cols-2 gap-2">
+              {QUEST_TYPES.map((qt) => {
+                const Icon = qt.icon;
+                return (
+                  <div
+                    key={qt.type}
+                    className="flex items-start gap-2 p-2.5 bg-[var(--bg-base)] border-2 border-[var(--border-shade)] shadow-[inset_2px_2px_0_rgba(0,0,0,0.1),2px_2px_0_rgba(0,0,0,0.1)]"
+                  >
+                    <div className="flex-shrink-0 mt-0.5 w-5 h-5 flex items-center justify-center" style={{ color: qt.color }}>
+                      <Icon size={14} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-bold text-[10px] block" style={{ color: qt.color }}>
+                        {qt.type}
+                      </span>
+                      <span className="text-[9px] text-[#cfbeaf]">{qt.desc}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </motion.div>
         </div>
       </div>
@@ -184,25 +207,11 @@ function MemberSection() {
 export default function Home() {
   return (
     <>
-      {/* ヒーロー */}
       <HeroSection />
-
-      {/* マイクエスト通知バナー */}
       <MyQuestsBanner />
-
-      {/* 会員証 */}
       <MemberSection />
-
-      {/* クエストボード */}
       <QuestBoard />
 
-      {/* スタンプカード */}
-      <div className="max-w-5xl mx-auto px-4 pb-20">
-        <StampCard />
-        {/* <Gacha /> TODO: ガチャは後で復活 */}
-      </div>
-
-      {/* フッター */}
       <footer className="mt-8 py-8 border-t-4 border-[var(--border-outer)] text-center bg-[var(--bg-card)]">
         <p className="font-rpg text-xs tracking-widest text-[#cfbeaf] font-bold" style={{ textShadow: '1px 1px 0 #000' }}>
           九大ギルド © 2024 — All Adventurers Welcome

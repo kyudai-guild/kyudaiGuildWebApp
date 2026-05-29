@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGuild } from '@/contexts/GuildContext';
 import {
-  Star,
   ChevronRight,
   Settings,
   X,
@@ -217,6 +216,12 @@ function EditView({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false);
   const config = member.isVisitor ? VISITOR_CONFIG : MEMBER_CONFIG;
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
   const handleSave = async () => {
     setSaving(true);
     await updateProfile({ name, tags });
@@ -237,6 +242,9 @@ function EditView({ onClose }: { onClose: () => void }) {
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-profile-title"
       className="absolute inset-0 rounded-md border-4 z-50 flex flex-col p-4 overflow-hidden"
       style={{
         background: '#0a0a14',
@@ -245,8 +253,10 @@ function EditView({ onClose }: { onClose: () => void }) {
       }}
     >
       <div className="flex justify-between items-center mb-4 border-b border-[rgba(139,115,85,0.3)] pb-2">
-        <h3 className="font-rpg text-xs text-[var(--gold-light)] uppercase tracking-widest">Character Profile</h3>
-        <button onClick={onClose} className="text-[#8b7355] hover:text-[#cfbeaf]"><X size={16} /></button>
+        <h3 id="edit-profile-title" className="font-rpg text-xs text-[var(--gold-light)] uppercase tracking-widest">Character Profile</h3>
+        <button onClick={onClose} aria-label="プロフィール編集を閉じる" className="text-[#8b7355] hover:text-[#cfbeaf]">
+          <X size={16} aria-hidden="true" />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto pr-1 space-y-4 scrollbar-hide">
@@ -283,7 +293,7 @@ function EditView({ onClose }: { onClose: () => void }) {
               onChange={(e) => setNewTag(e.target.value)}
               placeholder="新しいタグを追加..."
               className="flex-1 bg-[rgba(139,115,85,0.1)] border border-[rgba(139,115,85,0.3)] rounded-sm px-2 py-1 text-[10px] text-[#cfbeaf] outline-none"
-              onKeyPress={(e) => e.key === 'Enter' && addCustomTag()}
+              onKeyDown={(e) => e.key === 'Enter' && addCustomTag()}
             />
             <button
               onClick={addCustomTag}
@@ -343,8 +353,6 @@ export default function MemberCard() {
         onClick={() => !isEditing && setIsFlipped((f) => !f)}
         style={{ perspective: '1000px' }}
         id="member-card"
-        role="button"
-        aria-label="会員証をフリップ"
       >
         <motion.div
           className="relative w-full h-[380px] md:h-[280px]"
