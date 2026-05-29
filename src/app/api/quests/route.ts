@@ -99,6 +99,7 @@ export async function POST(request: Request) {
         title,
         description,
         quest_type,
+        category: quest_type, // 旧スキーマの category カラム（NOT NULL）との互換性
         max_applicants: max_applicants || 1,
         reward,
         tags: tags || [],
