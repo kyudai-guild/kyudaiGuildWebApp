@@ -7,7 +7,7 @@ import { useGuild } from '@/contexts/GuildContext';
 import QuestBoard from '@/components/quest/QuestBoard';
 import EventDetailModal from '@/components/events/EventDetailModal';
 import { GuildEvent, CATEGORY_COLORS, fmtTime } from '@/components/events/types';
-import { Scroll, Clock, XCircle, Shield, LogIn, Edit2, Check, X, CalendarDays, MapPin, ArrowRight, Sparkles } from 'lucide-react';
+import { Scroll, Clock, XCircle, Shield, LogIn, Edit2, Check, X, CalendarDays, MapPin, ArrowRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
 
 /* ============================================================
@@ -21,7 +21,7 @@ const STYLES = `
   /* Guest hero: catch copy + login CTA side by side */
   .guest-hero-inner { display: flex; align-items: center; justify-content: space-between; gap: 3rem; flex-wrap: wrap; }
   .guest-hero-copy  { flex: 1; min-width: 280px; }
-  .guest-hero-cta   { flex-shrink: 0; width: 340px; max-width: 100%; }
+  .guest-hero-cta   { flex-shrink: 0; width: 460px; max-width: 100%; }
 
   /* Logged-in events hero */
   .events-hero-inner { display: flex; flex-direction: column; gap: 1rem; }
@@ -215,11 +215,8 @@ function GuestHero() {
 
         {/* Big login CTA */}
         <div className="guest-hero-cta animate-fade-in-up delay-2">
-          <div style={{ borderRadius: '1.25rem', padding: '2rem', background: 'var(--bg-dark)', boxShadow: '0 12px 40px rgba(12,59,46,0.25)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 56, height: 56, borderRadius: '1rem', background: 'rgba(255,255,255,0.08)', marginBottom: '1.25rem' }}>
-              <Sparkles size={26} style={{ color: 'var(--color-accent)' }} />
-            </div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text-inverse)', fontFamily: 'var(--font-display)', marginBottom: '0.5rem' }}>
+          <div style={{ borderRadius: '1.25rem', padding: '2.5rem', background: 'var(--bg-dark)', boxShadow: '0 12px 40px rgba(12,59,46,0.25)' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-text-inverse)', fontFamily: 'var(--font-display)', marginBottom: '0.75rem' }}>
               ギルドに参加しよう
             </h2>
             <p style={{ fontSize: '0.875rem', color: 'rgba(234,232,227,0.7)', lineHeight: 1.7, marginBottom: '1.5rem' }}>
