@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useGuild } from '@/contexts/GuildContext';
-import { Scroll, Shield, LogIn, LogOut, Menu, X } from 'lucide-react';
+import { Scroll, Shield, LogIn, LogOut, Menu, X, CalendarDays } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 
@@ -93,6 +93,9 @@ export default function Header() {
           {/* Desktop Nav */}
           <nav className="header-desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
             <a href="/#quest-board" className="header-nav-link">掲示板</a>
+            <button onClick={() => router.push('/events')} className="header-nav-link">
+              <CalendarDays size={14} />イベント
+            </button>
             {isLoggedIn && (
               <button onClick={() => router.push('/my-quests')} className="header-nav-link">
                 <Scroll size={14} />マイクエスト
@@ -138,6 +141,9 @@ export default function Header() {
           <a href="/#quest-board" onClick={() => setMobileOpen(false)}
             style={{ display: 'block', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)' }}
           >掲示板</a>
+          <button onClick={() => { router.push('/events'); setMobileOpen(false); }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}
+          ><CalendarDays size={18} />イベント</button>
           {isLoggedIn && (
             <button onClick={() => { router.push('/my-quests'); setMobileOpen(false); }}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}

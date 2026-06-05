@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGuild } from '@/contexts/GuildContext';
 import QuestBoard from '@/components/quest/QuestBoard';
+import UpcomingEvents from '@/components/events/UpcomingEvents';
 import { Scroll, Clock, XCircle, Shield, LogIn, Edit2, Check, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
 
@@ -270,6 +271,7 @@ export default function Home() {
       <div className="page-content" style={{ maxWidth: 'var(--content-max)', margin: '0 auto' }}>
         <MyQuestsBanner />
         <UserStatus />
+        <UpcomingEvents />
         <QuestBoard />
       </div>
       <footer style={{ borderTop: '1px solid var(--color-border)', background: 'var(--bg-card)', marginTop: '2rem' }}>
