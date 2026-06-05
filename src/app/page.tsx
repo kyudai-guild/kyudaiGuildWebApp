@@ -31,6 +31,7 @@ const STYLES = `
   .user-tags-desktop   { display: flex; flex-wrap: wrap; gap: 0.375rem; max-width: 280px; }
 
   @media (max-width: 768px) {
+    .guest-hero-inner { flex-direction: column; align-items: flex-start; gap: 2rem; }
     .guest-hero-cta { width: 100%; }
   }
   @media (max-width: 640px) {
