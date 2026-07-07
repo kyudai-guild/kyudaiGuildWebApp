@@ -17,7 +17,7 @@
 | Phase | 内容 | 状態 | コミット |
 |---|---|---|---|
 | 0 | Baseline 記録 | **DONE** | （進捗ファイル追加コミット） |
-| 1 | typecheck script + docs/manual-smoke.md | NOT STARTED | - |
+| 1 | typecheck script + docs/manual-smoke.md | **DONE** | （Phase 1 コミット参照） |
 | 2 | 旧世代コード削除（D1+D10、17ファイル+依存2つ+env行） | NOT STARTED | - |
 | 3 | エラー文言汎用化（D5）+ profile死パラメータ（D11） | NOT STARTED | - |
 | 4 | 登録の九大生限定化（D6、ドメイン検証をサインアップのみに） | NOT STARTED | - |
@@ -37,6 +37,11 @@
   - `src/` 内の `no-explicit-any`（D4 で一部解消予定）、`react-hooks/set-state-in-effect`、`no-html-link-for-pages` 警告等
   - **判定基準**: lint はベースラインで既に失敗している。以降のフェーズでは「新規エラーを増やさない」ことを合格基準とする（既存エラーの修正はスコープ外）。
 - **注意（削除リスト外の残骸を発見）**: `scratch/` ディレクトリと `scripts/fix.js, patch*.js, replace*.js` は lint エラーを出す過去のデバッグ残骸だが、**D1 削除リストに含まれないため削除しない**（Stop-And-Ask 対象として最終報告に記載）。
+
+## Phase 1 の記録
+
+- `package.json` に `"typecheck": "tsc --noEmit"` を追加。**ベースラインで typecheck はエラーゼロ**（以降もゼロ維持が基準）。
+- `docs/manual-smoke.md` を新規作成（認証/保護ルート/クエスト/イベント/巡回/削除ルート404 の6セクション）。
 
 ## Stop-And-Ask で保留した項目
 
