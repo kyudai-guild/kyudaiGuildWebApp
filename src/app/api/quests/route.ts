@@ -114,7 +114,7 @@ export async function POST(request: Request) {
 
     if (insertError) {
       console.error('Error inserting quest:', insertError);
-      return NextResponse.json({ error: `クエストの作成に失敗しました。[${insertError.code}] ${insertError.message}` }, { status: 500 });
+      return NextResponse.json({ error: 'クエストの作成に失敗しました。' }, { status: 500 });
     }
 
     return NextResponse.json(quest);

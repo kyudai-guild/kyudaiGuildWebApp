@@ -85,7 +85,8 @@ export async function POST(request: Request) {
       .select().single();
 
     if (error) {
-      return NextResponse.json({ error: `[${error.code}] ${error.message}` }, { status: 500 });
+      console.error('Error inserting event:', error);
+      return NextResponse.json({ error: 'イベントの登録に失敗しました。' }, { status: 500 });
     }
     return NextResponse.json(data);
   } catch (err: any) {

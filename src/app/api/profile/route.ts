@@ -34,18 +34,15 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { display_name, tags, last_check_in_date, monthly_checkin_count, checkin_month } = body;
+  const { display_name, tags } = body;
 
   const upsertData: Record<string, unknown> = {
     id: user.id,
     email: user.email,
   };
-  
+
   if (display_name !== undefined) upsertData.display_name = display_name;
   if (tags !== undefined) upsertData.tags = tags;
-
-  // 以前の last_check_in_date などのフィールドは、profiles テーブルに含まれていなければスキップする。
-  // 必要であれば profiles テーブルのスキーマを修正して追加する。今回はtagsとdisplay_nameを更新。
 
   const { data, error } = await supabase
     .from('profiles')

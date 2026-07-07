@@ -19,7 +19,7 @@
 | 0 | Baseline 記録 | **DONE** | （進捗ファイル追加コミット） |
 | 1 | typecheck script + docs/manual-smoke.md | **DONE** | （Phase 1 コミット参照） |
 | 2 | 旧世代コード削除（D1+D10、17ファイル+依存2つ+env行） | **DONE** | （Phase 2 コミット参照） |
-| 3 | エラー文言汎用化（D5）+ profile死パラメータ（D11） | NOT STARTED | - |
+| 3 | エラー文言汎用化（D5）+ profile死パラメータ（D11） | **DONE** | （Phase 3 コミット参照） |
 | 4 | 登録の九大生限定化（D6、ドメイン検証をサインアップのみに） | NOT STARTED | - |
 | 5 | STATUS共有化（D3）+ CreateQuestInput/Icon型（D4） | NOT STARTED | - |
 | 6 | 【GATED】migration v4 後の二重書き除去（D2） | BLOCKED（人間のSQL実行待ち） | - |
@@ -50,6 +50,14 @@
 - `.env.example` から `SUPABASE_SERVICE_ROLE_KEY` 行を削除（`DISCORD_WEBHOOK_URL` と `NEXT_PUBLIC_DEV_EMAILS` はそもそも .env.example に無かった）。
 - **ビルドの罠**: 削除直後の build は `.next/dev/types/validator.ts` が旧ルート（/admin/qr）の型を参照して失敗した → `.next` を削除して再ビルドで解決。**ルート削除後は `.next` の削除が必要**。
 - 検証: build 成功（ルート一覧から旧7ルートが消えたことを確認）/ typecheck エラーゼロ / lint 63→53 problems（新規エラーなし、削除ファイル分の減少）。
+
+## Phase 3 の記録
+
+- `api/quests/route.ts` POST: エラー応答を `'クエストの作成に失敗しました。'` に汎用化（詳細は既存の console.error に残る）。
+- `api/events/route.ts` POST: `console.error` を追加し、応答を `'イベントの登録に失敗しました。'` に汎用化。
+- `api/profile/route.ts` POST: 未使用の分割代入 `last_check_in_date, monthly_checkin_count, checkin_month` と、それを説明していた古いコメントを削除（挙動不変）。
+- 検証: typecheck エラーゼロ / build 成功。
+- **観察（スコープ外・未対応）**: GET ルート（quests/events）や他ルートの一部も `error.message` をそのまま返す箇所があるが、D5 の承認範囲は2つの POST のみなので触っていない。
 
 ## Stop-And-Ask で保留した項目
 
