@@ -21,7 +21,7 @@
 | 2 | 旧世代コード削除（D1+D10、17ファイル+依存2つ+env行） | **DONE** | （Phase 2 コミット参照） |
 | 3 | エラー文言汎用化（D5）+ profile死パラメータ（D11） | **DONE** | （Phase 3 コミット参照） |
 | 4 | 登録の九大生限定化（D6、ドメイン検証をサインアップのみに） | **DONE** | （Phase 4 コミット参照） |
-| 5 | STATUS共有化（D3）+ CreateQuestInput/Icon型（D4） | NOT STARTED | - |
+| 5 | STATUS共有化（D3）+ CreateQuestInput/Icon型（D4） | **DONE** | （Phase 5 コミット参照） |
 | 6 | 【GATED】migration v4 後の二重書き除去（D2） | BLOCKED（人間のSQL実行待ち） | - |
 
 ## Baseline（Phase 0 の記録・2026-07-07）
@@ -66,6 +66,15 @@
 - `.env.example` に `NEXT_PUBLIC_DEV_EMAILS` は元々無かった。コード内参照ゼロを grep 確認済み。
 - 検証: typecheck エラーゼロ / build 成功。**人間による手動確認が必要**: manual-smoke 1-1（非九大メールで登録拒否）と 1-5（DB直接追加アカウントのログイン）。
 - **人間のタスク**: Vercel の環境変数 `NEXT_PUBLIC_DEV_EMAILS` はこのデプロイ以降不要（verify-environment.md セクションB参照）。
+
+## Phase 5 の記録
+
+- **発見**: 両ページの STATUS は「ほぼ同一」だが完全同一ではなかった — admin は pending=「審査待ち」で closed 無し、my-quests は pending=「審査中」で closed 有り。ラベル変更は禁止のため、単一オブジェクトへの統合はせず、`src/components/quest/status.ts`（新規）に **approved/rejected を共有しつつ `ADMIN_QUEST_STATUS` / `MY_QUEST_STATUS` の2定数**をエクスポートし、各ページが `as STATUS` で import する形にした（視覚差分ゼロ）。
+- STATUS はキー参照（`STATUS[key]`）のみで iteration 無しを grep で確認済み → キー順序の影響なし。
+- この変更で未使用になったアイコン import のみ削除（admin: Clock / my-quests: Clock, CheckCircle2）。
+- `GuildContext.tsx`: `CreateQuestInput` interface を新設（CreateQuestModal の送信形と一致）。`createQuest` の `any` 2箇所を置換。`GuildState` からもエクスポート形状は不変。
+- `admin/page.tsx`: `tabBtn` の `Icon: any` → `React.ElementType`。
+- 検証: typecheck エラーゼロ / build 成功 / lint 53→46 problems（新規なし）。
 
 ## Stop-And-Ask で保留した項目
 

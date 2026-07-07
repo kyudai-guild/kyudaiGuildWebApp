@@ -40,11 +40,24 @@ export interface Quest {
   created_at: string;
 }
 
+// CreateQuestModal が送信し POST /api/quests が受け取る形
+export interface CreateQuestInput {
+  title: string;
+  description: string;
+  quest_type: string;
+  max_applicants: number;
+  reward: string;
+  tags: string[];
+  listing_duration_type: 'weeks' | 'date';
+  listing_duration_weeks: number | null;
+  listing_end_date: string | null;
+}
+
 export interface GuildState {
   member: Member;
   isLoggedIn: boolean;
   quests: Quest[];
-  createQuest: (questData: any) => Promise<void>;
+  createQuest: (questData: CreateQuestInput) => Promise<void>;
   updateProfile: (data: { name?: string; tags?: string[] }) => Promise<void>;
   refreshQuests: () => Promise<void>;
   isAdmin: boolean;
@@ -166,7 +179,7 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const createQuest = useCallback(async (questData: any) => {
+  const createQuest = useCallback(async (questData: CreateQuestInput) => {
     const res = await fetch('/api/quests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

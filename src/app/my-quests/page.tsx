@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Scroll, Clock, CheckCircle2, XCircle, AlertCircle, Users, Tag, Calendar, ChevronDown, ChevronUp, ArrowLeft, Plus } from 'lucide-react';
+import { Scroll, XCircle, AlertCircle, Users, Tag, Calendar, ChevronDown, ChevronUp, ArrowLeft, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { MY_QUEST_STATUS as STATUS } from '@/components/quest/status';
 
 interface Application {
   id: string; message: string | null; status: string; applied_at: string;
@@ -17,13 +18,6 @@ interface MyQuest {
   effective_end_date: string | null; created_at: string;
   applications: Application[];
 }
-
-const STATUS: Record<string, { label: string; color: string; bg: string; Icon: React.ElementType }> = {
-  pending:  { label: '審査中',    color: '#d97706', bg: '#fffbeb', Icon: Clock },
-  approved: { label: '承認済み',  color: '#059669', bg: '#ecfdf5', Icon: CheckCircle2 },
-  rejected: { label: 'リジェクト', color: '#dc2626', bg: '#fef2f2', Icon: XCircle },
-  closed:   { label: '終了',      color: '#6b7280', bg: '#f9fafb', Icon: XCircle },
-};
 
 const S = {
   page: { minHeight: '100vh' } as React.CSSProperties,

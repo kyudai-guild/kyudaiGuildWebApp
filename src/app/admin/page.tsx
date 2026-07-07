@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Shield, Clock, CheckCircle2, XCircle, ChevronDown, ChevronUp, Users, Tag, Calendar, ArrowLeft, AlertCircle, CalendarDays, MapPin, Scroll } from 'lucide-react';
+import { Shield, CheckCircle2, XCircle, ChevronDown, ChevronUp, Users, Tag, Calendar, ArrowLeft, AlertCircle, CalendarDays, MapPin, Scroll } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useGuild } from '@/contexts/GuildContext';
 import { GuildEvent, CATEGORY_COLORS, fmtDateLong, fmtTime } from '@/components/events/types';
 import EventDetailModal from '@/components/events/EventDetailModal';
+import { ADMIN_QUEST_STATUS as STATUS } from '@/components/quest/status';
 
 interface AdminQuest {
   id: string; title: string; description: string; quest_type: string;
@@ -17,12 +18,6 @@ interface AdminQuest {
   created_at: string; creator: { display_name: string } | null;
   application_count: number;
 }
-
-const STATUS: Record<string, { label: string; color: string; bg: string; Icon: any }> = {
-  pending:  { label: '審査待ち', color: '#d97706', bg: '#fffbeb', Icon: Clock },
-  approved: { label: '承認済み', color: '#059669', bg: '#ecfdf5', Icon: CheckCircle2 },
-  rejected: { label: 'リジェクト', color: '#dc2626', bg: '#fef2f2', Icon: XCircle },
-};
 
 const S = {
   page: { minHeight: '100vh' } as React.CSSProperties,
@@ -103,7 +98,7 @@ export default function AdminPage() {
     </>
   );
 
-  const tabBtn = (key: Tab, label: string, Icon: any, badge: number) => {
+  const tabBtn = (key: Tab, label: string, Icon: React.ElementType, badge: number) => {
     const active = tab === key;
     return (
       <button onClick={() => setTab(key)}
