@@ -20,7 +20,7 @@
 | 1 | typecheck script + docs/manual-smoke.md | **DONE** | （Phase 1 コミット参照） |
 | 2 | 旧世代コード削除（D1+D10、17ファイル+依存2つ+env行） | **DONE** | （Phase 2 コミット参照） |
 | 3 | エラー文言汎用化（D5）+ profile死パラメータ（D11） | **DONE** | （Phase 3 コミット参照） |
-| 4 | 登録の九大生限定化（D6、ドメイン検証をサインアップのみに） | NOT STARTED | - |
+| 4 | 登録の九大生限定化（D6、ドメイン検証をサインアップのみに） | **DONE** | （Phase 4 コミット参照） |
 | 5 | STATUS共有化（D3）+ CreateQuestInput/Icon型（D4） | NOT STARTED | - |
 | 6 | 【GATED】migration v4 後の二重書き除去（D2） | BLOCKED（人間のSQL実行待ち） | - |
 
@@ -58,6 +58,14 @@
 - `api/profile/route.ts` POST: 未使用の分割代入 `last_check_in_date, monthly_checkin_count, checkin_month` と、それを説明していた古いコメントを削除（挙動不変）。
 - 検証: typecheck エラーゼロ / build 成功。
 - **観察（スコープ外・未対応）**: GET ルート（quests/events）や他ルートの一部も `error.message` をそのまま返す箇所があるが、D5 の承認範囲は2つの POST のみなので触っていない。
+
+## Phase 4 の記録
+
+- `AuthForm.tsx`: `validateEmail` から `NEXT_PUBLIC_DEV_EMAILS` ホワイトリスト分岐を削除（九大2ドメインの判定のみに）。
+- ドメイン検証の呼び出しを `if (!isLogin && !validateEmail(...))` に変更 → **サインアップ時のみ検証**。ログインは Supabase の認証に委ねる（運営がDB直接追加した非九大アカウントのログイン維持のため）。
+- `.env.example` に `NEXT_PUBLIC_DEV_EMAILS` は元々無かった。コード内参照ゼロを grep 確認済み。
+- 検証: typecheck エラーゼロ / build 成功。**人間による手動確認が必要**: manual-smoke 1-1（非九大メールで登録拒否）と 1-5（DB直接追加アカウントのログイン）。
+- **人間のタスク**: Vercel の環境変数 `NEXT_PUBLIC_DEV_EMAILS` はこのデプロイ以降不要（verify-environment.md セクションB参照）。
 
 ## Stop-And-Ask で保留した項目
 

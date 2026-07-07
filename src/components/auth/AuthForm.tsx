@@ -17,13 +17,11 @@ export default function AuthForm() {
   const router = useRouter();
   const supabase = createClient();
 
+  // 新規登録は九大アドレスのみ。運営が直接追加したアカウントのログインを妨げないよう、
+  // この検証はサインアップ時にのみ適用する（ログインは Supabase の認証に委ねる）。
   const validateEmail = (emailStr: string) => {
     const cleanEmail = emailStr.trim().toLowerCase();
-    // 九大アドレスは常に許可
-    if (cleanEmail.endsWith('@s.kyushu-u.ac.jp') || cleanEmail.endsWith('@m.kyushu-u.ac.jp')) return true;
-    // 開発用ホワイトリスト（NEXT_PUBLIC_DEV_EMAILS にカンマ区切りで設定）
-    const devEmails = (process.env.NEXT_PUBLIC_DEV_EMAILS ?? '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
-    return devEmails.includes(cleanEmail);
+    return cleanEmail.endsWith('@s.kyushu-u.ac.jp') || cleanEmail.endsWith('@m.kyushu-u.ac.jp');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,7 +29,7 @@ export default function AuthForm() {
     setError(null);
     setMessage(null);
     const cleanEmail = email.trim().toLowerCase();
-    if (!validateEmail(cleanEmail)) {
+    if (!isLogin && !validateEmail(cleanEmail)) {
       setError('九大のメールアドレス（@s.kyushu-u.ac.jp または @m.kyushu-u.ac.jp）のみ登録可能です。');
       return;
     }
