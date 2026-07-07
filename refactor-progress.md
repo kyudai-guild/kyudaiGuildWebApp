@@ -22,7 +22,7 @@
 | 3 | エラー文言汎用化（D5）+ profile死パラメータ（D11） | **DONE** | （Phase 3 コミット参照） |
 | 4 | 登録の九大生限定化（D6、ドメイン検証をサインアップのみに） | **DONE** | （Phase 4 コミット参照） |
 | 5 | STATUS共有化（D3）+ CreateQuestInput/Icon型（D4） | **DONE** | （Phase 5 コミット参照） |
-| 6 | 【GATED】migration v4 後の二重書き除去（D2） | **SQLファイル作成済み / コード変更は BLOCKED（人間のSQL実行待ち）** | （SQL追加コミット参照） |
+| 6 | 【GATED】migration v4 後の二重書き除去（D2） | **DONE**（2026-07-08 人間が v4 実行を確認 → コード変更実施） | （Phase 6 コミット参照） |
 
 ## Baseline（Phase 0 の記録・2026-07-07）
 
@@ -76,13 +76,13 @@
 - `admin/page.tsx`: `tabBtn` の `Icon: any` → `React.ElementType`。
 - 検証: typecheck エラーゼロ / build 成功 / lint 53→46 problems（新規なし）。
 
-## Phase 6 の記録（ゲート前まで完了）
+## Phase 6 の記録（完了）
 
-- `supabase/supabase_migration_v4_cleanup.sql` を作成（実行順序の注意コメント付き）。**人間が SQL Editor で実行するまでここで停止。**
-- **残作業（人間の実行確認後に次のモデルがやること）**:
-  1. `src/app/api/quests/route.ts` POST の `category: quest_type,` と `skill_name: quest_type,` の2行を削除
-  2. `supabase/supabase_schema.sql` を実DBに一致させる（quests の旧カラム記述を除去、events テーブル定義を `supabase_migration_v3_events.sql` から取り込み）
-  3. build / typecheck / lint → プレビューでクエスト申請→承認→応募の E2E 手動確認（manual-smoke.md セクション3）
+- `supabase/supabase_migration_v4_cleanup.sql` を作成 → **2026-07-08 人間が Supabase で実行済みと確認**（「v4実行済み」の明言あり）。
+- ゲート解除後のコード変更を実施:
+  1. `src/app/api/quests/route.ts` POST から `category: quest_type,` / `skill_name: quest_type,` の二重書き2行を削除。
+  2. `supabase/supabase_schema.sql` を実DBに同期: quests の定義は既に v4 後の姿と一致していたため変更不要。events テーブル定義+RLSポリシー+GRANT を v3 と同一内容で取り込み、ヘッダーを「v2+v3+v4 適用後の現状」に更新。
+- **人間の残タスク**: プレビュー/本番でクエスト申請→承認→応募の E2E 手動確認（manual-smoke.md セクション3）。二重書き除去後の申請が 42703 等で失敗しないことを実環境で確認する。
 
 ## Stop-And-Ask で保留した項目
 
@@ -91,10 +91,10 @@
 
 ## 人間への確認待ち事項
 
-1. **Phase 6 ゲート**: migration v4（`supabase/supabase_migration_v4_cleanup.sql`）を Supabase SQL Editor で実行したか。未実行の間、`src/app/api/quests/route.ts` の `category`/`skill_name` 二重書きは**絶対に外さない**。
-2. 実環境（Supabase / Vercel）の設定確認: `docs/verify-environment.md` を人間が実施（特に A-2 events テーブル存在確認と B の Vercel env）。
-3. Phase 4 の手動確認: 非九大メールで登録拒否／DB直接追加アカウントでログイン可（manual-smoke 1-1, 1-5）。
-4. 上記 Stop-And-Ask（scratch/scripts の残骸削除の可否）。
+1. ~~Phase 6 ゲート~~ → **解除済み**（2026-07-08 v4 実行確認、コード変更実施済み）。
+2. 実環境（Supabase / Vercel）の設定確認: `docs/verify-environment.md` を人間が実施（A-1 で旧4カラムが消えていることの確認を推奨。B の Vercel env も）。
+3. 手動確認: 非九大メールで登録拒否／DB直接追加アカウントでログイン可（manual-smoke 1-1, 1-5）＋ クエスト申請→承認→応募の E2E（セクション3）。
+4. Stop-And-Ask（scratch/scripts の残骸削除の可否）— 未回答。
 
 ## メモ・注意（次のモデルが踏みやすい罠）
 
