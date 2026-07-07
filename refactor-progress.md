@@ -18,7 +18,7 @@
 |---|---|---|---|
 | 0 | Baseline 記録 | **DONE** | （進捗ファイル追加コミット） |
 | 1 | typecheck script + docs/manual-smoke.md | **DONE** | （Phase 1 コミット参照） |
-| 2 | 旧世代コード削除（D1+D10、17ファイル+依存2つ+env行） | NOT STARTED | - |
+| 2 | 旧世代コード削除（D1+D10、17ファイル+依存2つ+env行） | **DONE** | （Phase 2 コミット参照） |
 | 3 | エラー文言汎用化（D5）+ profile死パラメータ（D11） | NOT STARTED | - |
 | 4 | 登録の九大生限定化（D6、ドメイン検証をサインアップのみに） | NOT STARTED | - |
 | 5 | STATUS共有化（D3）+ CreateQuestInput/Icon型（D4） | NOT STARTED | - |
@@ -42,6 +42,14 @@
 
 - `package.json` に `"typecheck": "tsc --noEmit"` を追加。**ベースラインで typecheck はエラーゼロ**（以降もゼロ維持が基準）。
 - `docs/manual-smoke.md` を新規作成（認証/保護ルート/クエスト/イベント/巡回/削除ルート404 の6セクション）。
+
+## Phase 2 の記録
+
+- D1 削除リストの17ファイルを全削除（削除前に grep で現役コードからの参照ゼロを確認。参照は削除対象同士の内部のみだった）。
+- `package.json` から `html5-qrcode`, `qrcode.react` を除去 → `npm install` で lockfile 更新（2パッケージ削除）。
+- `.env.example` から `SUPABASE_SERVICE_ROLE_KEY` 行を削除（`DISCORD_WEBHOOK_URL` と `NEXT_PUBLIC_DEV_EMAILS` はそもそも .env.example に無かった）。
+- **ビルドの罠**: 削除直後の build は `.next/dev/types/validator.ts` が旧ルート（/admin/qr）の型を参照して失敗した → `.next` を削除して再ビルドで解決。**ルート削除後は `.next` の削除が必要**。
+- 検証: build 成功（ルート一覧から旧7ルートが消えたことを確認）/ typecheck エラーゼロ / lint 63→53 problems（新規エラーなし、削除ファイル分の減少）。
 
 ## Stop-And-Ask で保留した項目
 
