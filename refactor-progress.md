@@ -22,7 +22,7 @@
 | 3 | エラー文言汎用化（D5）+ profile死パラメータ（D11） | **DONE** | （Phase 3 コミット参照） |
 | 4 | 登録の九大生限定化（D6、ドメイン検証をサインアップのみに） | **DONE** | （Phase 4 コミット参照） |
 | 5 | STATUS共有化（D3）+ CreateQuestInput/Icon型（D4） | **DONE** | （Phase 5 コミット参照） |
-| 6 | 【GATED】migration v4 後の二重書き除去（D2） | BLOCKED（人間のSQL実行待ち） | - |
+| 6 | 【GATED】migration v4 後の二重書き除去（D2） | **SQLファイル作成済み / コード変更は BLOCKED（人間のSQL実行待ち）** | （SQL追加コミット参照） |
 
 ## Baseline（Phase 0 の記録・2026-07-07）
 
@@ -76,14 +76,25 @@
 - `admin/page.tsx`: `tabBtn` の `Icon: any` → `React.ElementType`。
 - 検証: typecheck エラーゼロ / build 成功 / lint 53→46 problems（新規なし）。
 
+## Phase 6 の記録（ゲート前まで完了）
+
+- `supabase/supabase_migration_v4_cleanup.sql` を作成（実行順序の注意コメント付き）。**人間が SQL Editor で実行するまでここで停止。**
+- **残作業（人間の実行確認後に次のモデルがやること）**:
+  1. `src/app/api/quests/route.ts` POST の `category: quest_type,` と `skill_name: quest_type,` の2行を削除
+  2. `supabase/supabase_schema.sql` を実DBに一致させる（quests の旧カラム記述を除去、events テーブル定義を `supabase_migration_v3_events.sql` から取り込み）
+  3. build / typecheck / lint → プレビューでクエスト申請→承認→応募の E2E 手動確認（manual-smoke.md セクション3）
+
 ## Stop-And-Ask で保留した項目
 
-- （なし）
+- **`scratch/` ディレクトリと `scripts/fix.js, patch*.js, replace*.js`**: 過去のデバッグ残骸で lint エラー源（baseline 44 エラーの過半）。D1 削除リスト外のため削除していない。削除してよいか人間の承認待ち。
+- D5 スコープ外の観察: GET ルート等にも `error.message` をそのまま返す箇所が残る（承認範囲は POST 2本のみだったため未変更）。
 
 ## 人間への確認待ち事項
 
-- **Phase 6 ゲート**: migration v4（`supabase/supabase_migration_v4_cleanup.sql`）を Supabase SQL Editor で実行したか。未実行の間、`src/app/api/quests/route.ts` の `category`/`skill_name` 二重書きは**絶対に外さない**。
-- 実環境（Supabase / Vercel）の設定確認: `docs/verify-environment.md` の手順書を人間が実施する。
+1. **Phase 6 ゲート**: migration v4（`supabase/supabase_migration_v4_cleanup.sql`）を Supabase SQL Editor で実行したか。未実行の間、`src/app/api/quests/route.ts` の `category`/`skill_name` 二重書きは**絶対に外さない**。
+2. 実環境（Supabase / Vercel）の設定確認: `docs/verify-environment.md` を人間が実施（特に A-2 events テーブル存在確認と B の Vercel env）。
+3. Phase 4 の手動確認: 非九大メールで登録拒否／DB直接追加アカウントでログイン可（manual-smoke 1-1, 1-5）。
+4. 上記 Stop-And-Ask（scratch/scripts の残骸削除の可否）。
 
 ## メモ・注意（次のモデルが踏みやすい罠）
 
