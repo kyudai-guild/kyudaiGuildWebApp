@@ -58,6 +58,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
   const [customTag, setCustomTag] = useState('');
   const [durationMode, setDurationMode] = useState<'weeks' | 'date'>('weeks');
   const [emailPublic, setEmailPublic] = useState(true);
+  const [preferredContact, setPreferredContact] = useState('');
   const [durationWeeks, setDurationWeeks] = useState(2);
   const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(false);
@@ -77,7 +78,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
     if (!title || !questType) { setError('必須項目が入力されていません。'); return; }
     setLoading(true); setError(null);
     try {
-      await createQuest({ title, description, quest_type: questType, max_applicants: maxApplicants, reward, tags, listing_duration_type: durationMode, listing_duration_weeks: durationMode === 'weeks' ? durationWeeks : null, listing_end_date: durationMode === 'date' ? endDate : null, contact_email_public: emailPublic });
+      await createQuest({ title, description, quest_type: questType, max_applicants: maxApplicants, reward, tags, listing_duration_type: durationMode, listing_duration_weeks: durationMode === 'weeks' ? durationWeeks : null, listing_end_date: durationMode === 'date' ? endDate : null, contact_email_public: emailPublic, preferred_contact: preferredContact.trim() || null });
       onClose();
       setTitle(''); setDescription(''); setQuestType(QUEST_TYPES[0]); setMaxApplicants(1); setReward(''); setTags([]);
       setDurationMode('weeks'); setDurationWeeks(2); setEndDate(''); setStep('guidelines'); setGuidelinesAccepted(false);
@@ -214,6 +215,14 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                     公開すると、応募を検討している人があなたに直接連絡できます。チェックを外しても掲示はできます。
                   </span>
                 </label>
+                <div style={{ marginTop: '0.75rem' }}>
+                  <label style={labelS}>希望する連絡手段（任意）</label>
+                  <input type="text" value={preferredContact} onChange={e => setPreferredContact(e.target.value)}
+                    placeholder="例: LINE ID: xxxx / Instagram: @xxxx" style={iStyle} onFocus={focusI} onBlur={blurI} />
+                  <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>
+                    ※記入すると、マッチング成立時に応募者へ「この連絡先に連絡してください」と案内されます。
+                  </p>
+                </div>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.5rem' }}>
                 <button type="button" onClick={() => setStep('guidelines')}

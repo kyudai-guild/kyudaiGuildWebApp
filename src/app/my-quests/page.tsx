@@ -321,6 +321,11 @@ export default function MyQuestsPage() {
                                                 </button>
                                               </>
                                             )}
+                                            {app.status === 'accepted' && app.applicant?.email && (
+                                              <a href={`mailto:${app.applicant.email}`} style={{ ...S.smallBtn, textDecoration: 'none', color: 'var(--color-primary)', borderColor: '#cfe3d8', background: '#f2f7f4' }}>
+                                                ✉ {app.applicant.email}
+                                              </a>
+                                            )}
                                             {quest.status === 'completed' && app.status === 'accepted' && (
                                               <button style={{ ...S.primarySmallBtn, background: 'var(--color-accent)' }}
                                                 onClick={() => setThanksTarget({ questId: quest.id, questTitle: quest.title, recipientName: app.applicant?.display_name ?? '応募者', recipientId: app.applicant_id })}>
@@ -379,6 +384,23 @@ export default function MyQuestsPage() {
                   <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.25rem' }}>
                     依頼者: {item.quest!.creator?.display_name ?? '不明'}{item.quest!.reward ? ` ・ ${item.quest!.reward}` : ''}
                   </p>
+                  {item.status === 'accepted' && (
+                    <div style={{ marginTop: '0.75rem', padding: '0.875rem 1rem', borderRadius: '0.75rem', background: '#f2f7f4', border: '1px solid #cfe3d8' }}>
+                      <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '0.375rem' }}>🎉 マッチングが成立しました。依頼者と連絡を取りましょう。</p>
+                      {item.quest!.preferred_contact && (
+                        <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginBottom: '0.25rem' }}>
+                          依頼者の希望連絡先: <b style={{ color: 'var(--color-text-primary)' }}>{item.quest!.preferred_contact}</b>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>（まずはこちらへ連絡してください）</span>
+                        </p>
+                      )}
+                      {item.quest!.creator?.email && (
+                        <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+                          メール: <a href={`mailto:${item.quest!.creator.email}`} style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>{item.quest!.creator.email}</a>
+                        </p>
+                      )}
+                      <p style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)', marginTop: '0.375rem' }}>※あなたの九大メールも依頼者に開示されています。</p>
+                    </div>
+                  )}
                   {item.status === 'accepted' && item.quest!.status === 'completed' && (
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
                       <button style={{ ...S.primarySmallBtn, background: 'var(--color-accent)' }}
