@@ -58,6 +58,41 @@ export async function PATCH(
       return NextResponse.json({ error: '応募の更新に失敗しました。' }, { status: 500 });
     }
 
+    // マッチング成立 → トークルームを用意し、依頼者と応募者を参加させる
+    if (action === 'accept') {
+      try {
+        let { data: room } = await supabase
+          .from('talk_rooms')
+          .select('id')
+          .eq('quest_id', quest.id)
+          .maybeSingle();
+        if (!room) {
+          const { data: created, error: roomError } = await supabase
+            .from('talk_rooms')
+            .insert({ quest_id: quest.id })
+            .select('id')
+            .single();
+          if (roomError) throw roomError;
+          room = created;
+        }
+        if (room) {
+          const { error: memberError } = await supabase
+            .from('talk_members')
+            .upsert(
+              [
+                { room_id: room.id, profile_id: user.id },
+                { room_id: room.id, profile_id: application.applicant_id },
+              ],
+              { onConflict: 'room_id,profile_id', ignoreDuplicates: true }
+            );
+          if (memberError) throw memberError;
+        }
+      } catch (roomErr) {
+        // ルーム作成の失敗で承認自体は巻き戻さない（次回の承認時に再試行される）
+        console.error('Error creating talk room:', roomErr);
+      }
+    }
+
     return NextResponse.json(updated);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

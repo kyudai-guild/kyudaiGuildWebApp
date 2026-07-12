@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useGuild } from '@/contexts/GuildContext';
-import { Scroll, Shield, LogIn, LogOut, Menu, X, CalendarDays, UserRound } from 'lucide-react';
+import { Scroll, Shield, LogIn, LogOut, Menu, X, CalendarDays, UserRound, MessageCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 
@@ -102,6 +102,11 @@ export default function Header() {
               </button>
             )}
             {isLoggedIn && (
+              <button onClick={() => router.push('/talks')} className="header-nav-link">
+                <MessageCircle size={14} />トーク
+              </button>
+            )}
+            {isLoggedIn && (
               <button onClick={() => router.push('/profile')} className="header-nav-link">
                 <UserRound size={14} />プロフィール
               </button>
@@ -153,6 +158,11 @@ export default function Header() {
             <button onClick={() => { router.push('/my-quests'); setMobileOpen(false); }}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}
             ><Scroll size={18} />マイクエスト</button>
+          )}
+          {isLoggedIn && (
+            <button onClick={() => { router.push('/talks'); setMobileOpen(false); }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}
+            ><MessageCircle size={18} />トーク</button>
           )}
           {isLoggedIn && (
             <button onClick={() => { router.push('/profile'); setMobileOpen(false); }}

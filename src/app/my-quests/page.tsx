@@ -321,6 +321,12 @@ export default function MyQuestsPage() {
                                                 </button>
                                               </>
                                             )}
+                                            {app.status === 'accepted' && (
+                                              <button style={{ ...S.smallBtn, color: 'var(--color-primary)', borderColor: '#cfe3d8', background: '#f2f7f4' }}
+                                                onClick={() => router.push('/talks')}>
+                                                💬 トークで連絡
+                                              </button>
+                                            )}
                                             {quest.status === 'completed' && app.status === 'accepted' && (
                                               <button style={{ ...S.primarySmallBtn, background: 'var(--color-accent)' }}
                                                 onClick={() => setThanksTarget({ questId: quest.id, questTitle: quest.title, recipientName: app.applicant?.display_name ?? '応募者', recipientId: app.applicant_id })}>
@@ -379,6 +385,12 @@ export default function MyQuestsPage() {
                   <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.25rem' }}>
                     依頼者: {item.quest!.creator?.display_name ?? '不明'}{item.quest!.reward ? ` ・ ${item.quest!.reward}` : ''}
                   </p>
+                  {item.status === 'accepted' && (
+                    <div style={{ marginTop: '0.75rem', padding: '0.875rem 1rem', borderRadius: '0.75rem', background: '#f2f7f4', border: '1px solid #cfe3d8' }}>
+                      <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-primary)', marginBottom: '0.5rem' }}>🎉 マッチングが成立しました。トークルームで依頼者と連絡できます。</p>
+                      <button style={S.primarySmallBtn} onClick={() => router.push('/talks')}>💬 トークを開く</button>
+                    </div>
+                  )}
                   {item.status === 'accepted' && item.quest!.status === 'completed' && (
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
                       <button style={{ ...S.primarySmallBtn, background: 'var(--color-accent)' }}
