@@ -11,11 +11,14 @@ export type QuestStatusConfig = {
 const APPROVED: QuestStatusConfig = { label: '承認済み', color: '#059669', bg: '#ecfdf5', Icon: CheckCircle2 };
 const REJECTED: QuestStatusConfig = { label: 'リジェクト', color: '#dc2626', bg: '#fef2f2', Icon: XCircle };
 
+const COMPLETED: QuestStatusConfig = { label: '完了', color: '#0f766e', bg: '#f0fdfa', Icon: CheckCircle2 };
+
 // 管理画面（審査する側の視点）: pending は「審査待ち」
 export const ADMIN_QUEST_STATUS: Record<string, QuestStatusConfig> = {
   pending:  { label: '審査待ち', color: '#d97706', bg: '#fffbeb', Icon: Clock },
   approved: APPROVED,
   rejected: REJECTED,
+  completed: COMPLETED,
 };
 
 // マイクエスト（申請した側の視点）: pending は「審査中」、closed あり
@@ -23,5 +26,6 @@ export const MY_QUEST_STATUS: Record<string, QuestStatusConfig> = {
   pending:  { label: '審査中', color: '#d97706', bg: '#fffbeb', Icon: Clock },
   approved: APPROVED,
   rejected: REJECTED,
+  completed: COMPLETED,
   closed:   { label: '終了', color: '#6b7280', bg: '#f9fafb', Icon: XCircle },
 };

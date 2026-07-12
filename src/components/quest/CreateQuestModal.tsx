@@ -57,6 +57,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
   const [tags, setTags] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
   const [durationMode, setDurationMode] = useState<'weeks' | 'date'>('weeks');
+  const [emailPublic, setEmailPublic] = useState(true);
   const [durationWeeks, setDurationWeeks] = useState(2);
   const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(false);
@@ -76,7 +77,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
     if (!title || !questType) { setError('必須項目が入力されていません。'); return; }
     setLoading(true); setError(null);
     try {
-      await createQuest({ title, description, quest_type: questType, max_applicants: maxApplicants, reward, tags, listing_duration_type: durationMode, listing_duration_weeks: durationMode === 'weeks' ? durationWeeks : null, listing_end_date: durationMode === 'date' ? endDate : null });
+      await createQuest({ title, description, quest_type: questType, max_applicants: maxApplicants, reward, tags, listing_duration_type: durationMode, listing_duration_weeks: durationMode === 'weeks' ? durationWeeks : null, listing_end_date: durationMode === 'date' ? endDate : null, contact_email_public: emailPublic });
       onClose();
       setTitle(''); setDescription(''); setQuestType(QUEST_TYPES[0]); setMaxApplicants(1); setReward(''); setTags([]);
       setDurationMode('weeks'); setDurationWeeks(2); setEndDate(''); setStep('guidelines'); setGuidelinesAccepted(false);
@@ -203,6 +204,16 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                     <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>※指定した日付の0:00に掲示が終了します（最大半年先まで）。</p>
                   </>
                 )}
+              </div>
+              <div>
+                <label style={labelS}>連絡先の公開</label>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.75rem', borderRadius: '0.75rem', cursor: 'pointer', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
+                  <input type="checkbox" checked={emailPublic} onChange={e => setEmailPublic(e.target.checked)} style={{ width: 16, height: 16, marginTop: 2, accentColor: 'var(--color-primary)', cursor: 'pointer' }} />
+                  <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+                    <b style={{ color: 'var(--color-text-primary)' }}>九大メールアドレスを応募者に公開する（推奨）</b><br />
+                    公開すると、応募を検討している人があなたに直接連絡できます。チェックを外しても掲示はできます。
+                  </span>
+                </label>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.5rem' }}>
                 <button type="button" onClick={() => setStep('guidelines')}

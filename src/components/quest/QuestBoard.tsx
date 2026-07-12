@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search, Plus, Users, Tag, Calendar, X, AlertCircle, CheckCircle2, Send } from 'lucide-react';
+import { Search, Plus, Users, Tag, Calendar, X, AlertCircle, CheckCircle2, Send, Mail } from 'lucide-react';
 import { useGuild, Quest } from '@/contexts/GuildContext';
 import CreateQuestModal from './CreateQuestModal';
 
@@ -100,6 +100,17 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
               {quest.tags.map(tag => (
                 <span key={tag} style={{ fontSize: '0.75rem', padding: '0.25rem 0.625rem', borderRadius: '9999px', fontWeight: 500, color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>#{tag}</span>
               ))}
+            </div>
+          )}
+
+          {isLoggedIn && !isCreator && quest.contact_email_public !== false && quest.creator?.email && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', background: '#f2f7f4', border: '1px solid #cfe3d8' }}>
+              <Mail size={14} style={{ color: 'var(--color-primary)', marginTop: 2, flexShrink: 0 }} />
+              <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+                <b style={{ color: 'var(--color-text-primary)' }}>依頼者の連絡先: </b>
+                <a href={`mailto:${quest.creator.email}`} style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>{quest.creator.email}</a><br />
+                応募前の質問はこちらへどうぞ。
+              </p>
             </div>
           )}
 

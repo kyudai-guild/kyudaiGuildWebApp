@@ -10,7 +10,7 @@ export async function GET() {
       .from('quests')
       .select(`
         *,
-        creator:creator_id (display_name),
+        creator:creator_id (display_name, email),
         applications:quest_applications (id)
       `)
       .order('created_at', { ascending: false });
@@ -70,10 +70,25 @@ export async function POST(request: Request) {
       listing_duration_type,
       listing_duration_weeks,
       listing_end_date,
+      contact_email_public,
+      preferred_contact,
     } = body;
 
     if (!title || !quest_type) {
       return NextResponse.json({ error: 'クエスト名とクエスト種別は必須です。' }, { status: 400 });
+    }
+
+    // 完了報告していない掲示中の依頼がある間は、新しい依頼を出せない
+    const { count: activeCount } = await supabase
+      .from('quests')
+      .select('id', { count: 'exact', head: true })
+      .eq('creator_id', user.id)
+      .eq('status', 'approved');
+    if ((activeCount ?? 0) > 0) {
+      return NextResponse.json(
+        { error: '完了報告をしていない掲示中の依頼があります。マイクエストから「完了報告」をしてから、新しい依頼を申請してください。' },
+        { status: 400 }
+      );
     }
 
     // 掲示期間のバリデーション
@@ -105,6 +120,8 @@ export async function POST(request: Request) {
         listing_duration_type,
         listing_duration_weeks,
         listing_end_date,
+        contact_email_public: contact_email_public !== false, // 既定で公開（オプトアウト式）
+        preferred_contact: preferred_contact || null,
         status: 'pending',
       })
       .select()

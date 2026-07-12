@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useGuild } from '@/contexts/GuildContext';
-import { Scroll, Shield, LogIn, LogOut, Menu, X, CalendarDays } from 'lucide-react';
+import { Scroll, Shield, LogIn, LogOut, Menu, X, CalendarDays, UserRound } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 
@@ -101,6 +101,11 @@ export default function Header() {
                 <Scroll size={14} />マイクエスト
               </button>
             )}
+            {isLoggedIn && (
+              <button onClick={() => router.push('/profile')} className="header-nav-link">
+                <UserRound size={14} />プロフィール
+              </button>
+            )}
             {isAdmin && (
               <button onClick={() => router.push('/admin')} className="header-nav-link" style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
                 <Shield size={14} />管理
@@ -148,6 +153,11 @@ export default function Header() {
             <button onClick={() => { router.push('/my-quests'); setMobileOpen(false); }}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}
             ><Scroll size={18} />マイクエスト</button>
+          )}
+          {isLoggedIn && (
+            <button onClick={() => { router.push('/profile'); setMobileOpen(false); }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}
+            ><UserRound size={18} />プロフィール</button>
           )}
           {isAdmin && (
             <button onClick={() => { router.push('/admin'); setMobileOpen(false); }}

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { createClient } from '@/lib/supabase-client';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 /* ============================================================
    型定義
@@ -32,7 +32,9 @@ export interface Quest {
   effective_end_date: string | null;
   status: string;
   creator_id: string;
-  creator?: { display_name: string };
+  creator?: { display_name: string; email?: string };
+  contact_email_public?: boolean;
+  preferred_contact?: string | null;
   reviewer?: { display_name: string };
   reviewed_at: string | null;
   rejection_reason: string | null;
@@ -51,6 +53,8 @@ export interface CreateQuestInput {
   listing_duration_type: 'weeks' | 'date';
   listing_duration_weeks: number | null;
   listing_end_date: string | null;
+  contact_email_public?: boolean;
+  preferred_contact?: string | null;
 }
 
 export interface GuildState {
@@ -61,6 +65,7 @@ export interface GuildState {
   updateProfile: (data: { name?: string; tags?: string[] }) => Promise<void>;
   refreshQuests: () => Promise<void>;
   isAdmin: boolean;
+  markOnboarded: () => void;
 }
 
 const INITIAL_MEMBER: Member = {
@@ -82,9 +87,12 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
   const router = useRouter();
   
+  const pathname = usePathname();
   const [member, setMember] = useState<Member>(INITIAL_MEMBER);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [quests, setQuests] = useState<Quest[]>([]);
+  // undefined=未取得 / null=初期設定が未完了 / string=完了日時
+  const [onboardedAt, setOnboardedAt] = useState<string | null | undefined>(undefined);
 
   // クエスト一覧取得
   const refreshQuests = useCallback(async () => {
@@ -130,6 +138,7 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
             tags: profile?.tags || [],
             joinDate: profile?.created_at || new Date().toISOString()
           });
+          setOnboardedAt(profile?.onboarded_at ?? null);
 
         } catch (err) {
           console.error('Error fetching user data:', err);
@@ -137,6 +146,7 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
       } else {
         setIsLoggedIn(false);
         setMember(INITIAL_MEMBER);
+        setOnboardedAt(undefined);
       }
     };
 
@@ -194,6 +204,17 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
     await refreshQuests();
   }, [refreshQuests]);
 
+  // 初期設定が未完了のユーザーを /onboarding へ誘導
+  useEffect(() => {
+    if (isLoggedIn && onboardedAt === null && pathname !== '/onboarding' && !pathname.startsWith('/auth')) {
+      router.push('/onboarding');
+    }
+  }, [isLoggedIn, onboardedAt, pathname, router]);
+
+  const markOnboarded = useCallback(() => {
+    setOnboardedAt(new Date().toISOString());
+  }, []);
+
   const isAdmin = member.role === 'admin';
 
   return (
@@ -206,6 +227,7 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
         updateProfile,
         refreshQuests,
         isAdmin,
+        markOnboarded,
       }}
     >
       {children}

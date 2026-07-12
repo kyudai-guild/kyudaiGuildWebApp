@@ -21,6 +21,7 @@ export async function GET() {
           message,
           status,
           applied_at,
+          applicant_id,
           applicant:applicant_id (display_name, email)
         )
       `)

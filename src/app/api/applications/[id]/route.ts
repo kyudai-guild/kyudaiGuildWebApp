@@ -1,0 +1,65 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase-server';
+
+// 応募の承認（マッチング成立）/ 見送り。クエストの依頼者のみ。
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { action } = await request.json();
+    if (action !== 'accept' && action !== 'reject') {
+      return NextResponse.json({ error: '不正な操作です。' }, { status: 400 });
+    }
+
+    const { data: application, error: appError } = await supabase
+      .from('quest_applications')
+      .select('id, status, applicant_id, quest:quest_id (id, creator_id, status, max_applicants)')
+      .eq('id', id)
+      .single();
+    if (appError || !application) {
+      return NextResponse.json({ error: '応募が見つかりません。' }, { status: 404 });
+    }
+
+    const quest = application.quest as unknown as { id: string; creator_id: string; status: string; max_applicants: number };
+    if (quest.creator_id !== user.id) {
+      return NextResponse.json({ error: '依頼者のみ操作できます。' }, { status: 403 });
+    }
+    if (application.status !== 'pending') {
+      return NextResponse.json({ error: 'この応募はすでに処理済みです。' }, { status: 400 });
+    }
+
+    if (action === 'accept') {
+      const { count } = await supabase
+        .from('quest_applications')
+        .select('id', { count: 'exact', head: true })
+        .eq('quest_id', quest.id)
+        .eq('status', 'accepted');
+      if ((count ?? 0) >= quest.max_applicants) {
+        return NextResponse.json({ error: '募集人数に達しています。' }, { status: 400 });
+      }
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from('quest_applications')
+      .update({ status: action === 'accept' ? 'accepted' : 'rejected' })
+      .eq('id', id)
+      .select('id, status, applicant_id, applicant:applicant_id (display_name, email)')
+      .single();
+    if (updateError) {
+      console.error('Error updating application:', updateError);
+      return NextResponse.json({ error: '応募の更新に失敗しました。' }, { status: 500 });
+    }
+
+    return NextResponse.json(updated);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
