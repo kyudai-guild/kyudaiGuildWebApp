@@ -55,10 +55,14 @@ alter table talk_rooms    enable row level security;
 alter table talk_members  enable row level security;
 alter table talk_messages enable row level security;
 
--- ルーム: メンバー or 管理者（運営が確認することがある旨はUIに明記済み）
+-- ルーム: メンバー or 管理者 or そのクエストの依頼者
+-- （依頼者は自分がメンバー登録される前にルームの存在確認が必要なため）
 drop policy if exists "talk_rooms_select" on talk_rooms;
 create policy "talk_rooms_select" on talk_rooms for select
-  using (is_talk_member(id) or is_guild_admin());
+  using (
+    is_talk_member(id) or is_guild_admin()
+    or exists (select 1 from quests where quests.id = quest_id and quests.creator_id = auth.uid())
+  );
 -- 作成はクエストの依頼者のみ（応募承認時にAPIが作成する）
 drop policy if exists "talk_rooms_insert" on talk_rooms;
 create policy "talk_rooms_insert" on talk_rooms for insert

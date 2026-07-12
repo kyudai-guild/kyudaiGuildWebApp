@@ -43,21 +43,21 @@ v5 の内容: 目的/分野マスタ（論理削除つき）+ ユーザー選択
 - [x] QuestBoard 詳細: 依頼者メール表示（公開設定ON時・ログインユーザーにのみ表示）
 - [x] CreateQuestModal: メール公開チェック（既定ON）
 - [x] Header に プロフィール リンク
-- [ ] build/typecheck 検証 → コミット（実行中）
+- [x] build/typecheck 検証 → コミット `1bfbc94`
 
-### feature/phase2-contact（案1）— 未着手
-1. base から分岐
-2. CreateQuestModal に「希望連絡先（LINE/Instagram等, 任意）」入力欄 → `preferred_contact` で送信
-3. my-quests 応募タブ: `status=accepted` になったら依頼者メール+希望連絡先を表示（「こちらに連絡してください」の案内文）
-4. my-quests 掲示側: マッチ成立した応募者のメールを表示
-5. QuestBoard: 希望連絡先の存在を「マッチ後に開示されます」と表示
+### feature/phase2-contact（案1）— **実装済み** コミット `57d1eaf`
+- [x] CreateQuestModal に「希望する連絡手段（LINE/Instagram等, 任意）」→ `preferred_contact`
+- [x] my-quests 応募タブ: マッチ成立で依頼者メール+希望連絡先を表示（自分のメールも開示される旨の注意付き）
+- [x] my-quests 掲示側: マッチ成立した応募者のメール（mailtoボタン）
+- 検証: typecheck / build 成功
 
-### feature/phase2-talk（案2）— 未着手
-1. base から分岐
-2. API: `GET /api/talks`（自分のルーム一覧）/ `GET /api/talks/[id]`（メッセージ, ?after=）/ `POST /api/talks/[id]`（送信）
-3. `PATCH /api/applications/[id]` の accept 時に talk_rooms/talk_members を作成（room: quest_id unique, member: 依頼者+承認応募者）
-4. `/talks` 一覧 + `/talks/[id]` チャットUI（5秒ポーリング, 下部に「会話の内容は運営が確認することがあります」注意書き）
-5. Header に トーク リンク
+### feature/phase2-talk（案2）— **実装済み** コミット `699524b`
+- [x] API: `GET /api/talks` / `GET /api/talks/[id]`（?after=差分取得）/ `POST /api/talks/[id]`（2000字制限）
+- [x] accept 時に talk_rooms（quest_id unique）+ talk_members（依頼者+承認応募者、複数承認で追加参加）を自動作成。作成失敗でも承認は成立（次回accept時に再試行）
+- [x] `/talks` 一覧（最新メッセージプレビュー）+ `/talks/[id]` チャット（5秒ポーリング、IME確定Enter対応、運営確認の注意書き）
+- [x] Header に トーク リンク / my-quests 両サイドに「トークで連絡」導線
+- [x] v6 SQL: talk_rooms select に「クエスト依頼者」を追加（メンバー登録前の存在確認に必要）
+- 検証: typecheck / build 成功（/talks, /api/talks ルート生成確認）
 
 ## 設計上の決定（次のモデルは変えないこと）
 
@@ -67,6 +67,18 @@ v5 の内容: 目的/分野マスタ（論理削除つき）+ ユーザー選択
 - **メール公開はオプトアウト式**（quests.contact_email_public default true）。表示は**ログインユーザーに限定**（未ログインには出さない）。
 - **重さ対策**: 統計は head:true の count のみ / 履歴・感謝は10〜20件ページネーション / インデックス追加済み。
 - 案2のRLSは security definer 関数 `is_talk_member()` で自己参照再帰を回避している（v6参照）。
+
+## 人間の動作確認手順（SQL実行後）
+
+どちらのブランチでも共通（2アカウント必要: 依頼者役A・応募者役B）:
+1. ログイン → 初期設定ウィザードが出る（目的/分野/資格を選んで完了。スキップも試す）
+2. ヘッダー「プロフィール」→ 統計タイル・履歴・編集が動くか
+3. A で依頼を掲示 → 管理者が承認 → B が応募
+4. A のマイクエストで B の「プロフィールを見る」→「承認する」
+5. **案1**: B の応募タブに A のメール+希望連絡先が出るか / A 側に B のメールが出るか
+   **案2**: ヘッダー「トーク」にルームができ、A↔B でメッセージが往復するか（5秒以内に反映）・下部に運営確認の注意書き
+6. A が依頼を「完了報告」→ この状態で A が新規依頼を出せるようになるか（完了前は400エラーになるか）
+7. A→B / B→A で「感謝をおくる」→ /thanks の「もらった/おくった」に出るか・2回目はエラーになるか
 
 ## 既知の注意点
 
