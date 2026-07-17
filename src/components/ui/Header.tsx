@@ -12,12 +12,36 @@ export default function Header() {
   const supabase = createClient();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  // 要対応の応募数（60秒ごと + タブ復帰時に更新）
+  useEffect(() => {
+    if (!isLoggedIn) { setNotifCount(0); return; }
+    let cancelled = false;
+    const load = () => {
+      fetch('/api/notifications/count')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (!cancelled && d) setNotifCount(d.total ?? 0); })
+        .catch(() => {});
+    };
+    load();
+    const timer = setInterval(load, 60000);
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { cancelled = true; clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+  }, [isLoggedIn]);
+
+  const notifBadge = notifCount > 0 && (
+    <span style={{ minWidth: 16, height: 16, padding: '0 4px', borderRadius: 9999, background: '#dc2626', color: '#fff', fontSize: '0.625rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+      {notifCount > 9 ? '9+' : notifCount}
+    </span>
+  );
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -98,7 +122,7 @@ export default function Header() {
             </button>
             {isLoggedIn && (
               <button onClick={() => router.push('/my-quests')} className="header-nav-link">
-                <Scroll size={14} />マイクエスト
+                <Scroll size={14} />マイクエスト{notifBadge}
               </button>
             )}
             {isLoggedIn && (
@@ -157,7 +181,7 @@ export default function Header() {
           {isLoggedIn && (
             <button onClick={() => { router.push('/my-quests'); setMobileOpen(false); }}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}
-            ><Scroll size={18} />マイクエスト</button>
+            ><Scroll size={18} />マイクエスト{notifBadge}</button>
           )}
           {isLoggedIn && (
             <button onClick={() => { router.push('/talks'); setMobileOpen(false); }}
