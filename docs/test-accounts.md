@@ -45,6 +45,40 @@ where u.email like '%@guild-dev.test';
 - `role` は `user`（応募者役なので admin にしない）
 - `onboarded_at` は NULL でOK（初回ログイン時に初期設定ウィザードが出ます。それも確認できます）
 
+## トラブル: 「Invalid login credentials」と出る
+
+メールかパスワードが一致していません（メール未確認の場合は別の文言になります）。
+**最も多い原因は、ユーザー作成時に「Create new user」ではなく「Send invitation」を選んだこと**です。
+招待方式ではパスワードが設定されず、招待メールも架空ドメインなので届きません。
+
+まず状態を確認:
+
+```sql
+select id, email, email_confirmed_at, last_sign_in_at,
+       (encrypted_password is null or encrypted_password = '') as password_missing
+from auth.users
+where email like '%guild-dev%';
+```
+
+- `password_missing` = true → パスワード未設定
+- `email_confirmed_at` = NULL → 未確認（Auto Confirm のチェック忘れ）
+- 行が返らない → 作成失敗、またはアプリが別プロジェクトを見ている
+
+パスワードと確認状態をまとめて設定し直す（これが一番確実）:
+
+```sql
+update auth.users
+set encrypted_password = crypt('Test1234!', gen_salt('bf')),
+    email_confirmed_at = coalesce(email_confirmed_at, now())
+where email = 'applicant-a@guild-dev.test';
+```
+
+> `function crypt does not exist` と出たら `extensions.crypt(...)` / `extensions.gen_salt('bf')` に書き換える。
+
+**それでも直らない場合**: 自分の九大アカウントで同じURLにログインできるか試す。
+そちらもログインできないなら、Vercel の `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` が
+ユーザーを追加したプロジェクトと一致していない（プレビュー環境に未設定を含む）。
+
 ## 手順3: 同時に2人分ログインしてテストする
 
 セッションはCookieで管理されるため、同じブラウザの同じウィンドウでは1人しかログインできません。
