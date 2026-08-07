@@ -99,7 +99,9 @@ export default function MyQuestsPage() {
       const res = await fetch(`/api/applications/${appId}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
       });
-      if (!res.ok) throw new Error((await res.json()).error);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      if (data.warning) setActionError(data.warning);
       await loadPosted();
     } catch (e: any) {
       setActionError(e.message || '操作に失敗しました。');

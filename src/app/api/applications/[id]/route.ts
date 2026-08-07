@@ -59,6 +59,7 @@ export async function PATCH(
     }
 
     // マッチング成立 → トークルームを用意し、依頼者と応募者を参加させる
+    let talkRoomWarning: string | null = null;
     if (action === 'accept') {
       try {
         let { data: room } = await supabase
@@ -88,12 +89,13 @@ export async function PATCH(
           if (memberError) throw memberError;
         }
       } catch (roomErr) {
-        // ルーム作成の失敗で承認自体は巻き戻さない（次回の承認時に再試行される）
+        // ルーム作成の失敗で承認自体は巻き戻さない。ただし黙殺せず画面に伝える。
         console.error('Error creating talk room:', roomErr);
+        talkRoomWarning = '承認は完了しましたが、トークルームの作成に失敗しました。運営にご連絡ください。';
       }
     }
 
-    return NextResponse.json(updated);
+    return NextResponse.json({ ...updated, warning: talkRoomWarning });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
