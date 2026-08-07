@@ -50,6 +50,8 @@ export default function ProfilePage() {
   const [lineNotify, setLineNotify] = useState(true);
   const [saving, setSaving] = useState(false);
   const [interestLabels, setInterestLabels] = useState<string[]>([]);
+  const [line, setLine] = useState<{ linked: boolean; name: string | null; friend: boolean; notify: boolean } | null>(null);
+  const [lineBusy, setLineBusy] = useState(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -73,6 +75,12 @@ export default function ProfilePage() {
         if (prof.line_notify !== undefined && prof.line_notify !== null) setLineNotify(prof.line_notify);
         const ids = new Set(prof.interest_ids ?? []);
         setInterestLabels((opts.interests ?? []).filter((o: Option) => ids.has(o.id)).map((o: Option) => o.label));
+        setLine({
+          linked: Boolean(prof.line_user_id),
+          name: prof.line_display_name ?? null,
+          friend: Boolean(prof.line_friend),
+          notify: prof.line_notify !== false,
+        });
       }
     } finally {
       setLoading(false);
@@ -88,6 +96,27 @@ export default function ProfilePage() {
     const data = await res.json();
     if (role === 'posted') { setPosted(prev => [...prev, ...data.items]); setPostedMore(data.hasMore); }
     else { setApplied(prev => [...prev, ...data.items]); setAppliedMore(data.hasMore); }
+  };
+
+  const unlinkLine = async () => {
+    if (!confirm('LINE連携を解除しますか？クエストのお知らせが届かなくなります。')) return;
+    setLineBusy(true);
+    try {
+      const res = await fetch('/api/line/unlink', { method: 'POST' });
+      if (res.ok) loadAll();
+    } finally {
+      setLineBusy(false);
+    }
+  };
+
+  const toggleLineNotify = async () => {
+    if (!line) return;
+    const next = !line.notify;
+    setLine({ ...line, notify: next });
+    await fetch('/api/profile', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ line_notify: next }),
+    });
   };
 
   const saveProfile = async () => {
@@ -242,6 +271,43 @@ export default function ProfilePage() {
             </div>
           ))}
         </div>
+
+        {/* LINE連携 */}
+        {line && (
+          <div style={{ ...card, padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', flexWrap: 'wrap' }}>
+              <span style={{ width: 40, height: 40, borderRadius: '0.625rem', flexShrink: 0, background: '#06c755', color: '#fff', fontWeight: 800, fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)' }}>LINE</span>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <p style={{ fontSize: '0.9375rem', fontWeight: 700 }}>
+                  {line.linked ? 'LINE連携済み' : 'LINEと連携する'}
+                </p>
+                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', lineHeight: 1.6 }}>
+                  {line.linked
+                    ? <>{line.name ? `${line.name} として連携中` : '連携中'}{!line.friend && ' ・ 公式アカウントを友だち追加すると通知が届きます'}</>
+                    : '興味のある分野のクエストが掲示されたら公式LINEでお知らせします。次回からLINEでログインもできます。'}
+                </p>
+              </div>
+              {line.linked ? (
+                <button onClick={unlinkLine} disabled={lineBusy}
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.8125rem', fontWeight: 600, borderRadius: '0.75rem', cursor: 'pointer', color: 'var(--color-text-secondary)', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}
+                >連携を解除</button>
+              ) : (
+                <a href="/api/line/login?mode=link"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.625rem 1.25rem', fontSize: '0.875rem', fontWeight: 700, borderRadius: '0.75rem', background: '#06c755', color: '#fff', textDecoration: 'none' }}
+                >LINEと連携する</a>
+              )}
+            </div>
+            {line.linked && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1rem', paddingTop: '0.875rem', borderTop: '1px solid var(--color-border)' }}>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>マッチしたクエストの通知を受け取る</span>
+                <button onClick={toggleLineNotify} aria-label="LINE通知"
+                  style={{ width: 44, height: 24, borderRadius: '9999px', border: 'none', cursor: 'pointer', position: 'relative', background: line.notify ? 'var(--color-primary)' : 'var(--bg-tertiary)' }}>
+                  <span style={{ position: 'absolute', top: 2, left: line.notify ? 22 : 2, width: 20, height: 20, borderRadius: '9999px', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '0.75rem' }}>
           <Scroll size={16} style={{ color: 'var(--color-accent)' }} />クエスト履歴

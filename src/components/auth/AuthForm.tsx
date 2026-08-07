@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import { LogIn, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -16,6 +16,17 @@ export default function AuthForm() {
   const [signUpComplete, setSignUpComplete] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  // LINE連携などからのリダイレクト時に ?error= が付いてくる
+  // （useSearchParams は静的プリレンダリングで Suspense が必要になるため location を直接読む）
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('error');
+    if (err) {
+      setError(err);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
 
   // 新規登録は九大アドレスのみ。運営が直接追加したアカウントのログインを妨げないよう、
   // この検証はサインアップ時にのみ適用する（ログインは Supabase の認証に委ねる）。
@@ -213,6 +224,24 @@ export default function AuthForm() {
           {loading ? '通信中...' : isLogin ? 'ログイン' : 'アカウントを作成'}
         </button>
       </form>
+
+      {isLogin && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1.25rem 0 1rem' }}>
+            <span style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>または</span>
+            <span style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
+          </div>
+          <a href="/api/line/login?mode=signin"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 700, background: '#06c755', color: '#fff', textDecoration: 'none' }}
+          >
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800 }}>LINE</span>でログイン
+          </a>
+          <p style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)', textAlign: 'center', marginTop: '0.5rem', lineHeight: 1.6 }}>
+            ※事前にプロフィール画面でLINE連携をした方のみご利用いただけます。
+          </p>
+        </>
+      )}
 
       <div style={{ marginTop: '1.5rem', textAlign: 'center', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
         <button
