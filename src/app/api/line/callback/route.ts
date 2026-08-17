@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
   } catch {
     return fail(origin, '/auth', 'LINE連携の有効期限が切れました。もう一度お試しください。');
   }
-  const backTo = saved.mode === 'signin' ? '/auth' : '/profile';
+  // 連携失敗時は、連携を始めたページへ戻す（初期設定の途中なら初期設定へ）
+  const backTo = saved.mode === 'signin' ? '/auth' : (saved.next || '/profile');
 
   // ユーザーが同意画面でキャンセルした場合
   const errorParam = searchParams.get('error');
@@ -82,7 +83,10 @@ export async function GET(request: NextRequest) {
         console.error('Error linking LINE account:', error);
         return fail(origin, '/profile', 'LINE連携の保存に失敗しました。');
       }
-      return NextResponse.redirect(`${origin}${saved.next}?line=linked`);
+      // next にクエリが付いていても壊れないように組み立てる
+      const done = new URL(saved.next, origin);
+      done.searchParams.set('line', 'linked');
+      return NextResponse.redirect(done.toString());
     }
 
     /* ---------- 未ログイン → 紐付け済みならログイン ---------- */
