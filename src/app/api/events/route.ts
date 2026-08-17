@@ -65,12 +65,15 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const {
-      title, description, event_date, event_end_date,
-      location, location_url, category, capacity, tags,
+      title, description, event_date, event_end_date, all_day,
+      location, location_url, color, capacity, tags,
     } = body;
 
     if (!title || !event_date) {
       return NextResponse.json({ error: 'タイトルと開催日時は必須です。' }, { status: 400 });
+    }
+    if (event_end_date && new Date(event_end_date) < new Date(event_date)) {
+      return NextResponse.json({ error: '終了日時は開始日時より後にしてください。' }, { status: 400 });
     }
 
     const { data, error } = await supabase
@@ -78,7 +81,9 @@ export async function POST(request: Request) {
       .insert({
         organizer_id: user.id,
         title, description, event_date, event_end_date: event_end_date || null,
-        location, location_url, category: category || 'その他',
+        all_day: Boolean(all_day),
+        location, location_url,
+        color: color || '#1a4a3a',
         capacity: capacity || null, tags: tags || [],
         status: 'approved', // 管理者が直接登録 → 即承認
       })

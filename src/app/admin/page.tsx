@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Shield, CheckCircle2, XCircle, ChevronDown, ChevronUp, Users, Tag, Calendar, ArrowLeft, AlertCircle, CalendarDays, MapPin, Scroll } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useGuild } from '@/contexts/GuildContext';
-import { GuildEvent, CATEGORY_COLORS, fmtDateLong, fmtTime } from '@/components/events/types';
+import { GuildEvent, eventStyle, fmtDateLong, fmtTimeRange } from '@/components/events/types';
 import EventDetailModal from '@/components/events/EventDetailModal';
 import { ADMIN_QUEST_STATUS as STATUS } from '@/components/quest/status';
 
@@ -301,7 +301,7 @@ export default function AdminPage() {
             ) : (
               <div style={S.stack}>
                 {eventFiltered.map((ev, i) => {
-                  const c = CATEGORY_COLORS[ev.category] ?? CATEGORY_COLORS['その他'];
+                  const c = eventStyle(ev);
                   return (
                     <motion.button key={ev.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
                       onClick={() => setSelectedEvent(ev)}
@@ -310,8 +310,7 @@ export default function AdminPage() {
                       <div style={{ width: 4, alignSelf: 'stretch', borderRadius: '9999px', background: c.color, flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.125rem 0.5rem', borderRadius: '9999px', color: c.color, background: c.bg }}>{ev.category}</span>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{fmtDateLong(ev.event_date)} {fmtTime(ev.event_date)}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{fmtDateLong(ev.event_date)}・{fmtTimeRange(ev)}</span>
                         </div>
                         <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{ev.title}</h3>
                         {ev.location && (

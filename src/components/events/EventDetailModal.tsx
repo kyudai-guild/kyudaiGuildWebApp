@@ -1,10 +1,11 @@
 ﻿'use client';
 import { motion } from 'framer-motion';
 import { X, MapPin, Clock, Users, ExternalLink, Tag } from 'lucide-react';
-import { GuildEvent, CATEGORY_COLORS, fmtDateLong, fmtTime } from './types';
+import { GuildEvent, eventStyle, fmtDateLong, fmtTimeRange, sameLocalDay } from './types';
 
 export default function EventDetailModal({ event, onClose }: { event: GuildEvent; onClose: () => void }) {
-  const cat = CATEGORY_COLORS[event.category] ?? CATEGORY_COLORS['その他'];
+  const cat = eventStyle(event);
+  const multiDay = event.event_end_date ? !sameLocalDay(event.event_date, event.event_end_date) : false;
 
   return (
     <div
@@ -26,9 +27,11 @@ export default function EventDetailModal({ event, onClose }: { event: GuildEvent
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
             <div style={{ flex: 1, minWidth: 0, paddingRight: '1rem' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '9999px', color: cat.color, background: cat.bg, marginBottom: '0.5rem' }}>
-                {event.category}
-              </span>
+              {event.all_day && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '9999px', color: cat.color, background: cat.bg, marginBottom: '0.5rem' }}>
+                  終日
+                </span>
+              )}
               <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1.4 }}>{event.title}</h2>
             </div>
             <button onClick={onClose} style={{ padding: '0.375rem', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', transition: 'background 0.2s', flexShrink: 0 }}
@@ -44,10 +47,10 @@ export default function EventDetailModal({ event, onClose }: { event: GuildEvent
               <div>
                 <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                   {fmtDateLong(event.event_date)}
+                  {multiDay && ` 〜 ${fmtDateLong(event.event_end_date!)}`}
                 </p>
                 <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginTop: '0.125rem' }}>
-                  {fmtTime(event.event_date)}
-                  {event.event_end_date && ` 〜 ${fmtTime(event.event_end_date)}`}
+                  {fmtTimeRange(event)}
                 </p>
               </div>
             </div>

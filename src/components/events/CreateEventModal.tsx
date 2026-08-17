@@ -1,8 +1,8 @@
 ﻿'use client';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Send, AlertCircle, Calendar, Clock, MapPin, Users, Tag } from 'lucide-react';
-import { CATEGORIES } from './types';
+import { X, Send, AlertCircle, Calendar, Clock, MapPin, Users, Tag, Check } from 'lucide-react';
+import { EVENT_COLORS, DEFAULT_EVENT_COLOR } from './types';
 
 interface Props { isOpen: boolean; onClose: () => void; onCreated: () => void; }
 
@@ -14,11 +14,12 @@ const blur  = (e: React.FocusEvent<any>) => { e.currentTarget.style.borderColor 
 export default function CreateEventModal({ isOpen, onClose, onCreated }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [eventDate, setEventDate] = useState('');
+  const [allDay, setAllDay] = useState(false);
+  const [eventDate, setEventDate] = useState('');      // datetime-local（時間指定）/ date（終日）
   const [eventEndDate, setEventEndDate] = useState('');
   const [location, setLocation] = useState('');
   const [locationUrl, setLocationUrl] = useState('');
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [color, setColor] = useState(DEFAULT_EVENT_COLOR);
   const [capacity, setCapacity] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
@@ -31,24 +32,52 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: Props) 
   const removeTag = (t: string) => setTags(p => p.filter(x => x !== t));
 
   const reset = () => {
-    setTitle(''); setDescription(''); setEventDate(''); setEventEndDate('');
-    setLocation(''); setLocationUrl(''); setCategory(CATEGORIES[0]);
+    setTitle(''); setDescription(''); setAllDay(false); setEventDate(''); setEventEndDate('');
+    setLocation(''); setLocationUrl(''); setColor(DEFAULT_EVENT_COLOR);
     setCapacity(''); setTags([]); setError(null);
+  };
+
+  // 終日⇔時間指定の切替時は、入力形式（date / datetime-local）が変わるため日時をリセット
+  const toggleAllDay = (next: boolean) => {
+    setAllDay(next);
+    setEventDate('');
+    setEventEndDate('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !eventDate) { setError('タイトルと開催日時は必須です。'); return; }
+
+    // datetime-local / date の値はタイムゾーン情報を持たない。
+    // そのまま送ると DB(timestamptz) が UTC として解釈し、JSTで9時間ズレる。
+    // ここで「入力者のローカル時刻」として解釈してから ISO(UTC) に変換して送る。
+    let startIso: string;
+    let endIso: string | null = null;
+    if (allDay) {
+      startIso = new Date(`${eventDate}T00:00:00`).toISOString();
+      // 終日の終了日は「その日いっぱい」まで含める（未入力なら開始日のみの終日）
+      const endDay = eventEndDate || eventDate;
+      endIso = new Date(`${endDay}T23:59:59`).toISOString();
+    } else {
+      startIso = new Date(eventDate).toISOString();
+      endIso = eventEndDate ? new Date(eventEndDate).toISOString() : null;
+    }
+    if (endIso && new Date(endIso) < new Date(startIso)) {
+      setError('終了日時は開始日時より後にしてください。');
+      return;
+    }
+
     setLoading(true); setError(null);
     try {
       const res = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title, description, event_date: eventDate,
-          event_end_date: eventEndDate || null,
+          title, description, event_date: startIso,
+          event_end_date: endIso,
+          all_day: allDay,
           location: location || null, location_url: locationUrl || null,
-          category, capacity: capacity ? Number(capacity) : null, tags,
+          color, capacity: capacity ? Number(capacity) : null, tags,
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
@@ -84,24 +113,46 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: Props) 
             <input type="text" required value={title} onChange={e => setTitle(e.target.value)} placeholder="例: 第5回ロボコン技術講習会" style={iS} onFocus={focus} onBlur={blur} />
           </div>
 
+          {/* All-day toggle */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.625rem 0.875rem', borderRadius: '0.75rem', cursor: 'pointer', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
+            <input type="checkbox" checked={allDay} onChange={e => toggleAllDay(e.target.checked)}
+              style={{ width: 16, height: 16, accentColor: 'var(--color-primary)', cursor: 'pointer' }} />
+            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>終日イベント</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>（時刻を指定しない）</span>
+          </label>
+
           {/* Date / Time */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
-              <label style={lS}><Calendar size={13} style={{ display: 'inline', marginRight: 4 }} />開始日時 <span style={{ color: '#dc2626' }}>*</span></label>
-              <input type="datetime-local" required value={eventDate} onChange={e => setEventDate(e.target.value)} style={iS} onFocus={focus} onBlur={blur} />
+              <label style={lS}><Calendar size={13} style={{ display: 'inline', marginRight: 4 }} />{allDay ? '開始日' : '開始日時'} <span style={{ color: '#dc2626' }}>*</span></label>
+              <input type={allDay ? 'date' : 'datetime-local'} required value={eventDate} onChange={e => setEventDate(e.target.value)} style={iS} onFocus={focus} onBlur={blur} />
             </div>
             <div>
-              <label style={lS}><Clock size={13} style={{ display: 'inline', marginRight: 4 }} />終了日時</label>
-              <input type="datetime-local" value={eventEndDate} onChange={e => setEventEndDate(e.target.value)} style={iS} onFocus={focus} onBlur={blur} />
+              <label style={lS}><Clock size={13} style={{ display: 'inline', marginRight: 4 }} />{allDay ? '終了日（任意）' : '終了日時'}</label>
+              <input type={allDay ? 'date' : 'datetime-local'} value={eventEndDate} min={allDay ? eventDate || undefined : undefined} onChange={e => setEventEndDate(e.target.value)} style={iS} onFocus={focus} onBlur={blur} />
             </div>
           </div>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '-0.75rem' }}>
+            ※複数日にわたるイベントは、終了{allDay ? '日' : '日時'}に最終日を指定してください。
+          </p>
 
-          {/* Category */}
+          {/* Color */}
           <div>
-            <label style={lS}>カテゴリ</label>
-            <select value={category} onChange={e => setCategory(e.target.value)} style={iS} onFocus={focus} onBlur={blur}>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <label style={lS}>表示色</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {EVENT_COLORS.map(c => {
+                const active = color === c.value;
+                return (
+                  <button key={c.value} type="button" onClick={() => setColor(c.value)} title={c.label} aria-label={c.label}
+                    style={{ width: 34, height: 34, borderRadius: '9999px', cursor: 'pointer', background: c.value, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.15s, box-shadow 0.15s',
+                      border: active ? '2px solid var(--bg-card)' : '2px solid transparent',
+                      boxShadow: active ? `0 0 0 2px ${c.value}` : 'none',
+                      transform: active ? 'scale(1.08)' : 'scale(1)' }}
+                  >{active && <Check size={16} strokeWidth={3} style={{ color: '#fff' }} />}</button>
+                );
+              })}
+            </div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.375rem' }}>カレンダー上での識別に使われます。</p>
           </div>
 
           {/* Location */}

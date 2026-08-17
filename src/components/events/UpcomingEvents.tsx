@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { CalendarDays, MapPin, Clock, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { GuildEvent, CATEGORY_COLORS, fmtTime } from './types';
+import { GuildEvent, eventStyle, fmtTimeRange } from './types';
 import EventDetailModal from './EventDetailModal';
 
 const STYLES = `
@@ -50,7 +50,7 @@ export default function UpcomingEvents() {
       {/* Event cards */}
       <div className="upcoming-grid">
         {events.map((ev, i) => {
-          const c = CATEGORY_COLORS[ev.category] ?? CATEGORY_COLORS['その他'];
+          const c = eventStyle(ev);
           const d = new Date(ev.event_date);
           return (
             <button key={ev.id} onClick={() => setSelected(ev)}
@@ -68,7 +68,7 @@ export default function UpcomingEvents() {
                     <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1 }}>{d.getDate()}</span>
                     <span style={{ fontSize: '0.6rem', color: 'var(--color-text-tertiary)' }}>{d.toLocaleDateString('ja-JP', { weekday: 'short' })}</span>
                   </div>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '9999px', color: c.color, background: c.bg }}>{ev.category}</span>
+                  {ev.tags?.[0] && <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '9999px', color: c.color, background: c.bg }}>#{ev.tags[0]}</span>}
                 </div>
 
                 <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.4, marginBottom: '0.625rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -78,7 +78,7 @@ export default function UpcomingEvents() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
                     <Clock size={11} style={{ color: 'var(--color-text-tertiary)' }} />
-                    {fmtTime(ev.event_date)}{ev.event_end_date && ` 〜 ${fmtTime(ev.event_end_date)}`}
+                    {fmtTimeRange(ev)}
                   </span>
                   {ev.location && (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

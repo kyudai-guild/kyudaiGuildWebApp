@@ -6,7 +6,7 @@ import { AnimatePresence } from 'framer-motion';
 import { useGuild } from '@/contexts/GuildContext';
 import QuestBoard from '@/components/quest/QuestBoard';
 import EventDetailModal from '@/components/events/EventDetailModal';
-import { GuildEvent, CATEGORY_COLORS, fmtTime } from '@/components/events/types';
+import { GuildEvent, eventStyle, fmtTimeRange } from '@/components/events/types';
 import { Scroll, Clock, XCircle, Shield, LogIn, Edit2, Check, X, CalendarDays, MapPin, ArrowRight, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
 
@@ -294,7 +294,7 @@ function EventsHero() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {events.map(ev => {
-              const c = CATEGORY_COLORS[ev.category] ?? CATEGORY_COLORS['その他'];
+              const c = eventStyle(ev);
               const d = new Date(ev.event_date);
               return (
                 <button key={ev.id} onClick={() => setSelected(ev)}
@@ -311,12 +311,12 @@ function EventsHero() {
                   {/* Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.125rem 0.5rem', borderRadius: '9999px', color: c.color, background: c.bg }}>{ev.category}</span>
+                      <span style={{ width: 10, height: 10, borderRadius: '9999px', background: c.color, flexShrink: 0 }} />
                       <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.title}</span>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                        <Clock size={11} style={{ color: 'var(--color-text-tertiary)' }} />{fmtTime(ev.event_date)}{ev.event_end_date && ` 〜 ${fmtTime(ev.event_end_date)}`}
+                        <Clock size={11} style={{ color: 'var(--color-text-tertiary)' }} />{fmtTimeRange(ev)}
                       </span>
                       {ev.location && (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

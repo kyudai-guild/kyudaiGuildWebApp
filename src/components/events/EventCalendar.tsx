@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight as ChevronRight, List, Calendar, MapPin, Clock } from 'lucide-react';
-import { GuildEvent, CATEGORY_COLORS, CATEGORIES, fmtTime } from './types';
+import { GuildEvent, eventStyle, fmtTimeRange } from './types';
 import EventDetailModal from './EventDetailModal';
 
 const WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日'];
@@ -30,24 +30,11 @@ export default function EventCalendar({ events, isAdmin }: Props) {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth()); // 0-based
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
-  const [catFilter, setCatFilter] = useState('すべて');
   const [selectedEvent, setSelectedEvent] = useState<GuildEvent | null>(null);
 
   // Navigation
   const prevMonth = () => { if (month === 0) { setYear(y => y - 1); setMonth(11); } else { setMonth(m => m - 1); } };
   const nextMonth = () => { if (month === 11) { setYear(y => y + 1); setMonth(0); } else { setMonth(m => m + 1); } };
-
-  // Filter events for current month
-  const filtered = useMemo(() => {
-    return events.filter(e => {
-      const d = new Date(e.event_date);
-      const matchMonth = viewMode === 'calendar'
-        ? (d.getFullYear() === year && d.getMonth() === month)
-        : true;
-      const matchCat = catFilter === 'すべて' || e.category === catFilter;
-      return matchMonth && matchCat;
-    });
-  }, [events, year, month, catFilter, viewMode]);
 
   // Build calendar grid (42 cells = 6 weeks)
   const calendarDays = useMemo(() => {
@@ -61,19 +48,27 @@ export default function EventCalendar({ events, isAdmin }: Props) {
     return cells;
   }, [year, month]);
 
-  // Map day → events
+  // Map day → events（複数日イベントは開始日〜終了日のすべての日に表示する）
   const eventsByDay = useMemo(() => {
     const map: Record<number, GuildEvent[]> = {};
-    filtered.forEach(e => {
-      const d = new Date(e.event_date);
-      if (d.getFullYear() === year && d.getMonth() === month) {
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+    events.forEach(e => {
+      const start = new Date(e.event_date);
+      start.setHours(0, 0, 0, 0);
+      const rawEnd = new Date(e.event_end_date ?? e.event_date);
+      rawEnd.setHours(0, 0, 0, 0);
+      const end = rawEnd < start ? start : rawEnd; // 不正な範囲は開始日のみ扱い
+      const from = start < monthStart ? monthStart : start;
+      const to = end > monthEnd ? monthEnd : end;
+      for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
         const day = d.getDate();
         if (!map[day]) map[day] = [];
         map[day].push(e);
       }
     });
     return map;
-  }, [filtered, year, month]);
+  }, [events, year, month]);
 
   const isToday = (day: number) =>
     day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
@@ -118,23 +113,6 @@ export default function EventCalendar({ events, isAdmin }: Props) {
         </div>
       </div>
 
-      {/* Category filter */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '1.25rem' }}>
-        {['すべて', ...CATEGORIES].map(cat => {
-          const active = catFilter === cat;
-          const style = cat !== 'すべて' ? CATEGORY_COLORS[cat] : null;
-          return (
-            <button key={cat} onClick={() => setCatFilter(cat)}
-              style={{ padding: '0.25rem 0.875rem', fontSize: '0.8125rem', fontWeight: 500, borderRadius: '9999px', border: '1px solid', cursor: 'pointer', transition: 'all 0.15s',
-                background: active ? (style ? style.bg : 'var(--bg-dark)') : 'var(--bg-card)',
-                color: active ? (style ? style.color : 'var(--color-text-inverse)') : 'var(--color-text-secondary)',
-                borderColor: active ? (style ? style.color : 'var(--bg-dark)') : 'var(--color-border)',
-              }}
-            >{cat}</button>
-          );
-        })}
-      </div>
-
       {/* ── CALENDAR GRID ── */}
       {viewMode === 'calendar' && (
         <div style={{ borderRadius: '1rem', overflow: 'hidden', border: '1px solid var(--color-border)', background: 'var(--bg-card)' }}>
@@ -169,7 +147,7 @@ export default function EventCalendar({ events, isAdmin }: Props) {
                         color: isToday(day) ? 'var(--color-text-inverse)' : (dow === 5 ? '#2563eb' : dow === 6 ? '#dc2626' : 'var(--color-text-primary)'),
                       }}>{day}</div>
                       {dayEvents.map(ev => {
-                        const c = CATEGORY_COLORS[ev.category] ?? CATEGORY_COLORS['その他'];
+                        const c = eventStyle(ev);
                         return (
                           <button key={ev.id} className="cal-event-pill"
                             style={{ background: c.bg, color: c.color }}
@@ -189,7 +167,7 @@ export default function EventCalendar({ events, isAdmin }: Props) {
       {/* ── LIST VIEW ── */}
       {viewMode === 'list' && (
         <div>
-          {filtered.length === 0 ? (
+          {events.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem', borderRadius: '1rem', border: '1px dashed var(--color-border)' }}>
               <Calendar size={32} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 0.75rem', opacity: 0.4 }} />
               <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)' }}>この期間のイベントはありません。</p>
@@ -198,7 +176,7 @@ export default function EventCalendar({ events, isAdmin }: Props) {
             (() => {
               // Group by month
               const groups: Record<string, GuildEvent[]> = {};
-              filtered
+              [...events]
                 .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
                 .forEach(ev => {
                   const d = new Date(ev.event_date);
@@ -213,7 +191,7 @@ export default function EventCalendar({ events, isAdmin }: Props) {
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {evs.map(ev => {
-                      const c = CATEGORY_COLORS[ev.category] ?? CATEGORY_COLORS['その他'];
+                      const c = eventStyle(ev);
                       const d = new Date(ev.event_date);
                       return (
                         <button key={ev.id} className="event-list-card" onClick={() => setSelectedEvent(ev)}
@@ -235,12 +213,12 @@ export default function EventCalendar({ events, isAdmin }: Props) {
                           {/* Info */}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.125rem 0.5rem', borderRadius: '9999px', color: c.color, background: c.bg }}>{ev.category}</span>
+                              <span style={{ width: 10, height: 10, borderRadius: '9999px', background: c.color, flexShrink: 0 }} />
                               <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{ev.title}</span>
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                                <Clock size={11} />{fmtTime(ev.event_date)}{ev.event_end_date && ` 〜 ${fmtTime(ev.event_end_date)}`}
+                                <Clock size={11} />{fmtTimeRange(ev)}
                               </span>
                               {ev.location && (
                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>

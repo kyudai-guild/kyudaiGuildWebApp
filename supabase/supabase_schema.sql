@@ -59,7 +59,7 @@ create table skill_levels (
   unique(user_id, skill_name)
 );
 
--- イベント（管理者が登録、登録時に即 approved / v3 で追加）
+-- イベント（管理者が登録、登録時に即 approved / v3 で追加, v11 でカテゴリ→色+終日に変更）
 create table events (
   id               uuid primary key default gen_random_uuid(),
   organizer_id     uuid references profiles(id) on delete cascade,
@@ -67,12 +67,10 @@ create table events (
   description      text,
   event_date       timestamptz not null,
   event_end_date   timestamptz,
+  all_day          boolean not null default false,
   location         text,
   location_url     text,
-  category         text default 'その他'
-                   check (category in (
-                     '学術','スポーツ','文化','ボランティア','交流','キャリア','その他'
-                   )),
+  color            text not null default '#1a4a3a',
   capacity         int,
   tags             text[] default '{}',
   status           text default 'pending'
