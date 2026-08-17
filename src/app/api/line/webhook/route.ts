@@ -10,6 +10,9 @@ import {
  * LINE の「検証」で 401 が出る時に、環境変数がこのデプロイに届いているかを切り分けられる。
  */
 export async function GET() {
+  // NEXT_PUBLIC_ の値はクライアントバンドルに埋め込まれる公開値なので、ここに出しても露出は増えない。
+  // 秘密のキーは真偽値と長さだけを返す。
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
   return NextResponse.json({
     endpoint: 'line-webhook',
     messaging_channel_secret: isLineWebhookConfigured(),   // false なら 401 の原因はこれ
@@ -17,6 +20,9 @@ export async function GET() {
     login_channel: isLineLoginConfigured(),                // false なら連携・ログインが使えない
     service_role_key: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
     site_url: process.env.NEXT_PUBLIC_SITE_URL ?? null,
+    // ログイン不能の切り分け用: URLが *.supabase.co でない、anon_key_length が極端に短い等が原因になる
+    supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? null,
+    supabase_anon_key_length: anonKey.length,
   });
 }
 
