@@ -1,19 +1,26 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
-import { LogIn, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { LogIn, Mail, Lock, User, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 /** Supabase の Email OTP Length は 6〜10桁で設定できる。最短の6桁を入力完了の下限とする */
 const MIN_OTP_LENGTH = 6;
 const MAX_OTP_LENGTH = 10;
 
+/** メール欄のワンタップ補完に出す九大ドメイン */
+const KYUDAI_DOMAINS = ['@s.kyushu-u.ac.jp', '@m.kyushu-u.ac.jp'];
+
 export default function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
   const [displayName, setDisplayName] = useState('');
+  const emailRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -43,6 +50,16 @@ export default function AuthForm() {
     return cleanEmail.endsWith('@s.kyushu-u.ac.jp') || cleanEmail.endsWith('@m.kyushu-u.ac.jp');
   };
 
+  /** 入力済みの @ より前を残して、九大ドメインを補完する */
+  const fillDomain = (domain: string) => {
+    const local = email.split('@')[0].trim();
+    if (!local) {
+      emailRef.current?.focus();
+      return;
+    }
+    setEmail(local + domain);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -50,6 +67,10 @@ export default function AuthForm() {
     const cleanEmail = email.trim().toLowerCase();
     if (!isLogin && !validateEmail(cleanEmail)) {
       setError('九大のメールアドレス（@s.kyushu-u.ac.jp または @m.kyushu-u.ac.jp）のみ登録可能です。');
+      return;
+    }
+    if (!isLogin && password !== passwordConfirm) {
+      setError('パスワードが一致しません。同じパスワードを2回入力してください。');
       return;
     }
     setLoading(true);
@@ -257,19 +278,58 @@ export default function AuthForm() {
 
         <div style={{ marginBottom: '1rem' }}>
           <label style={labelStyle}>九大メールアドレス</label>
-          <div style={inputWrapStyle}>
+          <div style={{ ...inputWrapStyle, marginBottom: '0.5rem' }}>
             <Mail size={15} style={iconStyle} />
-            <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="xxx@s.kyushu-u.ac.jp" style={inputStyle} onFocus={focusInput} onBlur={blurInput} />
+            <input ref={emailRef} type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="xxx@s.kyushu-u.ac.jp" style={inputStyle} onFocus={focusInput} onBlur={blurInput} />
+          </div>
+          {/* @以降のワンタップ補完 */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+            {KYUDAI_DOMAINS.map(domain => {
+              const active = email.trim().toLowerCase().endsWith(domain);
+              return (
+                <button key={domain} type="button" onClick={() => fillDomain(domain)}
+                  style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem', borderRadius: '9999px', cursor: 'pointer', transition: 'all 0.15s',
+                    background: active ? '#f2f7f4' : 'var(--bg-base)',
+                    color: active ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                    border: active ? '1px solid #cfe3d8' : '1px solid var(--color-border)' }}
+                >{domain}</button>
+              );
+            })}
           </div>
         </div>
 
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: isLogin ? '1.5rem' : '1rem' }}>
           <label style={labelStyle}>パスワード</label>
           <div style={inputWrapStyle}>
             <Lock size={15} style={iconStyle} />
-            <input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} onFocus={focusInput} onBlur={blurInput} />
+            <input type={showPw ? 'text' : 'password'} required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
+              style={{ ...inputStyle, paddingRight: '2.75rem' }} onFocus={focusInput} onBlur={blurInput} />
+            <button type="button" onClick={() => setShowPw(v => !v)} tabIndex={-1}
+              aria-label={showPw ? 'パスワードを隠す' : 'パスワードを表示'}
+              style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', padding: '0.375rem', display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)' }}
+            >{showPw ? <EyeOff size={16} /> : <Eye size={16} />}</button>
           </div>
         </div>
+
+        {!isLogin && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={labelStyle}>パスワード（確認）</label>
+            <div style={{ ...inputWrapStyle, marginBottom: 0 }}>
+              <Lock size={15} style={iconStyle} />
+              <input type={showPwConfirm ? 'text' : 'password'} required value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)} placeholder="もう一度入力"
+                autoComplete="new-password"
+                style={{ ...inputStyle, paddingRight: '2.75rem' }} onFocus={focusInput} onBlur={blurInput} />
+              <button type="button" onClick={() => setShowPwConfirm(v => !v)} tabIndex={-1}
+                aria-label={showPwConfirm ? 'パスワードを隠す' : 'パスワードを表示'}
+                style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', padding: '0.375rem', display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)' }}
+              >{showPwConfirm ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+            </div>
+            {passwordConfirm.length > 0 && password !== passwordConfirm && (
+              <p style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '0.375rem' }}>パスワードが一致しません</p>
+            )}
+          </div>
+        )}
 
         <button
           type="submit"
@@ -302,7 +362,7 @@ export default function AuthForm() {
 
       <div style={{ marginTop: '1.5rem', textAlign: 'center', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
         <button
-          onClick={() => { setIsLogin(!isLogin); setError(null); setMessage(null); }}
+          onClick={() => { setIsLogin(!isLogin); setError(null); setMessage(null); setPasswordConfirm(''); setShowPw(false); setShowPwConfirm(false); }}
           style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-secondary)', cursor: 'pointer', transition: 'color 0.2s', background: 'none', border: 'none' }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-primary)'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-secondary)'; }}
