@@ -204,7 +204,6 @@ export default function EventCalendar({ events, isAdmin }: Props) {
                         width: `calc(${width}% - ${(sg.isStart ? 3 : 0) + (sg.isEnd ? 3 : 0)}px)`,
                         background: c.bg, color: c.color,
                         borderRadius: `${rL} ${rR} ${rR} ${rL}`,
-                        boxShadow: `inset 3px 0 0 ${sg.isStart ? c.color : 'transparent'}`,
                       }}
                       onClick={() => setSelectedEvent(sg.ev)}
                     >{(sg.isStart || sg.startCol === 0) ? sg.ev.title : ''}</button>
