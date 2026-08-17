@@ -1,0 +1,132 @@
+<!--
+  Supabase → Authentication → Email Templates → Confirm signup
+  そのままコピーして貼り付けてください。
+
+  設計方針（HTMLメール固有の制約に合わせています）:
+  - レイアウトは table ベース（Outlook等は flexbox / grid を解釈しません）
+  - CSS はすべてインライン（多くのクライアントが <style> を削除するため）
+  - 画像・Webフォントを使わない（表示崩れと迷惑メール判定を避けるため）
+  - 幅は 600px 上限（スマホでも横スクロールしません）
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>メールアドレスの確認</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f5f3ef;">
+
+<!-- プレビュー欄に出る一文（本文には表示されません） -->
+<div style="display:none; max-height:0; overflow:hidden; opacity:0;">
+  九大ギルドへのご登録を完了するには、メールアドレスの確認が必要です。
+</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background-color:#f5f3ef;">
+  <tr>
+    <td align="center" style="padding:32px 12px;">
+
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+             style="width:100%; max-width:600px; background-color:#ffffff; border-radius:16px; overflow:hidden; border:1px solid rgba(31,20,15,0.10);">
+
+        <!-- ヘッダー -->
+        <tr>
+          <td style="background-color:#0c3b2e; padding:22px 32px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding-right:10px;">
+                  <div style="width:34px; height:34px; line-height:34px; text-align:center;
+                              background-color:#c8956c; color:#0c3b2e; border-radius:8px;
+                              font-size:19px; font-weight:bold;
+                              font-family:'Helvetica Neue', Arial, sans-serif;">G</div>
+                </td>
+                <td>
+                  <span style="color:#ffffff; font-size:19px; font-weight:bold; letter-spacing:0.02em;
+                               font-family:'Helvetica Neue', Arial, sans-serif;">九大ギルド</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- 本文 -->
+        <tr>
+          <td style="padding:36px 32px 28px;
+                     font-family:-apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;">
+
+            <h1 style="margin:0 0 16px; font-size:21px; line-height:1.5; font-weight:bold; color:#1f140f;">
+              メールアドレスの確認
+            </h1>
+
+            <p style="margin:0 0 12px; font-size:15px; line-height:1.9; color:#6b5e54;">
+              九大ギルドへのご登録ありがとうございます。
+            </p>
+            <p style="margin:0 0 28px; font-size:15px; line-height:1.9; color:#6b5e54;">
+              下のボタンから、メールアドレスの確認を完了してください。<br>
+              確認が終わると、クエストの掲示・応募がご利用いただけます。
+            </p>
+
+            <!-- ボタン -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 24px;">
+              <tr>
+                <td align="center" bgcolor="#1a4a3a" style="border-radius:10px;">
+                  <a href="{{ .ConfirmationURL }}" target="_blank"
+                     style="display:inline-block; padding:15px 40px; border-radius:10px;
+                            font-size:15px; font-weight:bold; color:#ffffff; text-decoration:none;
+                            font-family:-apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;">
+                    メールアドレスを確認する
+                  </a>
+                </td>
+              </tr>
+            </table>
+
+            <!-- リンクが押せない場合 -->
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="background-color:#f5f3ef; border-radius:10px;">
+              <tr>
+                <td style="padding:14px 18px;">
+                  <p style="margin:0 0 6px; font-size:12px; line-height:1.7; color:#9a8e84;">
+                    ボタンが押せない場合は、以下のURLをブラウザに貼り付けてください。
+                  </p>
+                  <p style="margin:0; font-size:12px; line-height:1.7; word-break:break-all;">
+                    <a href="{{ .ConfirmationURL }}" target="_blank" style="color:#1a4a3a;">{{ .ConfirmationURL }}</a>
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:24px 0 0; font-size:12px; line-height:1.9; color:#9a8e84;">
+              ※ このリンクの有効期限は24時間です。期限が切れた場合は、お手数ですが再度ご登録ください。<br>
+              ※ このメールに心当たりがない場合は、操作せずそのまま破棄してください。
+            </p>
+          </td>
+        </tr>
+
+        <!-- フッター -->
+        <tr>
+          <td style="padding:18px 32px 22px; border-top:1px solid rgba(31,20,15,0.10);
+                     font-family:-apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;">
+            <p style="margin:0; font-size:12px; line-height:1.8; color:#9a8e84;">
+              九大ギルド 運営<br>
+              <a href="{{ .SiteURL }}" target="_blank" style="color:#1a4a3a; text-decoration:none;">{{ .SiteURL }}</a>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+
+      <p style="margin:18px 0 0; font-size:11px; line-height:1.7; color:#9a8e84; text-align:center;
+                font-family:-apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;">
+        このメールは送信専用アドレスから配信されています。<br>
+        返信いただいてもお答えできませんのでご了承ください。
+      </p>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>
