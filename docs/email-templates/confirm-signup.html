@@ -6,6 +6,13 @@
   - 幅の制御のみ table を使用（Outlook等は flexbox / grid を解釈しません）
   - CSS はすべてインライン（多くのクライアントが <style> を削除するため）
   - 画像・Webフォントを使わない（表示崩れと迷惑メール判定を避けるため）
+
+  【重要】リンクは {{ .ConfirmationURL }} ではなく
+    {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup
+  を使っています。既定の ConfirmationURL は <project-ref>.supabase.co を指すため、
+  送信元ドメインと本文のリンク先が食い違い、フィッシング判定を受けやすくなるためです。
+  受け口は src/app/auth/confirm/route.ts です。**先にアプリをデプロイしてから**
+  このテンプレートを適用してください（順序を逆にするとリンクが機能しません）。
 -->
 <!DOCTYPE html>
 <html lang="ja">
@@ -52,7 +59,7 @@
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
               <tr>
                 <td bgcolor="#1a4a3a" style="border-radius:6px;">
-                  <a href="{{ .ConfirmationURL }}" target="_blank"
+                  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup" target="_blank"
                      style="display:inline-block; padding:12px 28px; border-radius:6px;
                             font-size:14px; font-weight:bold; color:#ffffff; text-decoration:none;
                             font-family:-apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;">
@@ -66,7 +73,7 @@
               ボタンが開けない場合は、以下のURLをブラウザに貼り付けてください。
             </p>
             <p style="margin:0 0 24px; font-size:12px; line-height:1.7; word-break:break-all;">
-              <a href="{{ .ConfirmationURL }}" target="_blank" style="color:#1a4a3a;">{{ .ConfirmationURL }}</a>
+              <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup" target="_blank" style="color:#1a4a3a;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup</a>
             </p>
 
             <p style="margin:0; font-size:12px; line-height:1.9; color:#9a8e84;">

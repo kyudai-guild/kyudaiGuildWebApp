@@ -195,28 +195,63 @@ Supabase ダッシュボード → **Authentication → SMTP Settings**（`/auth
 
 ---
 
-## 5. （任意）Vercel を独自ドメインにする
+## 5. Vercel を独自ドメインにする（到達性改善のためにも推奨）
 
-優先度は低いですが、**やるなら早いほうが手戻りが少ない**です（URL変更に伴う設定更新が複数箇所あるため）。
+**メールの到達性に直結します。** `*.vercel.app` はフィッシングに多用される共有ドメインで、
+本文にそのリンクが入っているだけでフィルタの警戒度が上がります。
+送信元ドメインと本文のリンク先ドメインを揃えることが、迷惑メール対策として有効です。
 
-### 手順
+### 5-1. Vercel にドメインを追加
+
 1. Vercel → プロジェクト → **Settings → Domains** → 独自ドメインを追加
-2. Cloudflare の DNS に、Vercel が指示する **CNAME / A レコード**を追加（**DNS only** にする）
-3. どのブランチに割り当てるか確認（既定では本番デプロイに紐づきます）
+2. Cloudflare の DNS に、Vercel が指示する **A / CNAME レコード**を追加
+   - **必ず「DNS only」（グレーの雲）** にする。Proxied（オレンジ）だと二重CDNになり証明書等で問題が出ます
+   - Email Routing の MX レコードとは競合しないので、そのままで大丈夫です
+3. どのブランチに割り当てるか確認（既定では**本番デプロイ**に紐づきます）
 
-### 【重要】URL変更時に必ず更新が必要な箇所
+### 5-2. 【重要】確認メールのリンクも自分のドメインにする
 
-ここを忘れると、LINEログインとメール認証が同時に壊れます。
+Vercel のドメインを変えるだけでは不十分です。
+**Supabase の `{{ .ConfirmationURL }}` は `<project-ref>.supabase.co` を指す**ため、
+本文のリンク先が別ドメインのままになり、ドメイン不一致が解消されません。
 
-| 場所 | 更新内容 |
-|---|---|
-| Vercel 環境変数 `NEXT_PUBLIC_SITE_URL` | 新しいURLに変更 → **Redeploy** |
-| LINEログインチャネル → コールバックURL | `https://新URL/api/line/callback` を追加 |
-| LINE Messaging API → Webhook URL | `https://新URL/api/line/webhook` に変更 |
-| Supabase → URL Configuration | Site URL と Redirect URLs を更新 |
-| Resend の DMARC `rua` | 変更不要（メールアドレスなので） |
+対応済みの実装:
 
-移行直後は**旧URLの設定も残しておく**と、切り替え失敗時に戻せます。
+- 受け口として **`/auth/confirm`**（`src/app/auth/confirm/route.ts`）を用意しました
+- メールテンプレートのリンクを次の形にしています（`docs/email-templates/confirm-signup.html` に反映済み）
+
+```
+{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup
+```
+
+これで**メール内のリンクが完全に自分のドメイン**になります。
+
+> **順序に注意**: 先にアプリをデプロイして `/auth/confirm` が動く状態にしてから、
+> Supabase のテンプレートを差し替えてください。逆にするとリンクが機能しません。
+> 旧形式（`/auth/callback?code=...`）も残してあるので、送信済みのメールは無効になりません。
+
+### 5-3. 【重要】URL変更時に必ず更新が必要な箇所
+
+ここを忘れると、LINEログインとメール認証が同時に壊れます。**この順で進めてください。**
+
+| # | 場所 | 更新内容 |
+|---|---|---|
+| 1 | Vercel 環境変数 `NEXT_PUBLIC_SITE_URL` | 新しいURLに変更 → **Redeploy**（これを先にやる） |
+| 2 | Supabase → Authentication → **URL Configuration** | **Site URL** を新URLに変更。Redirect URLs にも新URLを追加 |
+| 3 | Supabase → **Email Templates** | `confirm-signup.html` を貼り付け（`/auth/confirm` がデプロイ済みであることを確認してから） |
+| 4 | LINEログインチャネル → コールバックURL | `https://新URL/api/line/callback` を**追加**（旧URLは残す） |
+| 5 | LINE Messaging API → Webhook URL | `https://新URL/api/line/webhook` に変更 → 「検証」で200を確認 |
+
+- `{{ .SiteURL }}` は **2で設定した Site URL** が入るので、2を飛ばすとメールのリンクが旧URLのままになります
+- 移行直後は**旧URLの設定も残しておく**と、切り替え失敗時に戻せます
+- 切り替え後、`https://新URL/api/line/webhook` をブラウザで開いて `site_url` が新URLになっているか確認できます
+
+### 5-4. 切り替え後の確認
+
+1. 新規登録 → **確認メールのリンクが自分のドメイン**になっているか（メール本文のURLを目視）
+2. リンクを踏んでログインできるか
+3. 迷惑メール判定が改善したか（改善しない場合でも、ドメインの実績が育つまで時間がかかります）
+4. LINEログイン・LINE連携が引き続き動くか
 
 ---
 
