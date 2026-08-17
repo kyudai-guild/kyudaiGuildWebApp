@@ -1,6 +1,24 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { verifyWebhookSignature } from '@/lib/line';
+import {
+  verifyWebhookSignature, isLineWebhookConfigured, isLineMessagingConfigured, isLineLoginConfigured,
+} from '@/lib/line';
+
+/**
+ * 設定状況の確認用（ブラウザで開ける）。
+ * どの値も返さず、設定されているかどうかの真偽値だけを返す。
+ * LINE の「検証」で 401 が出る時に、環境変数がこのデプロイに届いているかを切り分けられる。
+ */
+export async function GET() {
+  return NextResponse.json({
+    endpoint: 'line-webhook',
+    messaging_channel_secret: isLineWebhookConfigured(),   // false なら 401 の原因はこれ
+    messaging_access_token: isLineMessagingConfigured(),   // false なら通知が送れない
+    login_channel: isLineLoginConfigured(),                // false なら連携・ログインが使えない
+    service_role_key: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    site_url: process.env.NEXT_PUBLIC_SITE_URL ?? null,
+  });
+}
 
 /**
  * LINE Messaging API の Webhook。
