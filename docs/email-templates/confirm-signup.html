@@ -2,17 +2,19 @@
   Supabase → Authentication → Email Templates → Confirm signup
   そのままコピーして貼り付けてください。
 
+  【重要】このテンプレートには確認リンクを入れていません。
+  Microsoft Defender の Safe Links など、メールセキュリティ製品は配信前にリンクを取得して
+  検査します。確認リンクは1回限り有効なため、本人が開く前にスキャナーがトークンを消費し、
+  「このリンクは使用済みです」になってしまいます（九大は Microsoft 365 のため全員が該当）。
+  そのため 6桁コード（{{ .Token }}）方式にしています。スキャナーはコードを消費できません。
+
+  ※リンクを併記してはいけません。リンクとコードは同じトークンなので、
+    スキャナーがリンクを踏むとコードまで無効になります。
+
   HTMLメール固有の制約に合わせています:
   - 幅の制御のみ table を使用（Outlook等は flexbox / grid を解釈しません）
   - CSS はすべてインライン（多くのクライアントが <style> を削除するため）
   - 画像・Webフォントを使わない（表示崩れと迷惑メール判定を避けるため）
-
-  【重要】リンクは {{ .ConfirmationURL }} ではなく
-    {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup
-  を使っています。既定の ConfirmationURL は <project-ref>.supabase.co を指すため、
-  送信元ドメインと本文のリンク先が食い違い、フィッシング判定を受けやすくなるためです。
-  受け口は src/app/auth/confirm/route.ts です。**先にアプリをデプロイしてから**
-  このテンプレートを適用してください（順序を逆にするとリンクが機能しません）。
 -->
 <!DOCTYPE html>
 <html lang="ja">
@@ -21,13 +23,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
 <meta name="supported-color-schemes" content="light">
-<title>メールアドレスの確認</title>
+<title>確認コードのお知らせ</title>
 </head>
 <body style="margin:0; padding:0; background-color:#ffffff;">
 
 <!-- 受信一覧のプレビューに出る一文（本文には表示されません） -->
 <div style="display:none; max-height:0; overflow:hidden; opacity:0;">
-  九大ギルドへのご登録を完了するには、メールアドレスの確認が必要です。
+  九大ギルドの登録を完了するための確認コードです。
 </div>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -45,39 +47,29 @@
             </p>
 
             <p style="margin:0 0 20px; font-size:18px; font-weight:bold; line-height:1.6; color:#1f140f;">
-              メールアドレスの確認
+              確認コードのお知らせ
             </p>
 
             <p style="margin:0 0 12px; font-size:15px; line-height:1.9; color:#6b5e54;">
               九大ギルドへのご登録ありがとうございます。
             </p>
             <p style="margin:0 0 24px; font-size:15px; line-height:1.9; color:#6b5e54;">
-              下のリンクから、メールアドレスの確認を完了してください。<br>
-              確認が終わると、クエストの掲示・応募がご利用いただけます。
+              登録画面に以下の確認コードを入力してください。
             </p>
 
+            <!-- 確認コード -->
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
               <tr>
-                <td bgcolor="#1a4a3a" style="border-radius:6px;">
-                  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup" target="_blank"
-                     style="display:inline-block; padding:12px 28px; border-radius:6px;
-                            font-size:14px; font-weight:bold; color:#ffffff; text-decoration:none;
-                            font-family:-apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;">
-                    メールアドレスを確認する
-                  </a>
+                <td style="background-color:#f5f3ef; border:1px solid rgba(31,20,15,0.12); border-radius:8px; padding:18px 32px;">
+                  <span style="font-size:30px; font-weight:bold; letter-spacing:0.32em; color:#0c3b2e;
+                               font-family:'Courier New', Consolas, monospace;">{{ .Token }}</span>
                 </td>
               </tr>
             </table>
 
-            <p style="margin:0 0 6px; font-size:12px; line-height:1.7; color:#9a8e84;">
-              ボタンが開けない場合は、以下のURLをブラウザに貼り付けてください。
-            </p>
-            <p style="margin:0 0 24px; font-size:12px; line-height:1.7; word-break:break-all;">
-              <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup" target="_blank" style="color:#1a4a3a;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup</a>
-            </p>
-
             <p style="margin:0; font-size:12px; line-height:1.9; color:#9a8e84;">
-              ※ このリンクの有効期限は24時間です。期限が切れた場合は、お手数ですが再度ご登録ください。<br>
+              ※ このコードの有効期限は1時間です。期限が切れた場合は、お手数ですが再度ご登録ください。<br>
+              ※ コードは第三者に教えないでください。<br>
               ※ このメールに心当たりがない場合は、操作せずそのまま破棄してください。
             </p>
 

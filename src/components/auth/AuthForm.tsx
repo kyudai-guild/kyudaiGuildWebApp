@@ -14,6 +14,10 @@ export default function AuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [signUpComplete, setSignUpComplete] = useState(false);
+  // 確認コード方式で使う。サインアップ時のアドレスを保持しておく
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [verifying, setVerifying] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -51,7 +55,7 @@ export default function AuthForm() {
         if (error) throw error;
         if (data.user && !data.user.email_confirmed_at) {
           await supabase.auth.signOut();
-          setError('メールアドレスの認証が完了していません。確認メールのリンクをクリックしてから再度ログインしてください。');
+          setError('メールアドレスの確認が完了していません。届いた確認コードを入力して登録を完了してください。');
           return;
         }
         router.push('/');
@@ -64,12 +68,39 @@ export default function AuthForm() {
         });
         if (error) throw error;
         if (data.session) await supabase.auth.signOut();
+        setPendingEmail(cleanEmail);
         setSignUpComplete(true);
       }
     } catch (err: any) {
       setError(err.message || '認証エラーが発生しました。');
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * メールに記載された6桁コードで確認する。
+   *
+   * リンク方式をやめた理由: Microsoft Defender の Safe Links などのメールセキュリティが
+   * 配信前にリンクを取得して検査するため、1回限りの確認リンクが本人より先に消費され、
+   * 「使用済み」になってしまう。コードならスキャナーが消費できない。
+   */
+  const verifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = otp.replace(/\D/g, '');
+    if (code.length !== 6) { setError('6桁の確認コードを入力してください。'); return; }
+    setVerifying(true); setError(null);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: pendingEmail, token: code, type: 'signup',
+      });
+      if (error) throw error;
+      router.push('/');
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || '確認コードが正しくないか、有効期限が切れています。');
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -138,20 +169,41 @@ export default function AuthForm() {
           <div style={{ width: 64, height: 64, margin: '0 auto 1.5rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
             <CheckCircle2 size={32} style={{ color: '#16a34a' }} />
           </div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>
-            確認メールを送信しました
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>
+            確認コードを送信しました
           </h2>
           <p style={{ fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: 1.7, color: 'var(--color-text-secondary)' }}>
-            入力いただいたメールアドレス宛に確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。
+            <b style={{ color: 'var(--color-text-primary)' }}>{pendingEmail}</b> 宛に<br />
+            6桁の確認コードを送信しました。下に入力してください。
           </p>
-          <p style={{ fontSize: '0.75rem', marginBottom: '2rem', color: 'var(--color-text-tertiary)' }}>
-            メールが届かない場合は迷惑メールフォルダもご確認ください。
+
+          {error && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 500, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', textAlign: 'left' }}>
+              <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />
+              <p>{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={verifyCode}>
+            <input
+              type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
+              value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+              placeholder="000000" autoFocus
+              style={{ width: '100%', textAlign: 'center', letterSpacing: '0.5em', fontSize: '1.5rem', fontWeight: 700, fontFamily: 'var(--font-display)', padding: '0.875rem 1rem', borderRadius: '0.75rem', background: 'var(--bg-base)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }}
+              onFocus={focusInput} onBlur={blurInput}
+            />
+            <button type="submit" disabled={verifying || otp.length !== 6}
+              style={{ width: '100%', marginTop: '1rem', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, background: verifying || otp.length !== 6 ? 'var(--color-text-tertiary)' : 'var(--bg-dark)', color: 'var(--color-text-inverse)', cursor: verifying || otp.length !== 6 ? 'not-allowed' : 'pointer', border: 'none', opacity: verifying || otp.length !== 6 ? 0.6 : 1 }}
+            >{verifying ? '確認中...' : '登録を完了する'}</button>
+          </form>
+
+          <p style={{ fontSize: '0.75rem', margin: '1.25rem 0 0', lineHeight: 1.8, color: 'var(--color-text-tertiary)' }}>
+            メールが届かない場合は迷惑メールフォルダもご確認ください。<br />
+            コードの有効期限は1時間です。
           </p>
           <button
-            onClick={() => { setSignUpComplete(false); setIsLogin(true); }}
-            style={{ width: '100%', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', cursor: 'pointer', transition: 'background 0.2s' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; }}
+            onClick={() => { setSignUpComplete(false); setIsLogin(true); setOtp(''); setError(null); }}
+            style={{ marginTop: '1rem', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text-secondary)', cursor: 'pointer', background: 'none', border: 'none' }}
           >
             ログイン画面に戻る
           </button>
