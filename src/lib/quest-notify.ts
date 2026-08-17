@@ -54,7 +54,36 @@ export type DigestResult = {
  * 冪等性: 送信済みのクエストには line_notified_at を入れるので、
  * 同じ日に2回起動しても二重送信にならない。
  */
-export async function sendDailyDigest(siteUrl: string): Promise<DigestResult> {
+export async function sendDailyDigest(
+  siteUrl: string,
+  source: 'cron' | 'manual' = 'cron'
+): Promise<DigestResult> {
+  const result = await runDigest(siteUrl);
+  await recordRun(source, result);
+  return result;
+}
+
+/**
+ * 実行結果をDBに残す。
+ * Vercel の Hobby プランはログの保持期間が短いため、
+ * 「cronが本当に動いたか」を後から確認できるようにする。
+ */
+async function recordRun(source: 'cron' | 'manual', result: DigestResult) {
+  const admin = createAdminClient();
+  if (!admin) return;
+  const { error } = await admin.from('notification_logs').insert({
+    source,
+    ok: result.ok,
+    reason: result.reason ?? null,
+    quests: result.quests,
+    recipients: result.recipients,
+    sent: result.sent,
+  });
+  // ログの失敗で配信自体は止めない（テーブル未作成の環境も動くようにする）
+  if (error) console.error('Digest: failed to write notification log', error);
+}
+
+async function runDigest(siteUrl: string): Promise<DigestResult> {
   const empty = { quests: 0, recipients: 0, sent: 0 };
   if (!isLineMessagingConfigured()) {
     return { ok: false, reason: 'messaging-not-configured', ...empty };

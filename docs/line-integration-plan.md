@@ -185,6 +185,7 @@ Settings → Environment Variables に登録（**Production と Preview の両�
 SQL Editor で以下を順に実行（v5実行済みが前提）:
 1. `supabase/supabase_migration_v7_line.sql`（LINE連携用の列）
 2. `supabase/supabase_migration_v8_digest.sql`（日次ダイジェスト用の列）
+3. `supabase/supabase_migration_v9_notification_log.sql`（配信の実行履歴）
 
 > v8 のコメント末尾にある「既存の承認済みクエストを通知済みにする」UPDATE を実行しておくと、
 > 初回の配信で過去のクエストがまとめて送られるのを防げます（推奨）。
@@ -214,6 +215,48 @@ SQL Editor で以下を順に実行（v5実行済みが前提）:
 { "ok": true, "quests": 2, "recipients": 5, "sent": 5 }
 ```
 `sent` が実際に消費した通数です。
+
+### cronが動いたかを確認する
+
+自動実行は毎朝1回なので、「本当に動いたか」を後から確認できる手段を3つ用意しています。
+
+**① アプリの実行履歴（推奨・いつでも見られる）**
+
+管理者ログイン状態で `https://<URL>/api/cron/line-digest/history` を開く:
+
+```json
+{
+  "last_run": { "ran_at": "2026-08-18T00:12:03Z", "source": "cron", "ok": true,
+                "reason": "no-new-quests", "quests": 0, "recipients": 0, "sent": 0 },
+  "sent_this_month": 12,
+  "free_tier_limit": 200,
+  "runs": [ ... ]
+}
+```
+
+- `source` が **`cron`** なら自動実行、`manual` なら手動実行です
+- **`reason: "no-new-quests"` は正常**です（新着が無い日は送るものが無いだけで、cronは動いています）
+- `sent_this_month` で無料枠（200通）の消費状況も確認できます
+
+> Vercelのログは Hobby プランだと保持期間が短く、朝の実行を後で見に行くと消えていることがあります。
+> そのため実行結果をDBに残す作りにしています（migration v9）。
+
+**② Vercelダッシュボード**
+
+Settings → **Cron Jobs** に `/api/cron/line-digest` が並び、**View Logs** から実行ログに飛べます。
+
+**③ Vercel CLI でオンデマンド実行**
+
+スケジュールを待たずに、本番と同じ経路（`Authorization: Bearer CRON_SECRET` 付き）で実行できます:
+
+```bash
+npx vercel login
+npx vercel link          # 初回のみ。対象プロジェクトを選ぶ
+npx vercel crons ls      # 登録されているか確認
+npx vercel crons run /api/cron/line-digest
+```
+
+※ `vercel crons run` は**本番デプロイ済みのcronのみ**対象です（プレビューは不可）。
 
 ## 4. 動作確認
 
