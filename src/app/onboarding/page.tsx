@@ -197,7 +197,7 @@ export default function OnboardingPage() {
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', background: '#f2f7f4', border: '1px solid #cfe3d8', borderRadius: '0.75rem', padding: '0.875rem 1rem', marginTop: '1.25rem' }}>
               <span style={{ width: 34, height: 34, borderRadius: '0.5rem', flexShrink: 0, background: '#06c755', color: '#fff', fontWeight: 800, fontSize: '0.6875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)' }}>LINE</span>
               <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-                <b style={{ color: 'var(--color-text-primary)' }}>公式LINEでクエストをお知らせ（準備中）</b><br />
+                <b style={{ color: 'var(--color-text-primary)' }}>公式LINEでクエストをお知らせ</b><br />
                 選んだ目的・分野に合う新しいクエストが掲示されたとき、九大ギルド公式LINEから通知を受け取れます。
               </p>
             </div>

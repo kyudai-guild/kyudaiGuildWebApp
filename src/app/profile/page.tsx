@@ -241,7 +241,7 @@ export default function ProfilePage() {
             <p style={{ fontSize: '0.8125rem', fontWeight: 600, margin: '1rem 0 0.5rem' }}>できること・自己PR</p>
             <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: 80, lineHeight: 1.7 }} value={bio} onChange={e => setBio(e.target.value)} />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1rem' }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>LINE通知を受け取る（準備中）</span>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>LINE通知を受け取る</span>
               <button onClick={() => setLineNotify(v => !v)}
                 style={{ width: 44, height: 24, borderRadius: '9999px', border: 'none', cursor: 'pointer', position: 'relative', background: lineNotify ? 'var(--color-primary)' : 'var(--bg-tertiary)' }}>
                 <span style={{ position: 'absolute', top: 2, left: lineNotify ? 22 : 2, width: 20, height: 20, borderRadius: '9999px', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
