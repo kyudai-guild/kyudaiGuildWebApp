@@ -6,6 +6,11 @@ export async function GET() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
+    // 掲示板はログインユーザー限定
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     let query = supabase
       .from('quests')
       .select(`
@@ -16,17 +21,13 @@ export async function GET() {
       .order('created_at', { ascending: false });
 
     // 管理者なら全件、一般ユーザーなら承認済みのみ
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
 
-      if (profile?.role !== 'admin') {
-        query = query.eq('status', 'approved');
-      }
-    } else {
+    if (profile?.role !== 'admin') {
       query = query.eq('status', 'approved');
     }
 

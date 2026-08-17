@@ -7,7 +7,7 @@ import { useGuild } from '@/contexts/GuildContext';
 import QuestBoard from '@/components/quest/QuestBoard';
 import EventDetailModal from '@/components/events/EventDetailModal';
 import { GuildEvent, CATEGORY_COLORS, fmtTime } from '@/components/events/types';
-import { Scroll, Clock, XCircle, Shield, LogIn, Edit2, Check, X, CalendarDays, MapPin, ArrowRight } from 'lucide-react';
+import { Scroll, Clock, XCircle, Shield, LogIn, Edit2, Check, X, CalendarDays, MapPin, ArrowRight, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase-client';
 
 /* ============================================================
@@ -341,6 +341,34 @@ function EventsHero() {
 }
 
 /* ============================================================
+   LockedBoardNotice — shown instead of the board when logged out
+   ============================================================ */
+function LockedBoardNotice() {
+  const router = useRouter();
+  return (
+    <div id="quest-board" style={{ textAlign: 'center', padding: '3.5rem 1.5rem', borderRadius: '1rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}>
+      <div style={{ width: 52, height: 52, margin: '0 auto 1rem', borderRadius: '0.875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-secondary)' }}>
+        <Lock size={22} style={{ color: 'var(--color-text-tertiary)' }} />
+      </div>
+      <h2 style={{ fontSize: '1.125rem', fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)', marginBottom: '0.5rem' }}>
+        クエスト掲示板はログインが必要です
+      </h2>
+      <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.8, marginBottom: '1.5rem' }}>
+        依頼の内容には個人の連絡先が含まれることがあるため、<br />
+        九州大学の在学生・関係者のみが閲覧できます。
+      </p>
+      <button onClick={() => router.push('/auth')}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.75rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 700, background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', cursor: 'pointer', border: 'none', transition: 'background 0.2s' }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; }}
+      >
+        <LogIn size={15} />ログイン / 新規登録
+      </button>
+    </div>
+  );
+}
+
+/* ============================================================
    Main Page
    ============================================================ */
 export default function Home() {
@@ -353,9 +381,15 @@ export default function Home() {
       {isLoggedIn ? <EventsHero /> : <GuestHero />}
 
       <div className="page-content" style={{ maxWidth: 'var(--content-max)', margin: '0 auto' }}>
-        {isLoggedIn && <MyQuestsBanner />}
-        {isLoggedIn && <UserStatus />}
-        <QuestBoard />
+        {isLoggedIn ? (
+          <>
+            <MyQuestsBanner />
+            <UserStatus />
+            <QuestBoard />
+          </>
+        ) : (
+          <LockedBoardNotice />
+        )}
       </div>
 
       <footer style={{ borderTop: '1px solid var(--color-border)', background: 'var(--bg-card)', marginTop: '2rem' }}>
