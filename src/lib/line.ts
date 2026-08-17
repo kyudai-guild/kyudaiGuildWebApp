@@ -29,6 +29,9 @@ export const isLineLoginConfigured = () =>
   Boolean(LINE_LOGIN_CHANNEL_ID && LINE_LOGIN_CHANNEL_SECRET);
 export const isLineMessagingConfigured = () =>
   Boolean(LINE_MESSAGING_ACCESS_TOKEN);
+/** Webhookの署名検証に必要なシークレットが設定されているか */
+export const isLineWebhookConfigured = () =>
+  Boolean(LINE_MESSAGING_CHANNEL_SECRET);
 
 /**
  * コールバックURLは LINE Developers に登録した文字列と完全一致が必要。
@@ -182,14 +185,29 @@ export async function push(userId: string, messages: LineMessage[]) {
 
 /** Webhook の署名検証（x-line-signature） */
 export function verifyWebhookSignature(rawBody: string, signature: string | null) {
-  if (!signature || !LINE_MESSAGING_CHANNEL_SECRET) return false;
+  if (!LINE_MESSAGING_CHANNEL_SECRET) {
+    console.error('LINE webhook: LINE_MESSAGING_CHANNEL_SECRET is not set in this environment');
+    return false;
+  }
+  if (!signature) {
+    console.error('LINE webhook: x-line-signature header is missing');
+    return false;
+  }
   const expected = crypto
     .createHmac('sha256', LINE_MESSAGING_CHANNEL_SECRET)
     .update(rawBody)
     .digest('base64');
   const a = Buffer.from(expected);
   const b = Buffer.from(signature);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  const ok = a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!ok) {
+    console.error(
+      'LINE webhook: signature mismatch. ' +
+      'LINE_MESSAGING_CHANNEL_SECRET が Messaging APIチャネルのものか確認してください' +
+      '（LINEログインチャネルのシークレットではありません）'
+    );
+  }
+  return ok;
 }
 
 /* ============================================================
