@@ -116,7 +116,8 @@ export default function Header() {
 
           {/* Desktop Nav */}
           <nav className="header-desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            <a href="/#quest-board" className="header-nav-link">掲示板</a>
+            {/* 掲示板はログイン必須。未ログインならログイン画面へ誘導する */}
+            <a href={isLoggedIn ? '/#quest-board' : '/auth'} className="header-nav-link">掲示板</a>
             <button onClick={() => router.push('/events')} className="header-nav-link">
               <CalendarDays size={14} />イベント
             </button>
@@ -167,7 +168,7 @@ export default function Header() {
           padding: '2rem',
           display: 'flex', flexDirection: 'column', gap: '0.25rem',
         }}>
-          <a href="/#quest-board" onClick={() => setMobileOpen(false)}
+          <a href={isLoggedIn ? '/#quest-board' : '/auth'} onClick={() => setMobileOpen(false)}
             style={{ display: 'block', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)' }}
           >掲示板</a>
           <button onClick={() => { router.push('/events'); setMobileOpen(false); }}

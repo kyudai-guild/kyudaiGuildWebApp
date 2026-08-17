@@ -107,9 +107,14 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // 掲示板はログイン限定。未ログイン時は取得せず、ログイン後に読み込む
   useEffect(() => {
+    if (!isLoggedIn) {
+      setQuests([]);
+      return;
+    }
     refreshQuests();
-  }, [refreshQuests]);
+  }, [isLoggedIn, refreshQuests]);
 
   // セッションの監視とプロフィール取得
   useEffect(() => {
