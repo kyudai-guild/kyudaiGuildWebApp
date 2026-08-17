@@ -15,7 +15,8 @@ import { sendDailyDigest } from '@/lib/quest-notify';
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get('authorization');
-  let authorized = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
+  const isCron = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
+  let authorized = isCron;
 
   if (!authorized) {
     // 管理者による手動実行を許可（テスト用）
@@ -37,7 +38,11 @@ export async function GET(request: NextRequest) {
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
-  const result = await sendDailyDigest(siteUrl);
-  console.log('LINE digest result:', result);
-  return NextResponse.json(result);
+  const source = isCron ? 'cron' : 'manual';
+  const result = await sendDailyDigest(siteUrl, source);
+  console.log(`LINE digest (${source}):`, result, {
+    userAgent: request.headers.get('user-agent'),
+    schedule: request.headers.get('x-vercel-cron-schedule'),
+  });
+  return NextResponse.json({ ...result, source });
 }
