@@ -8,13 +8,16 @@ import EventDetailModal from './EventDetailModal';
 const WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日'];
 const STYLES = `
   .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
-  .cal-day-cell { min-height: 90px; padding: 0.375rem; border-right: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+  .cal-week { position: relative; --cal-bar-top: 32px; --cal-lane-h: 22px; --cal-bar-h: 20px; --cal-min: 90px; }
+  .cal-day-cell { padding: 0.375rem; border-right: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
   .cal-day-cell:nth-child(7n) { border-right: none; }
-  .cal-event-pill { display: block; width: 100%; text-align: left; font-size: 0.6875rem; font-weight: 600; padding: 0.125rem 0.375rem; border-radius: 0.25rem; margin-bottom: 0.125rem; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: none; transition: opacity 0.15s; }
-  .cal-event-pill:hover { opacity: 0.8; }
+  /* 連続する予定は週単位で1本のバーとして表示する（レーン割り当ては JS 側） */
+  .cal-event-bar { position: absolute; text-align: left; font-size: 0.6875rem; font-weight: 600; height: var(--cal-bar-h); line-height: var(--cal-bar-h); padding: 0 6px; border: none; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: opacity 0.15s; }
+  .cal-event-bar:hover { opacity: 0.8; }
   @media (max-width: 640px) {
-    .cal-day-cell { min-height: 56px; padding: 0.25rem; }
-    .cal-event-pill { font-size: 0; width: 8px; height: 8px; border-radius: 9999px; padding: 0; display: inline-block; margin: 0 1px; }
+    .cal-week { --cal-bar-top: 26px; --cal-lane-h: 12px; --cal-bar-h: 10px; --cal-min: 56px; }
+    .cal-day-cell { padding: 0.25rem; }
+    .cal-event-bar { font-size: 0; padding: 0; }
     .event-list-card { padding: 0.875rem 1rem; }
   }
 `;
@@ -48,27 +51,59 @@ export default function EventCalendar({ events, isAdmin }: Props) {
     return cells;
   }, [year, month]);
 
-  // Map day → events（複数日イベントは開始日〜終了日のすべての日に表示する）
-  const eventsByDay = useMemo(() => {
-    const map: Record<number, GuildEvent[]> = {};
-    const monthStart = new Date(year, month, 1);
-    const monthEnd = new Date(year, month + 1, 0);
-    events.forEach(e => {
-      const start = new Date(e.event_date);
-      start.setHours(0, 0, 0, 0);
-      const rawEnd = new Date(e.event_end_date ?? e.event_date);
-      rawEnd.setHours(0, 0, 0, 0);
-      const end = rawEnd < start ? start : rawEnd; // 不正な範囲は開始日のみ扱い
-      const from = start < monthStart ? monthStart : start;
-      const to = end > monthEnd ? monthEnd : end;
-      for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-        const day = d.getDate();
-        if (!map[day]) map[day] = [];
-        map[day].push(e);
-      }
+  // 週ごとに分割
+  const weeks = useMemo(() => {
+    const w: (number | null)[][] = [];
+    for (let i = 0; i < calendarDays.length; i += 7) w.push(calendarDays.slice(i, i + 7));
+    return w;
+  }, [calendarDays]);
+
+  /**
+   * 週ごとのイベント帯。
+   * 複数日の予定は、その週で覆う列範囲（startCol〜endCol）を1本のバーとして描く。
+   * 同じ週に重なる予定同士は「レーン」（縦の段）を割り当ててぶつからないようにする。
+   */
+  type Segment = { ev: GuildEvent; startCol: number; endCol: number; isStart: boolean; isEnd: boolean; lane: number };
+  const weekSegments: Segment[][] = useMemo(() => {
+    return weeks.map(week => {
+      const raw: Omit<Segment, 'lane'>[] = [];
+      events.forEach(ev => {
+        const s = new Date(ev.event_date);
+        s.setHours(0, 0, 0, 0);
+        const rawEnd = new Date(ev.event_end_date ?? ev.event_date);
+        rawEnd.setHours(0, 0, 0, 0);
+        const e = rawEnd < s ? s : rawEnd; // 不正な範囲は開始日のみ扱い
+        let startCol = -1;
+        let endCol = -1;
+        let isStart = false;
+        let isEnd = false;
+        week.forEach((day, col) => {
+          if (!day) return;
+          const d = new Date(year, month, day);
+          if (d >= s && d <= e) {
+            if (startCol === -1) startCol = col;
+            endCol = col;
+            if (d.getTime() === s.getTime()) isStart = true;
+            if (d.getTime() === e.getTime()) isEnd = true;
+          }
+        });
+        if (startCol !== -1) raw.push({ ev, startCol, endCol, isStart, isEnd });
+      });
+      // 左から・長い順に詰めると、複数日の帯が上の段にまとまって見やすい
+      raw.sort((a, b) =>
+        a.startCol - b.startCol
+        || (b.endCol - b.startCol) - (a.endCol - a.startCol)
+        || new Date(a.ev.event_date).getTime() - new Date(b.ev.event_date).getTime()
+      );
+      const laneEnds: number[] = []; // レーンごとの「最後に使った列」
+      return raw.map(sg => {
+        let lane = laneEnds.findIndex(end => end < sg.startCol);
+        if (lane === -1) { lane = laneEnds.length; laneEnds.push(sg.endCol); }
+        else { laneEnds[lane] = sg.endCol; }
+        return { ...sg, lane };
+      });
     });
-    return map;
-  }, [events, year, month]);
+  }, [weeks, events, year, month]);
 
   const isToday = (day: number) =>
     day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
@@ -128,39 +163,56 @@ export default function EventCalendar({ events, isAdmin }: Props) {
             ))}
           </div>
 
-          {/* Day cells */}
-          <div className="cal-grid">
-            {calendarDays.map((day, idx) => {
-              const dow = idx % 7; // 0=Mon
-              const dayEvents = day ? (eventsByDay[day] ?? []) : [];
-              return (
-                <div key={idx} className="cal-day-cell" style={{
-                  background: day && isToday(day) ? 'rgba(26,74,58,0.04)' : 'transparent',
-                }}>
-                  {day && (
-                    <>
-                      <div style={{
-                        width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        borderRadius: '9999px', marginBottom: '0.25rem',
-                        fontSize: '0.75rem', fontWeight: isToday(day) ? 800 : 500,
-                        background: isToday(day) ? 'var(--color-primary)' : 'transparent',
-                        color: isToday(day) ? 'var(--color-text-inverse)' : (dow === 5 ? '#2563eb' : dow === 6 ? '#dc2626' : 'var(--color-text-primary)'),
-                      }}>{day}</div>
-                      {dayEvents.map(ev => {
-                        const c = eventStyle(ev);
-                        return (
-                          <button key={ev.id} className="cal-event-pill"
-                            style={{ background: c.bg, color: c.color }}
-                            onClick={() => setSelectedEvent(ev)}
-                          >{ev.title}</button>
-                        );
-                      })}
-                    </>
-                  )}
+          {/* Day cells（週単位でラップし、イベント帯を重ねて描く） */}
+          {weeks.map((week, wi) => {
+            const segs = weekSegments[wi];
+            const laneCount = segs.reduce((m, s) => Math.max(m, s.lane + 1), 0);
+            const minH = `max(var(--cal-min), calc(var(--cal-bar-top) + ${laneCount} * var(--cal-lane-h) + 6px))`;
+            return (
+              <div key={wi} className="cal-week">
+                <div className="cal-grid">
+                  {week.map((day, ci) => (
+                    <div key={ci} className="cal-day-cell" style={{
+                      minHeight: minH,
+                      background: day && isToday(day) ? 'rgba(26,74,58,0.04)' : 'transparent',
+                    }}>
+                      {day && (
+                        <div style={{
+                          width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem', fontWeight: isToday(day) ? 800 : 500,
+                          background: isToday(day) ? 'var(--color-primary)' : 'transparent',
+                          color: isToday(day) ? 'var(--color-text-inverse)' : (ci === 5 ? '#2563eb' : ci === 6 ? '#dc2626' : 'var(--color-text-primary)'),
+                        }}>{day}</div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
+                {segs.map(sg => {
+                  const c = eventStyle(sg.ev);
+                  const left = (sg.startCol / 7) * 100;
+                  const width = ((sg.endCol - sg.startCol + 1) / 7) * 100;
+                  // 実際の開始/終了だけ角を丸め、週またぎの続き部分は角を落として「続いている」ことを示す
+                  const rL = sg.isStart ? '6px' : '0';
+                  const rR = sg.isEnd ? '6px' : '0';
+                  return (
+                    <button key={`${sg.ev.id}-${wi}`} className="cal-event-bar"
+                      title={sg.ev.title}
+                      style={{
+                        top: `calc(var(--cal-bar-top) + ${sg.lane} * var(--cal-lane-h))`,
+                        left: `calc(${left}% + ${sg.isStart ? 3 : 0}px)`,
+                        width: `calc(${width}% - ${(sg.isStart ? 3 : 0) + (sg.isEnd ? 3 : 0)}px)`,
+                        background: c.bg, color: c.color,
+                        borderRadius: `${rL} ${rR} ${rR} ${rL}`,
+                        boxShadow: `inset 3px 0 0 ${sg.isStart ? c.color : 'transparent'}`,
+                      }}
+                      onClick={() => setSelectedEvent(sg.ev)}
+                    >{(sg.isStart || sg.startCol === 0) ? sg.ev.title : ''}</button>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       )}
 
