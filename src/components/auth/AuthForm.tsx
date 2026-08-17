@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 import { LogIn, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 
+/** Supabase の Email OTP Length は 6〜10桁で設定できる。最短の6桁を入力完了の下限とする */
+const MIN_OTP_LENGTH = 6;
+const MAX_OTP_LENGTH = 10;
+
 export default function AuthForm() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -88,7 +92,8 @@ export default function AuthForm() {
   const verifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = otp.replace(/\D/g, '');
-    if (code.length !== 6) { setError('6桁の確認コードを入力してください。'); return; }
+    // 桁数は Supabase の Email OTP Length 設定に依存する（6〜10桁）ため、固定しない
+    if (code.length < MIN_OTP_LENGTH) { setError('確認コードを正しく入力してください。'); return; }
     setVerifying(true); setError(null);
     try {
       const { error } = await supabase.auth.verifyOtp({
@@ -174,7 +179,7 @@ export default function AuthForm() {
           </h2>
           <p style={{ fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: 1.7, color: 'var(--color-text-secondary)' }}>
             <b style={{ color: 'var(--color-text-primary)' }}>{pendingEmail}</b> 宛に<br />
-            6桁の確認コードを送信しました。下に入力してください。
+            確認コードを送信しました。下に入力してください。
           </p>
 
           {error && (
@@ -186,14 +191,14 @@ export default function AuthForm() {
 
           <form onSubmit={verifyCode}>
             <input
-              type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
-              value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
-              placeholder="000000" autoFocus
-              style={{ width: '100%', textAlign: 'center', letterSpacing: '0.5em', fontSize: '1.5rem', fontWeight: 700, fontFamily: 'var(--font-display)', padding: '0.875rem 1rem', borderRadius: '0.75rem', background: 'var(--bg-base)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }}
+              type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={MAX_OTP_LENGTH}
+              value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, MAX_OTP_LENGTH))}
+              placeholder="コードを入力" autoFocus
+              style={{ width: '100%', textAlign: 'center', letterSpacing: '0.28em', fontSize: 'clamp(1.125rem, 5vw, 1.5rem)', fontWeight: 700, fontFamily: 'var(--font-display)', padding: '0.875rem 0.75rem', borderRadius: '0.75rem', background: 'var(--bg-base)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }}
               onFocus={focusInput} onBlur={blurInput}
             />
-            <button type="submit" disabled={verifying || otp.length !== 6}
-              style={{ width: '100%', marginTop: '1rem', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, background: verifying || otp.length !== 6 ? 'var(--color-text-tertiary)' : 'var(--bg-dark)', color: 'var(--color-text-inverse)', cursor: verifying || otp.length !== 6 ? 'not-allowed' : 'pointer', border: 'none', opacity: verifying || otp.length !== 6 ? 0.6 : 1 }}
+            <button type="submit" disabled={verifying || otp.length < MIN_OTP_LENGTH}
+              style={{ width: '100%', marginTop: '1rem', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, background: verifying || otp.length < MIN_OTP_LENGTH ? 'var(--color-text-tertiary)' : 'var(--bg-dark)', color: 'var(--color-text-inverse)', cursor: verifying || otp.length < MIN_OTP_LENGTH ? 'not-allowed' : 'pointer', border: 'none', opacity: verifying || otp.length < MIN_OTP_LENGTH ? 0.6 : 1 }}
             >{verifying ? '確認中...' : '登録を完了する'}</button>
           </form>
 
