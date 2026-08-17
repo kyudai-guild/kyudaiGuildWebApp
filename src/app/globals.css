@@ -1,245 +1,294 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
-/* ============================================
-   九大ギルド RPG デザインシステム
-   (レトロRPG風：分厚い茶色枠・羊皮紙・ドット絵風味)
-   ============================================ */
+/* ================================================================
+   九大ギルド — Modern Warm Design System
+   CRISP-inspired: clean, warm, minimal aesthetic
+   ================================================================ */
 
 :root {
-  /* --- ベースカラー (明度を上げて見やすくした酒場の石畳・木材) --- */
-  --bg-base: #2b231d;      /* 以前より少し明るくし、視認性を向上 */
-  --bg-card: #3d2f25;      /* 木のテーブルや壁（少し明るめ） */
-  --bg-card-hover: #4a3a2e;
-  
-  /* --- レトロ枠線 (重厚なオーク材や鉄の枠) --- */
-  --border-outer: #1c110b; /* 鉄や古い木の色 */
-  --border-inner: #5c4333; /* ランタンの光を受けた明るいハイライト */
-  --border-shade: #2e1c14; /* 木の陰影 */
-  
-  /* --- レトロパレット (炎・ランタンの灯り) --- */
-  --gold: #e59a42;         /* ランタンの鮮やかなオレンジ */
-  --gold-light: #f7d28a;   /* 炎のハイライト */
-  --gold-dark: #a1521e;    /* 鈍い銅色・アンティークゴールド */
+  /* --- Background --- */
+  --bg-base: #f5f3ef;
+  --bg-secondary: #eae8e3;
+  --bg-tertiary: #e1dfd9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8f7f4;
 
-  /* --- 役職カラー (酒場の冒険者たちの彩度を抑えたマント色) --- */
-  --rank-traveler: #5b6f7d; 
-  --rank-craftsman: #40719e;
-  --rank-adventurer: #a13d3d;
-  --rank-pioneer: #c99346;
+  /* --- Primary (dark green) --- */
+  --color-primary: #1a4a3a;
+  --color-primary-light: #2a6a52;
+  --bg-dark: #0c3b2e;
+  --bg-dark-hover: #0a3025;
 
-  /* --- XP / ステータス --- */
-  --xp-green: #34a853;
-  --xp-green-glow: transparent; /* グロー効果は廃止 */
+  /* --- Accent (warm terra cotta) --- */
+  --color-accent: #c8956c;
+  --color-accent-light: #e0b892;
 
-  /* --- フォント変数 --- */
-  --font-jp: var(--font-noto-sans);
-  --font-en: var(--font-cinzel); /* 可能ならピクセルフォントにしたいが現状維持 */
+  /* --- Text --- */
+  --color-text-primary: #1f140f;
+  --color-text-secondary: #6b5e54;
+  --color-text-tertiary: #9a8e84;
+  --color-text-inverse: #eae8e3;
+
+  /* --- Borders --- */
+  --color-border: rgba(31, 20, 15, 0.1);
+  --color-border-strong: rgba(31, 20, 15, 0.18);
+
+  /* --- Legacy variable aliases (used throughout components) --- */
+  --gold: #c8956c;
+  --gold-light: #1a4a3a;
+  --gold-dark: #0c3b2e;
+  --border-outer: rgba(31, 20, 15, 0.12);
+  --border-inner: rgba(31, 20, 15, 0.06);
+  --border-shade: rgba(31, 20, 15, 0.08);
+
+  /* --- Category colors --- */
+  --color-cat-research: #2563eb;
+  --color-cat-research-bg: #eff6ff;
+  --color-cat-commission: #d97706;
+  --color-cat-commission-bg: #fffbeb;
+  --color-cat-team: #059669;
+  --color-cat-team-bg: #ecfdf5;
+  --color-cat-help: #e11d48;
+  --color-cat-help-bg: #fff1f2;
+
+  /* --- Typography --- */
+  --font-display: 'Inter', 'Noto Sans JP', sans-serif;
+  --font-body: 'Noto Sans JP', 'Inter', sans-serif;
+  --font-jp: var(--font-noto-sans, 'Noto Sans JP', sans-serif);
+  --font-en: var(--font-inter, 'Inter', sans-serif);
+
+  /* --- Shadows --- */
+  --shadow-sm: 0 1px 2px rgba(31, 20, 15, 0.04);
+  --shadow-md: 0 4px 12px rgba(31, 20, 15, 0.06);
+  --shadow-lg: 0 8px 24px rgba(31, 20, 15, 0.08);
+  --shadow-card: 0 2px 8px rgba(31, 20, 15, 0.04), 0 0 0 1px rgba(31, 20, 15, 0.05);
+  --shadow-card-hover: 0 8px 24px rgba(31, 20, 15, 0.08), 0 0 0 1px rgba(31, 20, 15, 0.08);
+
+  /* --- Transitions --- */
+  --ease-out: cubic-bezier(0.4, 0, 0, 1);
+  --ease-smooth: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --duration-fast: 200ms;
+  --duration-normal: 400ms;
+  --duration-slow: 600ms;
+
+  /* --- Layout --- */
+  --content-max: 1200px;
+  --header-height: 72px;
+
+  /* --- Radius --- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
 }
 
-/* ============================================
-   グローバルリセット
-   ============================================ */
-* {
+/* ================================================================
+   Global Reset & Base
+   ================================================================ */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   scroll-behavior: smooth;
 }
 
 body {
+  font-family: var(--font-body);
+  color: var(--color-text-primary);
   background-color: var(--bg-base);
-  color: #ebdacf; /* コントラストを上げて、暗がりでも見やすい色に修正 */
-  font-family: var(--font-en), var(--font-jp), "Noto Sans JP", serif;
+  line-height: 1.7;
+  min-height: 100vh;
   overflow-x: hidden;
-  /* iOSでの背景拡大バグを防ぐため、背景指定は疑似要素で行う */
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: -1;
-  /* ランタンの光と控えめなレンガのテクスチャを追加 
-     radial-gradient: 画面のところどころに落ちるランタンの暖かい光
-     svg: 主張しすぎないうっすらとしたレンガ・石畳の模様 */
-  background-image: 
-    radial-gradient(circle at 10% 20%, rgba(229, 154, 66, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 85% 45%, rgba(229, 154, 66, 0.06) 0%, transparent 35%),
-    radial-gradient(circle at 50% 80%, rgba(229, 154, 66, 0.07) 0%, transparent 45%),
-    url('/tavern_bg.png');
-  background-size: cover;
-  background-position: center;
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
-/* ============================================
-   スクロールバー
-   ============================================ */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+::selection {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+/* ================================================================
+   Scrollbar
+   ================================================================ */
 ::-webkit-scrollbar {
-  width: 12px;
+  width: 6px;
+  height: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: var(--bg-card);
-  border-left: 4px solid var(--border-outer);
+  background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: var(--border-shade);
-  border: 2px solid var(--border-outer);
+  background: var(--color-border-strong);
+  border-radius: var(--radius-full);
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-outer);
+  background: var(--color-text-tertiary);
 }
 
-/* ============================================
-   ユーティリティクラス（レトロRPG枠）
-   ============================================ */
-
-/* グロー効果はすべてソリッドなオフセットシャドウ（ドロップシャドウ）に変更 */
-.glow-gold {
-  box-shadow: 2px 2px 0 var(--gold-dark);
-}
-
-.glow-gold-strong {
-  box-shadow: 3px 3px 0 var(--border-outer);
-}
-
-.glow-blue {
-  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
-}
-.glow-purple {
-  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
-}
-.glow-green {
-  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4);
-}
-
-/* ===== レトロRPGカード (二重枠のウィンドウ風) ===== */
+/* ================================================================
+   Card utility  (replaces .rpg-card)
+   ================================================================ */
 .rpg-card {
-  /* 木板やテーブルのように、ほんのりグラデーションをつけてのっぺり感を解消 */
-  background: linear-gradient(135deg, var(--bg-card) 0%, #33261d 100%);
-  /* 地下酒場風の重厚な看板・木の板の枠 */
-  border: 4px solid var(--border-outer);
-  border-radius: 4px; /* より木の板に近い角ばった印象 */
-  transition: all 0.1s ease-out;
-  position: relative;
-  /* 立体的な木の厚みを表現 */
-  box-shadow: 
-    inset 0 0 0 2px var(--border-inner),
-    inset -4px -4px 0 2px var(--border-shade),
-    6px 6px 0 rgba(0, 0, 0, 0.4); /* 暗闇の濃い影 */
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition:
+    box-shadow var(--duration-normal) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out);
 }
 
 .rpg-card:hover {
-  border-color: var(--border-outer);
-  background: var(--bg-card-hover);
-  /* 押した感じや浮いた感じをソリッドに表現 */
-  transform: translate(-2px, -2px);
-  box-shadow: 
-    inset 0 0 0 2px var(--border-inner),
-    inset -2px -2px 0 2px var(--border-shade),
-    6px 6px 0 rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+  border-color: var(--color-border-strong);
 }
 
-/* ゴールド/テキスト装飾 (グラデーションを削りソリッドに) */
-.text-gold {
-  color: var(--gold-dark);
+/* ================================================================
+   Typography utilities
+   ================================================================ */
+.font-rpg {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
-/* 「地下酒場」看板のような文字 */
 .text-rpg-title {
-  color: #dbb36e; /* 木に彫られたかのような鈍い黄色/オレンジ */
-  /* 深い陰影と木の焦げ色でフチ取り */
-  text-shadow: 
-    -2px -2px 0 var(--border-outer),
-     2px -2px 0 var(--border-outer),
-    -2px  2px 0 var(--border-outer),
-     2px  2px 0 var(--border-outer),
-     0px  5px 0 var(--border-outer),
-     0px  8px 5px rgba(0,0,0,0.6);
-  font-family: var(--font-en), var(--font-jp), serif;
-  font-weight: 900;
+  color: var(--color-primary);
+}
+
+.text-gold {
+  color: var(--color-accent);
 }
 
 .text-gold-gradient {
-  color: var(--gold);
-  text-shadow: 2px 2px 0 var(--border-outer);
+  color: var(--color-primary);
 }
 
-/* RPG見出しフォント */
-.font-rpg {
-  font-family: var(--font-en), var(--font-jp), serif;
-  letter-spacing: 0.1em;
-  font-weight: 900;
+.glow-gold,
+.glow-gold-strong,
+.glow-blue,
+.glow-purple,
+.glow-green {
+  /* no-op in modern theme — box-shadow handled per-component */
 }
 
-/* 羊皮紙テクスチャ (装飾用) */
-.parchment-border {
-  position: relative;
-  background-color: var(--bg-base);
-  border: 4px solid var(--border-outer);
-  border-radius: 6px;
-  box-shadow: 
-    inset 0 0 0 3px var(--bg-card),
-    3px 3px 0 rgba(0, 0, 0, 0.2);
-}
-
-/* ============================================
-   UIバー・アニメーション
-   ============================================ */
-
-/* XPバー (ソリッドなレトロゲージ) */
+/* ================================================================
+   XP bar  (clean version)
+   ================================================================ */
 .xp-bar {
-  height: 12px;
-  border-radius: 4px;
-  background: #222;
-  border: 2px solid var(--border-outer);
-  box-shadow: inset 0 2px 0 rgba(0,0,0,0.5);
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-secondary);
   overflow: hidden;
 }
 
 .xp-bar-fill {
   height: 100%;
-  border-radius: 0;
-  background: var(--xp-green);
-  position: relative;
-  /* ドット絵風の艶ハイライト */
-  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.4), inset 0 -3px 0 rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  transition: width 1s var(--ease-out);
 }
 
-.xp-bar-fill::after {
-  display: none; /* シマー効果を廃止してレトロに */
+/* ================================================================
+   Animations
+   ================================================================ */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-/* アニメーション */
-@keyframes stamp-in {
-  0% { transform: scale(3) rotate(-15deg); opacity: 0; }
-  50% { transform: scale(0.9) rotate(2deg); opacity: 1; }
-  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.stamp-appear {
-  animation: stamp-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+@keyframes progressFill {
+  from { width: 0; }
 }
 
-/* ゆっくり揺れる (スナップ風にしてもいいがひとまず保持) */
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+.animate-fade-in {
+  animation: fadeIn var(--duration-slow) var(--ease-out) both;
 }
 
-.float-animation {
-  animation: float 2s steps(4, end) infinite; /* stepsを使ってカクカク動かす */
+.animate-fade-in-up {
+  animation: fadeInUp var(--duration-slow) var(--ease-out) both;
 }
 
+.delay-1 { animation-delay: 100ms; }
+.delay-2 { animation-delay: 200ms; }
+.delay-3 { animation-delay: 300ms; }
+
+/* ================================================================
+   Deprecated RPG utilities (kept as no-ops so components don't break)
+   ================================================================ */
+.parchment-border {
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.stamp-appear,
+.float-animation,
 .gacha-spin {
-  animation: gacha-spin 0.6s steps(8, end) forwards; /* レトロなコマ落ちスピン */
+  /* no-op */
 }
 
-@keyframes gacha-spin {
-  0% { transform: rotateY(0deg) scale(1); }
-  50% { transform: rotateY(180deg) scale(1.1); }
-  100% { transform: rotateY(360deg) scale(1); }
+/* ================================================================
+   Responsive
+   ================================================================ */
+@media (max-width: 768px) {
+  :root {
+    --header-height: 60px;
+  }
 }

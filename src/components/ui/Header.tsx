@@ -1,7 +1,8 @@
-'use client';
+﻿'use client';
 
+import { useState, useEffect } from 'react';
 import { useGuild } from '@/contexts/GuildContext';
-import { Sword, LogIn, LogOut, Scroll, Shield } from 'lucide-react';
+import { Scroll, Shield, LogIn, LogOut, Menu, X, CalendarDays, UserRound, MessageCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 
@@ -9,72 +10,206 @@ export default function Header() {
   const { isLoggedIn, isAdmin } = useGuild();
   const router = useRouter();
   const supabase = createClient();
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // 要対応の応募数（60秒ごと + タブ復帰時に更新）
+  useEffect(() => {
+    if (!isLoggedIn) { setNotifCount(0); return; }
+    let cancelled = false;
+    const load = () => {
+      fetch('/api/notifications/count')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (!cancelled && d) setNotifCount(d.total ?? 0); })
+        .catch(() => {});
+    };
+    load();
+    const timer = setInterval(load, 60000);
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { cancelled = true; clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+  }, [isLoggedIn]);
+
+  const notifBadge = notifCount > 0 && (
+    <span style={{ minWidth: 16, height: 16, padding: '0 4px', borderRadius: 9999, background: '#dc2626', color: '#fff', fontSize: '0.625rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+      {notifCount > 9 ? '9+' : notifCount}
+    </span>
+  );
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    setMobileOpen(false);
     router.refresh();
     window.location.reload();
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-16">
-      <div className="absolute inset-0 bg-[var(--bg-card)] border-b-4 border-[var(--border-outer)] shadow-[0_4px_0_rgba(0,0,0,0.15)]" />
+    <>
+      <style>{`
+        .header-mobile-btn { display: none; }
+        @media (max-width: 639px) {
+          .header-desktop-nav { display: none !important; }
+          .header-mobile-btn { display: flex; }
+        }
+        .header-nav-link {
+          display: flex; align-items: center; gap: 0.35rem;
+          font-size: 0.875rem; font-weight: 500;
+          color: var(--color-text-secondary);
+          padding: 0.5rem 1rem;
+          border-radius: var(--radius-md);
+          transition: color 0.2s, background 0.2s;
+          background: transparent;
+        }
+        .header-nav-link:hover {
+          color: var(--color-text-primary);
+          background: var(--bg-secondary);
+        }
+        .header-cta {
+          display: flex; align-items: center; gap: 0.4rem;
+          font-size: 0.875rem; font-weight: 600;
+          color: var(--color-text-inverse);
+          background: var(--bg-dark);
+          padding: 0.5rem 1.5rem;
+          border-radius: var(--radius-full);
+          margin-left: 1rem;
+          transition: background 0.2s, transform 0.2s;
+        }
+        .header-cta:hover {
+          background: var(--bg-dark-hover);
+          transform: translateY(-1px);
+        }
+      `}</style>
 
-      <div className="relative h-full max-w-5xl mx-auto px-4 flex items-center justify-between">
-        {/* ロゴ */}
-        <button onClick={() => router.push('/')} className="flex items-center gap-2">
-          <div className="w-8 h-8 flex items-center justify-center bg-[var(--bg-base)] border-2 border-[var(--border-outer)] shadow-[inset_2px_2px_0_rgba(0,0,0,0.15)]">
-            <Sword size={16} className="text-[var(--gold-light)]" />
-          </div>
-          <span className="font-rpg font-black text-sm tracking-widest text-[var(--gold-light)] hidden sm:block" style={{ textShadow: '2px 2px 0 var(--border-inner)' }}>
-            九大ギルド
-          </span>
-        </button>
+      <header style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        height: 'var(--header-height)',
+        background: scrolled ? 'rgba(245,243,239,0.97)' : 'rgba(245,243,239,0.85)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderBottom: scrolled ? '1px solid var(--color-border)' : 'none',
+        boxShadow: scrolled ? '0 1px 2px rgba(31,20,15,0.04)' : 'none',
+        transition: 'background 0.4s, box-shadow 0.4s',
+      }}>
+        <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto', height: '100%', padding: '0 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
-        {/* 右側コントロール */}
-        <div className="flex items-center gap-2">
-          {isLoggedIn && (
-            <>
-              <button
-                onClick={() => router.push('/my-quests')}
-                className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-[#cfbeaf] hover:text-[var(--gold-light)] transition-colors border border-[rgba(139,115,85,0.3)] hover:border-[var(--gold-dark)] rounded-sm"
-              >
-                <Scroll size={13} />
-                <span className="hidden sm:inline">マイクエスト</span>
-              </button>
+          {/* Logo */}
+          <button onClick={() => router.push('/')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 36, height: 36, flexShrink: 0,
+              background: 'var(--bg-dark)',
+              color: 'var(--color-accent)',
+              fontSize: '1.125rem', fontWeight: 800,
+              borderRadius: 'var(--radius-md)',
+            }}>G</span>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '0.02em' }}>
+              Guild
+            </span>
+          </button>
 
-              {isAdmin && (
-                <button
-                  onClick={() => router.push('/admin')}
-                  className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-100 transition-colors border border-amber-500/30 hover:border-amber-400 rounded-sm"
-                >
-                  <Shield size={13} />
-                  <span className="hidden sm:inline">管理</span>
-                </button>
-              )}
-
-              <button
-                onClick={handleSignOut}
-                className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white transition-colors"
-              >
-                <LogOut size={14} />
-                <span className="hidden sm:inline">退出</span>
-              </button>
-            </>
-          )}
-
-          {!isLoggedIn && (
-            <button
-              onClick={() => router.push('/auth')}
-              className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold bg-[var(--gold-dark)] text-white hover:brightness-110 transition-colors shadow-[2px_2px_0_rgba(0,0,0,0.3)]"
-            >
-              <LogIn size={14} />
-              <span className="hidden sm:inline">ギルドへ入室</span>
+          {/* Desktop Nav */}
+          <nav className="header-desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            {/* 掲示板はログイン必須。未ログインならログイン画面へ誘導する */}
+            <a href={isLoggedIn ? '/#quest-board' : '/auth'} className="header-nav-link">掲示板</a>
+            <button onClick={() => router.push('/events')} className="header-nav-link">
+              <CalendarDays size={14} />イベント
             </button>
+            {isLoggedIn && (
+              <button onClick={() => router.push('/my-quests')} className="header-nav-link">
+                <Scroll size={14} />マイクエスト{notifBadge}
+              </button>
+            )}
+            {isLoggedIn && (
+              <button onClick={() => router.push('/talks')} className="header-nav-link">
+                <MessageCircle size={14} />トーク
+              </button>
+            )}
+            {isLoggedIn && (
+              <button onClick={() => router.push('/profile')} className="header-nav-link">
+                <UserRound size={14} />プロフィール
+              </button>
+            )}
+            {isAdmin && (
+              <button onClick={() => router.push('/admin')} className="header-nav-link" style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
+                <Shield size={14} />管理
+              </button>
+            )}
+            {isLoggedIn ? (
+              <button onClick={handleSignOut} className="header-nav-link">
+                <LogOut size={14} />ログアウト
+              </button>
+            ) : (
+              <button onClick={() => router.push('/auth')} className="header-cta">
+                <LogIn size={14} />ログイン
+              </button>
+            )}
+          </nav>
+
+          {/* Mobile Hamburger */}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="メニュー"
+            className="header-mobile-btn"
+            style={{ padding: '0.5rem', color: 'var(--color-text-primary)', alignItems: 'center', justifyContent: 'center' }}
+          >
+            {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile Menu Overlay */}
+      {mobileOpen && (
+        <div style={{
+          position: 'fixed', top: 'var(--header-height)', left: 0, right: 0, bottom: 0,
+          background: 'var(--bg-base)',
+          zIndex: 99,
+          padding: '2rem',
+          display: 'flex', flexDirection: 'column', gap: '0.25rem',
+        }}>
+          <a href={isLoggedIn ? '/#quest-board' : '/auth'} onClick={() => setMobileOpen(false)}
+            style={{ display: 'block', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)' }}
+          >掲示板</a>
+          <button onClick={() => { router.push('/events'); setMobileOpen(false); }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}
+          ><CalendarDays size={18} />イベント</button>
+          {isLoggedIn && (
+            <button onClick={() => { router.push('/my-quests'); setMobileOpen(false); }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}
+            ><Scroll size={18} />マイクエスト{notifBadge}</button>
+          )}
+          {isLoggedIn && (
+            <button onClick={() => { router.push('/talks'); setMobileOpen(false); }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}
+            ><MessageCircle size={18} />トーク</button>
+          )}
+          {isLoggedIn && (
+            <button onClick={() => { router.push('/profile'); setMobileOpen(false); }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}
+            ><UserRound size={18} />プロフィール</button>
+          )}
+          {isAdmin && (
+            <button onClick={() => { router.push('/admin'); setMobileOpen(false); }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}
+            ><Shield size={18} />管理</button>
+          )}
+          {isLoggedIn ? (
+            <button onClick={handleSignOut}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-secondary)', padding: '1rem 0', marginTop: '1rem', textAlign: 'left' }}
+            ><LogOut size={16} />ログアウト</button>
+          ) : (
+            <button onClick={() => { router.push('/auth'); setMobileOpen(false); }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-inverse)', background: 'var(--bg-dark)', padding: '1rem 2rem', borderRadius: 'var(--radius-full)', marginTop: '1.5rem', alignSelf: 'flex-start' }}
+            ><LogIn size={16} />ログイン</button>
           )}
         </div>
-      </div>
-    </header>
+      )}
+    </>
   );
 }
-

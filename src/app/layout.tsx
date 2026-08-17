@@ -1,27 +1,27 @@
 import type { Metadata } from 'next';
-import { Noto_Sans_JP, Cinzel } from 'next/font/google';
+import { Inter, Noto_Sans_JP } from 'next/font/google';
 import './globals.css';
 import { GuildProvider } from '@/contexts/GuildContext';
 import Header from '@/components/ui/Header';
 
-const notoSansJP = Noto_Sans_JP({
-  variable: '--font-noto-sans',
+const inter = Inter({
+  variable: '--font-inter',
   subsets: ['latin'],
-  weight: ['400', '500', '700', '900'],
+  weight: ['300', '400', '500', '600', '700', '800'],
   display: 'swap',
 });
 
-const cinzel = Cinzel({
-  variable: '--font-cinzel',
+const notoSansJP = Noto_Sans_JP({
+  variable: '--font-noto-sans',
   subsets: ['latin'],
-  weight: ['400', '700', '900'],
+  weight: ['300', '400', '500', '700'],
   display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: '九大ギルド | 挑戦者たちの酒場',
+  title: '九大ギルド | 九州大学クエスト掲示板',
   description:
-    '九州大学生たちが集う冒険者ギルド。仲間を見つけ、スキルを高め、クエストを達成しよう。',
+    '九州大学生のためのクエスト掲示板。研究協力、業務委託、仲間探しなど、多様な依頼が集まります。',
 };
 
 export default function RootLayout({
@@ -30,14 +30,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="ja"
-      className={`${notoSansJP.variable} ${cinzel.variable}`}
-    >
-      <body className="min-h-screen bg-[var(--bg-base)] text-slate-200 antialiased">
+    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
+      <body
+        className="min-h-screen antialiased"
+        style={{ backgroundColor: 'var(--bg-base)', color: 'var(--color-text-primary)' }}
+      >
         <GuildProvider>
           <Header />
-          <main className="pt-16">{children}</main>
+          <main style={{ paddingTop: 'var(--header-height)' }}>{children}</main>
         </GuildProvider>
       </body>
     </html>

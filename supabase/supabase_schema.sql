@@ -1,5 +1,8 @@
 -- ============================================================
--- 九大ギルド DBスキーマ v2 (審査制クエスト対応)
+-- 九大ギルド DBスキーマ（実DBの現状: v2 + v3 events + v4 cleanup 適用後）
+-- 新規環境はこのファイル1本で構築できる。
+-- 適用済みマイグレーション: supabase_migration_v2_*.sql /
+--   supabase_migration_v3_events.sql / supabase_migration_v4_cleanup.sql
 -- ============================================================
 
 -- ユーザープロフィール（Supabase Auth UIDに紐づく）
@@ -56,6 +59,30 @@ create table skill_levels (
   unique(user_id, skill_name)
 );
 
+-- イベント（管理者が登録、登録時に即 approved / v3 で追加）
+create table events (
+  id               uuid primary key default gen_random_uuid(),
+  organizer_id     uuid references profiles(id) on delete cascade,
+  title            text not null,
+  description      text,
+  event_date       timestamptz not null,
+  event_end_date   timestamptz,
+  location         text,
+  location_url     text,
+  category         text default 'その他'
+                   check (category in (
+                     '学術','スポーツ','文化','ボランティア','交流','キャリア','その他'
+                   )),
+  capacity         int,
+  tags             text[] default '{}',
+  status           text default 'pending'
+                   check (status in ('pending','approved','rejected')),
+  rejection_reason text,
+  reviewed_by      uuid references profiles(id),
+  reviewed_at      timestamptz,
+  created_at       timestamptz default now()
+);
+
 -- ============================================================
 -- RLS（Row Level Security）を有効化
 -- ============================================================
@@ -63,6 +90,7 @@ alter table profiles enable row level security;
 alter table quests enable row level security;
 alter table quest_applications enable row level security;
 alter table skill_levels enable row level security;
+alter table events enable row level security;
 
 -- ============================================================
 -- profiles ポリシー
@@ -108,6 +136,24 @@ create policy "skill_levels_insert" on skill_levels for insert with check (auth.
 create policy "skill_levels_update" on skill_levels for update using (auth.uid() = user_id);
 
 -- ============================================================
+-- events ポリシー（v3 で追加）
+-- ============================================================
+-- 閲覧: 承認済みは全員 / 作成者は自分のを全件 / 管理者は全件
+create policy "events_select" on events for select using (
+  status = 'approved'
+  OR organizer_id = auth.uid()
+  OR exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+);
+-- 登録: 管理者のみ
+create policy "events_insert" on events for insert with check (
+  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+);
+-- 更新: 管理者のみ
+create policy "events_update" on events for update using (
+  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+);
+
+-- ============================================================
 -- 自動プロフィール作成トリガー
 -- ============================================================
 create or replace function public.handle_new_user()
@@ -131,3 +177,4 @@ GRANT ALL PRIVILEGES ON TABLE public.profiles TO anon, authenticated, service_ro
 GRANT ALL PRIVILEGES ON TABLE public.quests TO anon, authenticated, service_role;
 GRANT ALL PRIVILEGES ON TABLE public.quest_applications TO anon, authenticated, service_role;
 GRANT ALL PRIVILEGES ON TABLE public.skill_levels TO anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON TABLE public.events TO anon, authenticated, service_role;

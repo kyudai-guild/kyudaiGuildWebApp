@@ -1,14 +1,11 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, AlertCircle, FileText, ChevronDown, ChevronUp, Calendar, Clock, Hash, Users, Tag } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { X, Send, AlertCircle, FileText, Calendar, Clock, Users, Tag } from 'lucide-react';
 import { useGuild } from '@/contexts/GuildContext';
 
-type CreateQuestModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
-};
+type CreateQuestModalProps = { isOpen: boolean; onClose: () => void };
 
 const QUEST_TYPES = ['仲間探し', '研究協力', '業務委託', 'ボランティア募集', '雇用契約', 'その他'];
 const PRESET_TAGS = ['プログラミング', 'Web制作', 'デザイン', '動画編集', '翻訳', '研究', 'データ分析', '体力仕事', '教育・指導', 'イベント運営'];
@@ -28,7 +25,6 @@ const GUIDELINES_TEXT = `クエスト依頼者（掲示者）の皆様へ：ガ�
 ・学業への過度な支障: 学生の本来の目的である学業を妨げるような、過酷なスケジュールや深夜帯の強制的な拘束。
 
 2. 契約形態別の注意事項
-依頼するクエストの性質（お金の支払い方や指示の出し方）に合わせて、法律に基づいた適切な条件を記載してください。
 
 A. 雇用契約（アルバイト）を募集する場合
 ・最低賃金の遵守: 勤務地が定める最新の最低賃金以上の時給を必ず設定してください。
@@ -46,6 +42,11 @@ C. 研究協力（被験者・アンケート等）を募集する場合
 ・クエストの受注、条件の交渉、金銭のやり取りは、依頼者と学生の間で直接行っていただきます。
 ・当事者間のトラブルについて、運営は一切の責任を負いません。`;
 
+const iStyle: React.CSSProperties = { width: '100%', background: 'var(--bg-base)', border: '1px solid var(--color-border)', borderRadius: '0.75rem', padding: '0.625rem 0.875rem', fontSize: '0.875rem', color: 'var(--color-text-primary)', outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s', boxSizing: 'border-box' };
+const labelS: React.CSSProperties = { display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '0.375rem' };
+const focusI = (e: React.FocusEvent<any>) => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,74,58,0.1)'; };
+const blurI = (e: React.FocusEvent<any>) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; };
+
 export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalProps) {
   const { createQuest } = useGuild();
   const [title, setTitle] = useState('');
@@ -56,309 +57,179 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
   const [tags, setTags] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
   const [durationMode, setDurationMode] = useState<'weeks' | 'date'>('weeks');
+  const [emailPublic, setEmailPublic] = useState(true);
   const [durationWeeks, setDurationWeeks] = useState(2);
   const [endDate, setEndDate] = useState('');
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [guidelinesAccepted, setGuidelinesAccepted] = useState(false);
-  const [showGuidelines, setShowGuidelines] = useState(false);
   const [step, setStep] = useState<'guidelines' | 'form'>('guidelines');
 
   if (!isOpen) return null;
 
-  const handleAddTag = () => {
-    const trimmed = customTag.trim();
-    if (trimmed && !tags.includes(trimmed)) {
-      setTags(prev => [...prev, trimmed]);
-      setCustomTag('');
-    }
-  };
-
-  const handleRemoveTag = (tag: string) => {
-    setTags(prev => prev.filter(t => t !== tag));
-  };
-
-  const togglePresetTag = (tag: string) => {
-    if (tags.includes(tag)) {
-      setTags(prev => prev.filter(t => t !== tag));
-    } else {
-      setTags(prev => [...prev, tag]);
-    }
-  };
-
-  const maxEndDate = () => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 6);
-    return d.toISOString().split('T')[0];
-  };
+  const addTag = () => { const t = customTag.trim(); if (t && !tags.includes(t)) { setTags(p => [...p, t]); setCustomTag(''); } };
+  const removeTag = (t: string) => setTags(p => p.filter(x => x !== t));
+  const togglePreset = (t: string) => tags.includes(t) ? setTags(p => p.filter(x => x !== t)) : setTags(p => [...p, t]);
+  const maxEnd = () => { const d = new Date(); d.setMonth(d.getMonth() + 6); return d.toISOString().split('T')[0]; };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !questType) {
-      setError('必須項目が入力されていません。');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
+    if (!title || !questType) { setError('必須項目が入力されていません。'); return; }
+    setLoading(true); setError(null);
     try {
-      await createQuest({
-        title,
-        description,
-        quest_type: questType,
-        max_applicants: maxApplicants,
-        reward,
-        tags,
-        listing_duration_type: durationMode,
-        listing_duration_weeks: durationMode === 'weeks' ? durationWeeks : null,
-        listing_end_date: durationMode === 'date' ? endDate : null,
-      });
+      await createQuest({ title, description, quest_type: questType, max_applicants: maxApplicants, reward, tags, listing_duration_type: durationMode, listing_duration_weeks: durationMode === 'weeks' ? durationWeeks : null, listing_end_date: durationMode === 'date' ? endDate : null, contact_email_public: emailPublic });
       onClose();
-      // reset
-      setTitle('');
-      setDescription('');
-      setQuestType(QUEST_TYPES[0]);
-      setMaxApplicants(1);
-      setReward('');
-      setTags([]);
-      setDurationMode('weeks');
-      setDurationWeeks(2);
-      setEndDate('');
-      setStep('guidelines');
-      setGuidelinesAccepted(false);
-    } catch (err: any) {
-      setError(err.message || 'クエスト作成に失敗しました。');
-    } finally {
-      setLoading(false);
-    }
+      setTitle(''); setDescription(''); setQuestType(QUEST_TYPES[0]); setMaxApplicants(1); setReward(''); setTags([]);
+      setDurationMode('weeks'); setDurationWeeks(2); setEndDate(''); setStep('guidelines'); setGuidelinesAccepted(false);
+    } catch (err: any) { setError(err.message || 'クエスト作成に失敗しました。'); } finally { setLoading(false); }
   };
 
-  const inputClass = "w-full bg-[rgba(139,115,85,0.1)] border border-[rgba(139,115,85,0.3)] rounded-sm px-3 py-2 text-sm text-[#cfbeaf] outline-none focus:border-[var(--gold-dark)] transition-colors";
-  const labelClass = "text-xs font-bold text-[#cfbeaf] block mb-1";
+  const overlay: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(15,10,5,0.4)', backdropFilter: 'blur(4px)' };
+  const panel: React.CSSProperties = { position: 'relative', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', borderRadius: '1.25rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)' };
+  const stickyHeader: React.CSSProperties = { position: 'sticky', top: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid var(--color-border)', background: 'var(--bg-card)', zIndex: 10 };
+  const body: React.CSSProperties = { padding: '1.5rem' };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-[var(--bg-card)] border-2 border-[var(--border-outer)] rounded-sm shadow-2xl p-6"
-        >
-          <div className="flex justify-between items-center mb-6 pb-4 border-b border-[var(--border-inner)]">
-            <h2 className="text-xl font-rpg font-black text-[var(--gold-light)]">新しいクエストの掲示</h2>
-            <button onClick={onClose} className="text-[#8b7355] hover:text-[var(--gold-light)] transition-colors">
-              <X size={24} />
-            </button>
-          </div>
+    <div style={overlay}>
+      <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2 }} style={panel}>
+        <div style={stickyHeader}>
+          <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>新しいクエストの掲示</h2>
+          <button onClick={onClose} style={{ padding: '0.375rem', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', transition: 'background 0.2s' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          ><X size={18} /></button>
+        </div>
 
+        <div style={body}>
           {error && (
-            <div className="mb-4 p-3 bg-red-950/50 border border-red-500/50 rounded-sm flex items-start gap-2 text-red-400 text-xs font-bold">
-              <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
-              <p>{error}</p>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 500, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
+              <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} /><p>{error}</p>
             </div>
           )}
 
           {step === 'guidelines' ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-[var(--gold-light)] mb-2">
-                <FileText size={16} />
-                <span className="text-sm font-bold">注意事項・ガイドライン</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-primary)' }}>
+                <FileText size={16} /><span style={{ fontSize: '0.875rem', fontWeight: 600 }}>注意事項・ガイドライン</span>
               </div>
-
-              <div className="bg-[rgba(0,0,0,0.3)] border border-[rgba(139,115,85,0.2)] rounded-sm p-4 max-h-[50vh] overflow-y-auto">
-                <pre className="text-xs text-[#cfbeaf] whitespace-pre-wrap leading-relaxed font-[var(--font-jp)]" style={{ fontFamily: 'var(--font-jp), "Noto Sans JP", sans-serif' }}>
-                  {GUIDELINES_TEXT}
-                </pre>
+              <div style={{ borderRadius: '0.75rem', padding: '1rem', maxHeight: '45vh', overflowY: 'auto', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
+                <pre style={{ fontSize: '0.75rem', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'var(--font-body)', color: 'var(--color-text-secondary)' }}>{GUIDELINES_TEXT}</pre>
               </div>
-
-              <label className="flex items-start gap-2 cursor-pointer p-3 bg-[rgba(139,115,85,0.05)] border border-[rgba(139,115,85,0.2)] rounded-sm">
-                <input
-                  type="checkbox"
-                  checked={guidelinesAccepted}
-                  onChange={(e) => setGuidelinesAccepted(e.target.checked)}
-                  className="mt-0.5 accent-[var(--gold-dark)]"
-                />
-                <span className="text-xs text-[#cfbeaf] font-bold">
-                  上記の注意事項・ガイドラインを確認し、同意します。
-                </span>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.75rem', borderRadius: '0.75rem', cursor: 'pointer', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>
+                <input type="checkbox" checked={guidelinesAccepted} onChange={e => setGuidelinesAccepted(e.target.checked)} style={{ width: 16, height: 16, marginTop: 2, accentColor: 'var(--color-primary)', cursor: 'pointer' }} />
+                <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-primary)' }}>上記の注意事項・ガイドラインを確認し、同意します。</span>
               </label>
-
-              <p className="text-[10px] text-[#8b7355]">
-                ※運営が掲示許可を出すまで、一週間ほど時間をいただく場合があります。
-              </p>
-
-              <button
-                onClick={() => setStep('form')}
-                disabled={!guidelinesAccepted}
-                className="w-full py-3 bg-[var(--gold-dark)] text-white font-black text-sm rounded-sm hover:brightness-110 transition-all shadow-[inset_0_-3px_0_rgba(0,0,0,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                同意して次へ進む
-              </button>
+              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>※運営が掲示許可を出すまで一週間ほど時間をいただく場合があります。</p>
+              <button onClick={() => setStep('form')} disabled={!guidelinesAccepted}
+                style={{ width: '100%', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: guidelinesAccepted ? 'pointer' : 'not-allowed', opacity: guidelinesAccepted ? 1 : 0.4, background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', border: 'none', transition: 'background 0.2s' }}
+                onMouseEnter={e => { if (guidelinesAccepted) (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; }}
+              >同意して次へ進む</button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* クエスト名 */}
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div>
-                <label className={labelClass}>クエスト名 <span className="text-red-500">*</span></label>
-                <input
-                  type="text" required value={title} onChange={(e) => setTitle(e.target.value)}
-                  className={inputClass} placeholder="例: Webサイト制作の手伝い"
-                />
+                <label style={labelS}>クエスト名 <span style={{ color: '#dc2626' }}>*</span></label>
+                <input type="text" required value={title} onChange={e => setTitle(e.target.value)} placeholder="例: Webサイト制作の手伝い" style={iStyle} onFocus={focusI} onBlur={blurI} />
               </div>
-
-              {/* クエスト内容 */}
               <div>
-                <label className={labelClass}>クエスト内容 <span className="text-red-500">*</span></label>
-                <textarea
-                  required value={description} onChange={(e) => setDescription(e.target.value)}
-                  className={`${inputClass} min-h-[100px]`}
-                  placeholder="クエストの詳細な内容を記載してください..."
-                />
+                <label style={labelS}>クエスト内容 <span style={{ color: '#dc2626' }}>*</span></label>
+                <textarea required value={description} onChange={e => setDescription(e.target.value)} placeholder="クエストの詳細な内容を記載してください..." style={{ ...iStyle, minHeight: 100, resize: 'vertical' }} onFocus={focusI} onBlur={blurI} />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {/* 募集人数 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
-                  <label className={labelClass}><Users size={12} className="inline mr-1" />募集人数 <span className="text-red-500">*</span></label>
-                  <input
-                    type="number" min="1" max="100" required value={maxApplicants}
-                    onChange={(e) => setMaxApplicants(parseInt(e.target.value) || 1)}
-                    className={inputClass}
-                  />
+                  <label style={labelS}><Users size={13} style={{ display: 'inline', marginRight: 4 }} />募集人数 <span style={{ color: '#dc2626' }}>*</span></label>
+                  <input type="number" min="1" max="100" required value={maxApplicants} onChange={e => setMaxApplicants(parseInt(e.target.value) || 1)} style={iStyle} onFocus={focusI} onBlur={blurI} />
                 </div>
-
-                {/* クエスト種別 */}
                 <div>
-                  <label className={labelClass}>クエスト種別 <span className="text-red-500">*</span></label>
-                  <select value={questType} onChange={(e) => setQuestType(e.target.value)} className={inputClass}>
+                  <label style={labelS}>クエスト種別 <span style={{ color: '#dc2626' }}>*</span></label>
+                  <select value={questType} onChange={e => setQuestType(e.target.value)} style={iStyle} onFocus={focusI} onBlur={blurI}>
                     {QUEST_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
               </div>
-
-              {/* 報酬 */}
               <div>
-                <label className={labelClass}>報酬</label>
-                <input
-                  type="text" value={reward} onChange={(e) => setReward(e.target.value)}
-                  className={inputClass} placeholder="例: 5,000円 / 昼食おごり / 経験値のみ"
-                />
-                <p className="text-[10px] text-[#8b7355] mt-1">※金銭をやり取りする場合は注意事項をご確認ください。</p>
+                <label style={labelS}>報酬</label>
+                <input type="text" value={reward} onChange={e => setReward(e.target.value)} placeholder="例: 5,000円 / 昼食おごり / 経験値のみ" style={iStyle} onFocus={focusI} onBlur={blurI} />
+                <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>※金銭をやり取りする場合は注意事項をご確認ください。</p>
               </div>
-
-              {/* タグ */}
               <div>
-                <label className={labelClass}><Tag size={12} className="inline mr-1" />タグ付け</label>
-                <div className="flex flex-wrap gap-1.5 mb-2">
+                <label style={labelS}><Tag size={13} style={{ display: 'inline', marginRight: 4 }} />タグ付け</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '0.75rem' }}>
                   {PRESET_TAGS.map(tag => (
-                    <button
-                      key={tag} type="button" onClick={() => togglePresetTag(tag)}
-                      className={`text-[10px] px-2 py-1 rounded-sm border transition-all ${
-                        tags.includes(tag)
-                          ? 'bg-[var(--gold-dark)] text-white border-[var(--gold-dark)]'
-                          : 'border-[rgba(139,115,85,0.3)] text-[#8b7355] hover:border-[var(--gold-dark)]'
-                      }`}
-                    >
-                      {tag}
-                    </button>
+                    <button key={tag} type="button" onClick={() => togglePreset(tag)}
+                      style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid', cursor: 'pointer', fontWeight: 500, transition: 'all 0.15s', background: tags.includes(tag) ? 'var(--bg-dark)' : 'var(--bg-card)', color: tags.includes(tag) ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)', borderColor: tags.includes(tag) ? 'var(--bg-dark)' : 'var(--color-border)' }}
+                    >{tag}</button>
                   ))}
                 </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text" value={customTag}
-                    onChange={(e) => setCustomTag(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                    className={`flex-1 ${inputClass}`}
-                    placeholder="カスタムタグを追加..."
-                  />
-                  <button type="button" onClick={handleAddTag}
-                    className="px-3 py-2 bg-[rgba(139,115,85,0.2)] text-[#cfbeaf] text-xs font-bold rounded-sm hover:bg-[rgba(139,115,85,0.3)] transition-colors"
-                  >
-                    追加
-                  </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input type="text" value={customTag} onChange={e => setCustomTag(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag())} placeholder="カスタムタグを追加..." style={{ ...iStyle, flex: 1 }} onFocus={focusI} onBlur={blurI} />
+                  <button type="button" onClick={addTag} style={{ padding: '0.625rem 1rem', fontSize: '0.875rem', fontWeight: 600, borderRadius: '0.75rem', cursor: 'pointer', background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>追加</button>
                 </div>
                 {tags.filter(t => !PRESET_TAGS.includes(t)).length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginTop: '0.5rem' }}>
                     {tags.filter(t => !PRESET_TAGS.includes(t)).map(tag => (
-                      <span key={tag} className="text-[10px] text-[#cfbeaf] bg-[rgba(139,115,85,0.15)] px-2 py-0.5 rounded-sm border border-[rgba(139,115,85,0.3)] flex items-center gap-1">
+                      <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.25rem 0.625rem', borderRadius: '9999px', color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>
                         {tag}
-                        <X size={8} className="cursor-pointer hover:text-red-400" onClick={() => handleRemoveTag(tag)} />
+                        <button type="button" onClick={() => removeTag(tag)} style={{ cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', display: 'flex', alignItems: 'center' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#dc2626'; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-tertiary)'; }}
+                        ><X size={10} /></button>
                       </span>
                     ))}
                   </div>
                 )}
               </div>
-
-              {/* 掲示期間 */}
               <div>
-                <label className={labelClass}><Calendar size={12} className="inline mr-1" />掲示期間 <span className="text-red-500">*</span></label>
-                <div className="flex gap-2 mb-2">
-                  <button type="button" onClick={() => setDurationMode('weeks')}
-                    className={`flex-1 py-2 text-xs font-bold rounded-sm border transition-all ${
-                      durationMode === 'weeks'
-                        ? 'bg-[var(--gold-dark)] text-white border-[var(--gold-dark)]'
-                        : 'border-[rgba(139,115,85,0.3)] text-[#8b7355]'
-                    }`}
-                  >
-                    <Clock size={12} className="inline mr-1" />n週間指定
-                  </button>
-                  <button type="button" onClick={() => setDurationMode('date')}
-                    className={`flex-1 py-2 text-xs font-bold rounded-sm border transition-all ${
-                      durationMode === 'date'
-                        ? 'bg-[var(--gold-dark)] text-white border-[var(--gold-dark)]'
-                        : 'border-[rgba(139,115,85,0.3)] text-[#8b7355]'
-                    }`}
-                  >
-                    <Calendar size={12} className="inline mr-1" />日付指定
-                  </button>
+                <label style={labelS}><Calendar size={13} style={{ display: 'inline', marginRight: 4 }} />掲示期間 <span style={{ color: '#dc2626' }}>*</span></label>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  {(['weeks', 'date'] as const).map(mode => (
+                    <button key={mode} type="button" onClick={() => setDurationMode(mode)}
+                      style={{ flex: 1, padding: '0.5rem', fontSize: '0.875rem', fontWeight: 600, borderRadius: '0.75rem', border: '1px solid', cursor: 'pointer', transition: 'all 0.15s', background: durationMode === mode ? 'var(--bg-dark)' : 'var(--bg-card)', color: durationMode === mode ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)', borderColor: durationMode === mode ? 'var(--bg-dark)' : 'var(--color-border)' }}
+                    >
+                      {mode === 'weeks' ? <><Clock size={12} style={{ display: 'inline', marginRight: 4 }} />n週間指定</> : <><Calendar size={12} style={{ display: 'inline', marginRight: 4 }} />日付指定</>}
+                    </button>
+                  ))}
                 </div>
                 {durationMode === 'weeks' ? (
-                  <div>
-                    <select value={durationWeeks} onChange={(e) => setDurationWeeks(parseInt(e.target.value))} className={inputClass}>
-                      {Array.from({ length: 26 }, (_, i) => i + 1).map(w => (
-                        <option key={w} value={w}>{w}週間</option>
-                      ))}
+                  <>
+                    <select value={durationWeeks} onChange={e => setDurationWeeks(parseInt(e.target.value))} style={iStyle} onFocus={focusI} onBlur={blurI}>
+                      {Array.from({ length: 26 }, (_, i) => i + 1).map(w => <option key={w} value={w}>{w}週間</option>)}
                     </select>
-                    <p className="text-[10px] text-[#8b7355] mt-1">※運営が掲示許可を出した日から{durationWeeks}週間の掲示となります。</p>
-                  </div>
+                    <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>※掲示許可から{durationWeeks}週間の掲示となります。</p>
+                  </>
                 ) : (
-                  <div>
-                    <input
-                      type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
-                      max={maxEndDate()}
-                      className={`${inputClass} [color-scheme:dark]`}
-                    />
-                    <p className="text-[10px] text-[#8b7355] mt-1">※指定した日付の0:00に掲示が終了します（最大半年先まで）。</p>
-                  </div>
+                  <>
+                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} min={new Date().toISOString().split('T')[0]} max={maxEnd()} style={iStyle} onFocus={focusI} onBlur={blurI} />
+                    <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>※指定した日付の0:00に掲示が終了します（最大半年先まで）。</p>
+                  </>
                 )}
               </div>
-
-              {/* 送信ボタン */}
-              <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => setStep('guidelines')}
-                  className="flex-1 py-2 bg-[rgba(139,115,85,0.1)] border border-[rgba(139,115,85,0.3)] text-[#cfbeaf] font-bold text-sm rounded-sm hover:bg-[rgba(139,115,85,0.2)] transition-colors"
-                >
-                  戻る
-                </button>
-                <button type="submit" disabled={loading}
-                  className="flex-[2] py-2 bg-[var(--gold-dark)] text-white font-black text-sm rounded-sm hover:brightness-110 transition-all shadow-[inset_0_-3px_0_rgba(0,0,0,0.3)] active:translate-y-1 active:shadow-[inset_0_0_0_rgba(0,0,0,0)] disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  <Send size={16} />
-                  {loading ? '申請中...' : 'クエストを申請する'}
-                </button>
+              <div>
+                <label style={labelS}>連絡先の公開</label>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.75rem', borderRadius: '0.75rem', cursor: 'pointer', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
+                  <input type="checkbox" checked={emailPublic} onChange={e => setEmailPublic(e.target.checked)} style={{ width: 16, height: 16, marginTop: 2, accentColor: 'var(--color-primary)', cursor: 'pointer' }} />
+                  <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+                    <b style={{ color: 'var(--color-text-primary)' }}>九大メールアドレスを応募者に公開する（推奨）</b><br />
+                    公開すると、応募を検討している人があなたに直接連絡できます。チェックを外しても掲示はできます。
+                  </span>
+                </label>
               </div>
-
-              <p className="text-[10px] text-center text-[#8b7355]">
-                ※クエストは運営の審査後に掲示されます。
-              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.5rem' }}>
+                <button type="button" onClick={() => setStep('guidelines')}
+                  style={{ flex: 1, padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+                >戻る</button>
+                <button type="submit" disabled={loading}
+                  style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1, background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', border: 'none', transition: 'background 0.2s' }}
+                  onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; }}
+                ><Send size={15} />{loading ? '申請中...' : 'クエストを申請する'}</button>
+              </div>
+              <p style={{ fontSize: '0.75rem', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>※クエストは運営の審査後に掲示されます。</p>
             </form>
           )}
-        </motion.div>
-      </div>
-    </AnimatePresence>
+        </div>
+      </motion.div>
+    </div>
   );
 }

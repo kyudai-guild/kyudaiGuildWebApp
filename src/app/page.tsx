@@ -1,75 +1,52 @@
-'use client';
+﻿'use client';
 
-import { motion } from 'framer-motion';
-import { Star, Scroll, Clock, XCircle } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import MemberCard from '@/components/member/MemberCard';
-import QuestBoard from '@/components/quest/QuestBoard';
-import StampCard from '@/components/stamp/StampCard';
+import { useRouter } from 'next/navigation';
+import { AnimatePresence } from 'framer-motion';
 import { useGuild } from '@/contexts/GuildContext';
+import QuestBoard from '@/components/quest/QuestBoard';
+import EventDetailModal from '@/components/events/EventDetailModal';
+import { GuildEvent, CATEGORY_COLORS, fmtTime } from '@/components/events/types';
+import { Scroll, Clock, XCircle, Shield, LogIn, Edit2, Check, X, CalendarDays, MapPin, ArrowRight, Lock } from 'lucide-react';
+import { createClient } from '@/lib/supabase-client';
 
 /* ============================================================
-   ヒーローセクション
+   Responsive styles
    ============================================================ */
-function HeroSection() {
-  return (
-    <section className="relative min-h-[60vh] flex flex-col items-center justify-center px-4 py-20 overflow-hidden">
-      {/* 背景エフェクト (ソリッドなレトロ背景に合わせてシンプルに) */}
-      <div className="absolute inset-0 pointer-events-none">
-        {/* レトロなドット柄や罫線風の装飾をCSSのみで表現 */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M 20 0 L 0 20\' fill=\'none\' stroke=\'%23593c22\' stroke-width=\'0.5\' opacity=\'0.1\'/%3E%3C/svg%3E')] opacity-30 mask-image:linear-gradient(to_bottom,black,transparent)]" />
-      </div>
+const STYLES = `
+  .page-content  { padding: 3rem 2rem; }
+  .hero-section  { padding-top: calc(var(--header-height) + 4rem); padding-bottom: 4rem; }
+  .hero-inner    { padding: 0 2rem; }
 
-      {/* コンテンツ */}
-      <div className="relative z-10 text-center max-w-2xl mx-auto">
-        {/* レトロな看板風バッジ */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-3 px-6 py-2 mb-8 text-xs font-bold tracking-widest bg-[var(--bg-card)] border-4 border-[var(--border-outer)] shadow-[inset_0_0_0_2px_var(--border-inner),4px_4px_0_rgba(0,0,0,0.2)]"
-          style={{ color: 'var(--gold-dark)' }}
-        >
-          <Star size={12} fill="currentColor" />
-          九州大学 冒険者ギルド
-          <Star size={12} fill="currentColor" />
-        </motion.div>
+  /* Guest hero: catch copy + login CTA side by side */
+  .guest-hero-inner { display: flex; align-items: center; justify-content: space-between; gap: 3rem; flex-wrap: wrap; }
+  .guest-hero-copy  { flex: 1; min-width: 280px; }
+  .guest-hero-cta   { flex-shrink: 0; width: 460px; max-width: 100%; }
 
-        {/* タイトル */}
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="font-rpg font-black text-5xl sm:text-6xl md:text-7xl leading-tight mb-6 tracking-wider"
-        >
-          {/* 画像風の「白テキスト＋太いこげ茶フチ」 */}
-          <span className="text-rpg-title">
-            九大ギルド
-          </span>
-        </motion.h1>
+  /* Logged-in events hero */
+  .events-hero-inner { display: flex; flex-direction: column; gap: 1rem; }
 
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-[#cfbeaf] text-base sm:text-lg mb-10 leading-relaxed font-bold"
-          style={{ textShadow: '2px 2px 0 rgba(0,0,0,0.8)' }}
-        >
-          みつける・たかめる・つながる・つむぐ・ひらく<br />
-          <span className="text-[var(--gold-light)] bg-[var(--border-outer)] inline-block px-3 py-1 mt-3 border-2 border-[var(--border-shade)] shadow-[2px_2px_0_rgba(0,0,0,0.5)] rounded-sm text-sm font-normal">
-            汝、大志を抱く者よ。この扉は常に開かれている。
-          </span>
-        </motion.p>
+  .user-panel          { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: 1.5rem 2rem; border-radius: 1rem; margin-bottom: 2rem; background: var(--bg-card); border: 1px solid var(--color-border); box-shadow: var(--shadow-card); }
+  .user-panel-left     { display: flex; align-items: center; gap: 1.25rem; }
+  .user-tags-desktop   { display: flex; flex-wrap: wrap; gap: 0.375rem; max-width: 280px; }
 
-
-      </div>
-    </section>
-  );
-}
+  @media (max-width: 768px) {
+    .guest-hero-inner { flex-direction: column; align-items: flex-start; gap: 2rem; }
+    .guest-hero-cta { width: 100%; }
+  }
+  @media (max-width: 640px) {
+    .page-content  { padding: 1.5rem 1rem; }
+    .hero-section  { padding-top: calc(var(--header-height) + 2rem); padding-bottom: 2rem; }
+    .hero-inner    { padding: 0 1rem; }
+    .guest-hero-inner { gap: 1.75rem; }
+    .user-panel      { flex-direction: column; align-items: flex-start; padding: 1.25rem; gap: 1rem; }
+    .user-panel-left { gap: 0.875rem; align-items: flex-start; }
+    .user-tags-desktop { display: none; }
+  }
+`;
 
 /* ============================================================
-   マイクエスト通知バナー
+   MyQuestsBanner
    ============================================================ */
 function MyQuestsBanner() {
   const { isLoggedIn } = useGuild();
@@ -92,86 +69,171 @@ function MyQuestsBanner() {
   if (!isLoggedIn || !counts || dismissed) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-5xl mx-auto px-4 pt-4 relative"
-    >
-      <div className="flex items-stretch gap-1">
-        <button
-          onClick={() => router.push('/my-quests')}
-          className="flex-1 flex items-center gap-3 px-4 py-3 bg-[var(--bg-card)] border-2 border-[var(--border-outer)] rounded-sm shadow-[2px_2px_0_rgba(0,0,0,0.2)] hover:brightness-110 transition-all text-left"
-        >
-          <Scroll size={16} className="text-[var(--gold)] flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-[var(--gold-light)]">マイクエストの状況を確認</p>
-            <p className="text-[10px] text-[#cfbeaf] mt-0.5">
-              {counts.pending > 0 && (
-                <span className="inline-flex items-center gap-1 mr-3">
-                  <Clock size={10} className="text-amber-400" />
-                  審査中 {counts.pending}件
-                </span>
-              )}
-              {counts.rejected > 0 && (
-                <span className="inline-flex items-center gap-1 text-red-400">
-                  <XCircle size={10} />
-                  リジェクト {counts.rejected}件
-                </span>
-              )}
-            </p>
-          </div>
-          <span className="text-[10px] text-[#8b7355] flex-shrink-0">詳細 →</span>
-        </button>
-        <button
-          onClick={() => setDismissed(true)}
-          className="px-3 bg-[var(--bg-card)] border-2 border-[var(--border-outer)] rounded-sm text-[#8b7355] hover:text-[var(--gold-light)] transition-colors text-xs"
-          aria-label="閉じる"
-        >
-          ✕
-        </button>
-      </div>
-    </motion.div>
+    <div style={{ display: 'flex', alignItems: 'stretch', gap: '0.25rem', marginBottom: '2rem' }}>
+      <button
+        onClick={() => router.push('/my-quests')}
+        style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', textAlign: 'left', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)', cursor: 'pointer', transition: 'transform 0.2s' }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+      >
+        <Scroll size={16} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>マイクエストの状況を確認</p>
+          <p style={{ fontSize: '0.75rem', marginTop: '0.125rem', color: 'var(--color-text-secondary)' }}>
+            {counts.pending > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginRight: '0.75rem' }}>
+                <Clock size={10} style={{ color: '#d97706' }} />審査中 {counts.pending}件
+              </span>
+            )}
+            {counts.rejected > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#dc2626' }}>
+                <XCircle size={10} />リジェクト {counts.rejected}件
+              </span>
+            )}
+          </p>
+        </div>
+        <span style={{ fontSize: '0.75rem', flexShrink: 0, color: 'var(--color-text-tertiary)' }}>詳細 →</span>
+      </button>
+      <button onClick={() => setDismissed(true)} aria-label="閉じる"
+        style={{ padding: '0 0.75rem', borderRadius: '0.75rem', fontSize: '0.875rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text-tertiary)', cursor: 'pointer' }}
+      >✕</button>
+    </div>
   );
 }
 
 /* ============================================================
-   会員証セクション
+   UserStatus — shown only when logged in
    ============================================================ */
-function MemberSection() {
+function UserStatus() {
+  const { member, updateProfile } = useGuild();
+  const supabase = createClient();
+  const [editing, setEditing] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const initial = member.name ? member.name.charAt(0).toUpperCase() : '?';
+
+  const saveEdit = async () => {
+    if (!newName.trim()) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('profiles').update({ display_name: newName.trim() }).eq('id', member.id);
+      if (!error) { await updateProfile({ name: newName.trim() }); setEditing(false); }
+    } finally { setSaving(false); }
+  };
+
+  const avatarStyle: React.CSSProperties = {
+    width: 52, height: 52, borderRadius: '0.875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'var(--bg-dark)',
+  };
 
   return (
-    <section className="relative px-4 py-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="flex flex-col lg:flex-row items-center gap-10">
-          {/* 会員証 */}
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="w-full lg:w-[480px] flex-shrink-0 flex justify-center"
-          >
-            <MemberCard />
-          </motion.div>
+    <div className="user-panel">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flex: 1, minWidth: 0 }}>
+        <div style={{ ...avatarStyle, fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-accent)', fontFamily: 'var(--font-display)' }}>
+          {initial}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+            {editing ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
+                  style={{ fontSize: '1rem', fontWeight: 600, padding: '0.25rem 0.75rem', borderRadius: '0.5rem', outline: 'none', border: '1px solid var(--color-primary)', color: 'var(--color-text-primary)', background: 'var(--bg-base)', boxShadow: '0 0 0 3px rgba(26,74,58,0.1)' }}
+                  autoFocus
+                  onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(false); }}
+                />
+                <button onClick={saveEdit} disabled={saving} style={{ padding: '0.375rem', borderRadius: '0.5rem', color: '#16a34a', cursor: 'pointer', background: 'none', border: 'none' }}><Check size={14} /></button>
+                <button onClick={() => setEditing(false)} style={{ padding: '0.375rem', borderRadius: '0.5rem', color: 'var(--color-text-tertiary)', cursor: 'pointer', background: 'none', border: 'none' }}><X size={14} /></button>
+              </div>
+            ) : (
+              <>
+                <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {member.name || '名無しの冒険者'}
+                </h3>
+                <button onClick={() => { setNewName(member.name || ''); setEditing(true); }}
+                  style={{ padding: '0.25rem', borderRadius: '0.25rem', flexShrink: 0, color: 'var(--color-text-tertiary)', cursor: 'pointer', background: 'none', border: 'none' }}
+                ><Edit2 size={12} /></button>
+              </>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)' }}>九州大学</span>
+            {member.role === 'admin' && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.125rem 0.625rem', borderRadius: '9999px', background: '#ecfdf5', color: '#059669' }}>
+                <Shield size={10} />管理者
+              </span>
+            )}
+            {member.joinDate && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
+                {new Date(member.joinDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short' })}参加
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      {member.tags && member.tags.length > 0 && (
+        <div className="user-tags-desktop">
+          {member.tags.slice(0, 4).map(tag => (
+            <span key={tag} style={{ fontSize: '0.75rem', padding: '0.25rem 0.625rem', borderRadius: '9999px', fontWeight: 500, color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
-          {/* サイドテキスト */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
-            className="flex-1 text-center lg:text-left rpg-card p-6 border-4"
-          >
-            <p className="font-rpg text-xs tracking-widest text-[var(--gold-dark)] mb-2 uppercase font-bold">
-              Member Card
-            </p>
-            <h2 className="text-2xl sm:text-3xl font-black text-[var(--gold-light)] mb-4 leading-tight" style={{ textShadow: '2px 2px 0 var(--border-outer)' }}>
-              あなたの<br className="hidden sm:block" />
-              ギルド会員証
+/* ============================================================
+   GuestHero — catch copy + big login CTA (not logged in)
+   ============================================================ */
+function GuestHero() {
+  const router = useRouter();
+  return (
+    <section className="hero-section" style={{
+      background: 'radial-gradient(ellipse 80% 60% at 20% 100%, rgba(26,74,58,0.05), transparent), radial-gradient(ellipse 60% 40% at 80% 0%, rgba(200,149,108,0.07), transparent), var(--bg-base)',
+      borderBottom: '1px solid var(--color-border)',
+      marginTop: 'calc(-1 * var(--header-height))',
+    }}>
+      <div className="hero-inner guest-hero-inner" style={{ maxWidth: 'var(--content-max)', margin: '0 auto' }}>
+        {/* Catch copy */}
+        <div className="guest-hero-copy animate-fade-in-up">
+          <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1rem' }}>
+            Kyudai Guild
+          </span>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(2rem, 7vw, 3.5rem)', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.2, letterSpacing: '0.02em', marginBottom: '1.25rem' }}>
+            キャンパスの<br />
+            <span style={{ color: 'var(--color-primary)', position: 'relative', display: 'inline-block' }}>
+              冒険
+              <span style={{ position: 'absolute', bottom: 4, left: 0, right: 0, height: 3, background: 'var(--color-accent)', borderRadius: 999, opacity: 0.6 }} />
+            </span>
+            が始まる。
+          </h1>
+          <p style={{ fontSize: '0.9375rem', color: 'var(--color-text-secondary)', lineHeight: 1.8, maxWidth: 420 }}>
+            研究協力、業務委託、仲間探し、イベント ——<br />
+            九州大学生のあらゆる活動が集まるプラットフォーム
+          </p>
+        </div>
+
+        {/* Big login CTA */}
+        <div className="guest-hero-cta animate-fade-in-up delay-2">
+          <div style={{ borderRadius: '1.25rem', padding: '2.5rem', background: 'var(--bg-dark)', boxShadow: '0 12px 40px rgba(12,59,46,0.25)' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-text-inverse)', fontFamily: 'var(--font-display)', marginBottom: '0.75rem' }}>
+              ギルドに参加しよう
             </h2>
-            <p className="text-[#ebdacf] font-bold text-sm leading-relaxed mb-6">
-              カードをタップすると裏面に習得スキルが表示されます。
-              日々の活動やクエストを通じて、自分のスキルレベルを上げていきましょう！
+            <p style={{ fontSize: '0.875rem', color: 'rgba(234,232,227,0.7)', lineHeight: 1.7, marginBottom: '1.5rem' }}>
+              九大メールアドレスで登録すると、クエストへの応募・依頼の掲示・イベントの閲覧ができます。
             </p>
-          </motion.div>
+            <button onClick={() => router.push('/auth')}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.9375rem', fontWeight: 700, background: 'var(--color-accent)', color: '#1f140f', cursor: 'pointer', border: 'none', transition: 'filter 0.2s, transform 0.2s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.filter = 'brightness(1.08)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = 'none'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+            >
+              <LogIn size={16} />ログイン / 新規登録
+            </button>
+            <p style={{ fontSize: '0.6875rem', color: 'rgba(234,232,227,0.5)', textAlign: 'center', marginTop: '0.875rem' }}>
+              ※九州大学関係者のみ利用可能です
+            </p>
+          </div>
         </div>
       </div>
     </section>
@@ -179,35 +241,173 @@ function MemberSection() {
 }
 
 /* ============================================================
-   メインページ
+   EventsHero — upcoming events list (logged in)
    ============================================================ */
-export default function Home() {
+function EventsHero() {
+  const router = useRouter();
+  const [events, setEvents] = useState<GuildEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<GuildEvent | null>(null);
+
+  useEffect(() => {
+    fetch('/api/events?upcoming=5')
+      .then(r => r.ok ? r.json() : [])
+      .then(setEvents)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
-    <>
-      {/* ヒーロー */}
-      <HeroSection />
+    <section className="hero-section" style={{
+      background: 'radial-gradient(ellipse 80% 60% at 20% 100%, rgba(26,74,58,0.04), transparent), var(--bg-base)',
+      borderBottom: '1px solid var(--color-border)',
+      marginTop: 'calc(-1 * var(--header-height))',
+    }}>
+      <div className="hero-inner events-hero-inner" style={{ maxWidth: 'var(--content-max)', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '1rem' }}>
+          <div className="animate-fade-in-up">
+            <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
+              Upcoming Events
+            </span>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '0.02em' }}>
+              近日開催のイベント
+            </h1>
+          </div>
+          <button onClick={() => router.push('/events')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-primary)', cursor: 'pointer', background: 'none', border: 'none', flexShrink: 0, transition: 'gap 0.2s', whiteSpace: 'nowrap' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.gap = '0.625rem'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.gap = '0.375rem'; }}
+          >カレンダーを見る<ArrowRight size={14} /></button>
+        </div>
 
-      {/* マイクエスト通知バナー */}
-      <MyQuestsBanner />
-
-      {/* 会員証 */}
-      <MemberSection />
-
-      {/* クエストボード */}
-      <QuestBoard />
-
-      {/* スタンプカード */}
-      <div className="max-w-5xl mx-auto px-4 pb-20">
-        <StampCard />
-        {/* <Gacha /> TODO: ガチャは後で復活 */}
+        {/* List */}
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 0' }}>
+            <div style={{ width: 28, height: 28, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '9999px', animation: 'spin 0.8s linear infinite' }} />
+          </div>
+        ) : events.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2.5rem 1.5rem', borderRadius: '1rem', background: 'var(--bg-card)', border: '1px dashed var(--color-border-strong)' }}>
+            <CalendarDays size={28} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 0.75rem', opacity: 0.4 }} />
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)' }}>予定されているイベントはありません。</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {events.map(ev => {
+              const c = CATEGORY_COLORS[ev.category] ?? CATEGORY_COLORS['その他'];
+              const d = new Date(ev.event_date);
+              return (
+                <button key={ev.id} onClick={() => setSelected(ev)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.875rem 1rem', borderRadius: '0.875rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)', cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'box-shadow 0.2s, transform 0.2s' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-card-hover)'; (e.currentTarget as HTMLElement).style.transform = 'translateX(2px)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-card)'; (e.currentTarget as HTMLElement).style.transform = 'translateX(0)'; }}
+                >
+                  {/* Date badge */}
+                  <div style={{ width: 48, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0.375rem', borderRadius: '0.625rem', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
+                    <span style={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>{d.toLocaleDateString('ja-JP', { month: 'short' })}</span>
+                    <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1 }}>{d.getDate()}</span>
+                    <span style={{ fontSize: '0.625rem', color: 'var(--color-text-tertiary)' }}>{d.toLocaleDateString('ja-JP', { weekday: 'short' })}</span>
+                  </div>
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.125rem 0.5rem', borderRadius: '9999px', color: c.color, background: c.bg }}>{ev.category}</span>
+                      <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.title}</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                        <Clock size={11} style={{ color: 'var(--color-text-tertiary)' }} />{fmtTime(ev.event_date)}{ev.event_end_date && ` 〜 ${fmtTime(ev.event_end_date)}`}
+                      </span>
+                      {ev.location && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <MapPin size={11} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />{ev.location}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <ArrowRight size={14} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* フッター */}
-      <footer className="mt-8 py-8 border-t-4 border-[var(--border-outer)] text-center bg-[var(--bg-card)]">
-        <p className="font-rpg text-xs tracking-widest text-[#cfbeaf] font-bold" style={{ textShadow: '1px 1px 0 #000' }}>
-          九大ギルド © 2024 — All Adventurers Welcome
-        </p>
+      <AnimatePresence>
+        {selected && <EventDetailModal event={selected} onClose={() => setSelected(null)} />}
+      </AnimatePresence>
+    </section>
+  );
+}
+
+/* ============================================================
+   LockedBoardNotice — shown instead of the board when logged out
+   ============================================================ */
+function LockedBoardNotice() {
+  const router = useRouter();
+  return (
+    <div id="quest-board" style={{ textAlign: 'center', padding: '3.5rem 1.5rem', borderRadius: '1rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}>
+      <div style={{ width: 52, height: 52, margin: '0 auto 1rem', borderRadius: '0.875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-secondary)' }}>
+        <Lock size={22} style={{ color: 'var(--color-text-tertiary)' }} />
+      </div>
+      <h2 style={{ fontSize: '1.125rem', fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--color-text-primary)', marginBottom: '0.5rem' }}>
+        クエスト掲示板はログインが必要です
+      </h2>
+      <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.8, marginBottom: '1.5rem' }}>
+        依頼の内容には個人の連絡先が含まれることがあるため、<br />
+        九州大学の在学生・関係者のみが閲覧できます。
+      </p>
+      <button onClick={() => router.push('/auth')}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.75rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 700, background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', cursor: 'pointer', border: 'none', transition: 'background 0.2s' }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; }}
+      >
+        <LogIn size={15} />ログイン / 新規登録
+      </button>
+    </div>
+  );
+}
+
+/* ============================================================
+   Main Page
+   ============================================================ */
+export default function Home() {
+  const { isLoggedIn } = useGuild();
+
+  return (
+    <>
+      <style>{STYLES}</style>
+
+      {isLoggedIn ? <EventsHero /> : <GuestHero />}
+
+      <div className="page-content" style={{ maxWidth: 'var(--content-max)', margin: '0 auto' }}>
+        {isLoggedIn ? (
+          <>
+            <MyQuestsBanner />
+            <UserStatus />
+            <QuestBoard />
+          </>
+        ) : (
+          <LockedBoardNotice />
+        )}
+      </div>
+
+      <footer style={{ borderTop: '1px solid var(--color-border)', background: 'var(--bg-card)', marginTop: '2rem' }}>
+        <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto', padding: '2.5rem 1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, background: 'var(--bg-dark)', color: 'var(--color-accent)', fontSize: '0.875rem', fontWeight: 800, borderRadius: '0.5rem', flexShrink: 0 }}>G</span>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>Guild</span>
+          </div>
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>
+            大学生のための依頼掲示板。研究協力、業務委託、仲間探しなど。
+          </p>
+          <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--color-border)' }}>
+            <small style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>九大ギルド © 2024 — All Rights Reserved</small>
+          </div>
+        </div>
       </footer>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </>
   );
 }

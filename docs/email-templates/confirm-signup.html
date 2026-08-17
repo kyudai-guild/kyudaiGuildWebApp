@@ -1,0 +1,100 @@
+<!--
+  Supabase → Authentication → Email Templates → Confirm signup
+  そのままコピーして貼り付けてください。
+
+  HTMLメール固有の制約に合わせています:
+  - 幅の制御のみ table を使用（Outlook等は flexbox / grid を解釈しません）
+  - CSS はすべてインライン（多くのクライアントが <style> を削除するため）
+  - 画像・Webフォントを使わない（表示崩れと迷惑メール判定を避けるため）
+
+  【重要】リンクは {{ .ConfirmationURL }} ではなく
+    {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup
+  を使っています。既定の ConfirmationURL は <project-ref>.supabase.co を指すため、
+  送信元ドメインと本文のリンク先が食い違い、フィッシング判定を受けやすくなるためです。
+  受け口は src/app/auth/confirm/route.ts です。**先にアプリをデプロイしてから**
+  このテンプレートを適用してください（順序を逆にするとリンクが機能しません）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>メールアドレスの確認</title>
+</head>
+<body style="margin:0; padding:0; background-color:#ffffff;">
+
+<!-- 受信一覧のプレビューに出る一文（本文には表示されません） -->
+<div style="display:none; max-height:0; overflow:hidden; opacity:0;">
+  九大ギルドへのご登録を完了するには、メールアドレスの確認が必要です。
+</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td align="left" style="padding:32px 24px;
+               font-family:-apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;">
+
+      <table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0"
+             style="width:100%; max-width:520px;">
+        <tr>
+          <td>
+
+            <p style="margin:0 0 28px; font-size:15px; font-weight:bold; letter-spacing:0.04em; color:#0c3b2e;">
+              九大ギルド
+            </p>
+
+            <p style="margin:0 0 20px; font-size:18px; font-weight:bold; line-height:1.6; color:#1f140f;">
+              メールアドレスの確認
+            </p>
+
+            <p style="margin:0 0 12px; font-size:15px; line-height:1.9; color:#6b5e54;">
+              九大ギルドへのご登録ありがとうございます。
+            </p>
+            <p style="margin:0 0 24px; font-size:15px; line-height:1.9; color:#6b5e54;">
+              下のリンクから、メールアドレスの確認を完了してください。<br>
+              確認が終わると、クエストの掲示・応募がご利用いただけます。
+            </p>
+
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
+              <tr>
+                <td bgcolor="#1a4a3a" style="border-radius:6px;">
+                  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup" target="_blank"
+                     style="display:inline-block; padding:12px 28px; border-radius:6px;
+                            font-size:14px; font-weight:bold; color:#ffffff; text-decoration:none;
+                            font-family:-apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;">
+                    メールアドレスを確認する
+                  </a>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:0 0 6px; font-size:12px; line-height:1.7; color:#9a8e84;">
+              ボタンが開けない場合は、以下のURLをブラウザに貼り付けてください。
+            </p>
+            <p style="margin:0 0 24px; font-size:12px; line-height:1.7; word-break:break-all;">
+              <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup" target="_blank" style="color:#1a4a3a;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup</a>
+            </p>
+
+            <p style="margin:0; font-size:12px; line-height:1.9; color:#9a8e84;">
+              ※ このリンクの有効期限は24時間です。期限が切れた場合は、お手数ですが再度ご登録ください。<br>
+              ※ このメールに心当たりがない場合は、操作せずそのまま破棄してください。
+            </p>
+
+            <p style="margin:28px 0 0; padding-top:16px; border-top:1px solid rgba(31,20,15,0.12);
+                      font-size:12px; line-height:1.8; color:#9a8e84;">
+              九大ギルド 運営<br>
+              <a href="{{ .SiteURL }}" target="_blank" style="color:#1a4a3a; text-decoration:none;">{{ .SiteURL }}</a><br>
+              <span style="color:#b5aca4;">送信専用アドレスのため、返信いただいてもお答えできません。</span>
+            </p>
+
+          </td>
+        </tr>
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>
