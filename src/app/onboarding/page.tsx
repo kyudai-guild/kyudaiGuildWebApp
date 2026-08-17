@@ -35,7 +35,6 @@ export default function OnboardingPage() {
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState('');
   const [bio, setBio] = useState('');
-  const [lineNotify, setLineNotify] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lineLinked, setLineLinked] = useState(false);
@@ -66,7 +65,6 @@ export default function OnboardingPage() {
         setSkills(profile.qualifications ?? []);
         setBio(profile.bio ?? '');
         setLineLinked(Boolean(profile.line_user_id));
-        if (profile.line_notify !== undefined && profile.line_notify !== null) setLineNotify(profile.line_notify);
       }
     }).catch(() => {});
   }, []);
@@ -93,7 +91,6 @@ export default function OnboardingPage() {
           interest_ids: [...selInterests],
           qualifications: skills,
           bio,
-          line_notify: lineNotify,
           onboarded: true,
         }),
       });
@@ -209,21 +206,6 @@ export default function OnboardingPage() {
             <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: 96, lineHeight: 1.7 }} value={bio} onChange={e => setBio(e.target.value)}
               placeholder="例: Webサイト制作の経験があります。React を1年ほど勉強しており、簡単なアプリなら一人で作れます。" />
 
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', background: '#f2f7f4', border: '1px solid #cfe3d8', borderRadius: '0.75rem', padding: '0.875rem 1rem', marginTop: '1.25rem' }}>
-              <span style={{ width: 34, height: 34, borderRadius: '0.5rem', flexShrink: 0, background: '#06c755', color: '#fff', fontWeight: 800, fontSize: '0.6875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)' }}>LINE</span>
-              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-                <b style={{ color: 'var(--color-text-primary)' }}>公式LINEでクエストをお知らせ</b><br />
-                選んだ目的・分野に合う新しいクエストが掲示されたとき、九大ギルド公式LINEから通知を受け取れます。
-              </p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.875rem', padding: '0 0.25rem' }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>LINE通知を受け取る</span>
-              <button onClick={() => setLineNotify(v => !v)} aria-label="LINE通知"
-                style={{ width: 44, height: 24, borderRadius: '9999px', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', background: lineNotify ? 'var(--color-primary)' : 'var(--bg-tertiary)' }}>
-                <span style={{ position: 'absolute', top: 2, left: lineNotify ? 22 : 2, width: 20, height: 20, borderRadius: '9999px', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
-              </button>
-            </div>
-
             <div style={{ display: 'flex', gap: '0.625rem', marginTop: '1.5rem' }}>
               <button style={btnGhost} onClick={() => setStep(2)}>戻る</button>
               <button style={btnPrimary} onClick={() => save(false)} disabled={saving}>{saving ? '保存中...' : '登録を完了する'}</button>
@@ -240,9 +222,14 @@ export default function OnboardingPage() {
             <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginBottom: '1.5rem' }}>初期設定が完了しました。設定はプロフィールからいつでも変更できます。</p>
 
             {lineLinked ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.875rem 1rem', borderRadius: '0.75rem', marginBottom: '1.5rem', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                <CheckCircle2 size={16} style={{ color: '#16a34a', flexShrink: 0 }} />
-                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#15803d' }}>LINE連携が完了しました</span>
+              <div style={{ padding: '0.875rem 1rem', borderRadius: '0.75rem', marginBottom: '1.5rem', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <CheckCircle2 size={16} style={{ color: '#16a34a', flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#15803d' }}>LINE連携が完了しました</span>
+                </div>
+                <p style={{ fontSize: '0.6875rem', color: '#15803d', opacity: 0.8, marginTop: '0.375rem' }}>
+                  マッチしたクエストの通知は、プロフィール画面からいつでもオン/オフできます。
+                </p>
               </div>
             ) : (
               <div style={{ textAlign: 'left', padding: '1.125rem 1.25rem', borderRadius: '0.75rem', marginBottom: '1.5rem', background: '#f2f7f4', border: '1px solid #cfe3d8' }}>
