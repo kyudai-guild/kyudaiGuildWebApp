@@ -223,13 +223,19 @@ const CATEGORY_BADGE: Record<string, { color: string; bg: string }> = {
   'その他': { color: '#6b7280', bg: '#f9fafb' },
 };
 
-export function buildQuestMatchMessage(quest: {
+export type NotifiableQuestSummary = {
   title: string;
   quest_type: string;
   reward?: string | null;
   max_applicants?: number | null;
   effective_end_date?: string | null;
-}, matchReason: string, siteUrl: string): LineMessage {
+};
+
+export function buildQuestMatchMessage(
+  quest: NotifiableQuestSummary,
+  matchReason: string,
+  siteUrl: string
+): LineMessage {
   const questUrl = `${siteUrl}/#quest-board`;
   const badge = CATEGORY_BADGE[quest.quest_type] ?? CATEGORY_BADGE['その他'];
   const rows: LineMessage[] = [];
@@ -288,6 +294,93 @@ export function buildQuestMatchMessage(quest: {
             action: { type: 'uri', label: '通知条件を変更する', uri: `${siteUrl}/profile` } },
         ],
       },
+    },
+  };
+}
+
+/** カルーセルに載せる1件分のコンパクトなバブル */
+function digestBubble(
+  quest: NotifiableQuestSummary,
+  matchReason: string,
+  index: number,
+  total: number,
+  siteUrl: string
+): LineMessage {
+  const badge = CATEGORY_BADGE[quest.quest_type] ?? CATEGORY_BADGE['その他'];
+  const rows: LineMessage[] = [];
+  const row = (k: string, v: string) => ({
+    type: 'box', layout: 'baseline', spacing: 'sm',
+    contents: [
+      { type: 'text', text: k, size: 'xxs', color: '#9a8e84', flex: 2 },
+      { type: 'text', text: v, size: 'xs', color: '#1f140f', weight: 'bold', flex: 5, wrap: true },
+    ],
+  });
+  if (quest.reward) rows.push(row('報酬', quest.reward));
+  if (quest.effective_end_date) {
+    const d = new Date(quest.effective_end_date);
+    rows.push(row('期限', `${d.getMonth() + 1}月${d.getDate()}日まで`));
+  }
+
+  return {
+    type: 'bubble', size: 'kilo',
+    header: {
+      type: 'box', layout: 'vertical', backgroundColor: '#0c3b2e', paddingAll: '12px',
+      contents: [{
+        type: 'text', text: `QUEST MATCH ${index}/${total}`,
+        color: '#c8956c', size: 'xxs', weight: 'bold',
+      }],
+    },
+    body: {
+      type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '16px',
+      contents: [
+        {
+          type: 'box', layout: 'horizontal',
+          contents: [{
+            type: 'box', layout: 'vertical', flex: 0, backgroundColor: badge.bg, cornerRadius: '999px',
+            paddingTop: '2px', paddingBottom: '2px', paddingStart: '10px', paddingEnd: '10px',
+            contents: [{ type: 'text', text: quest.quest_type, size: 'xxs', color: badge.color, weight: 'bold' }],
+          }],
+        },
+        { type: 'text', text: quest.title, weight: 'bold', size: 'md', color: '#1f140f', wrap: true },
+        { type: 'text', text: `🎯 ${matchReason}`, size: 'xxs', color: '#1a4a3a', wrap: true },
+        ...(rows.length > 0 ? [{ type: 'separator', color: '#eae8e3' }, ...rows] : []),
+      ],
+    },
+    footer: {
+      type: 'box', layout: 'vertical', paddingAll: '12px',
+      contents: [{
+        type: 'button', style: 'primary', color: '#1a4a3a', height: 'sm',
+        action: { type: 'uri', label: 'クエストを見る', uri: `${siteUrl}/#quest-board` },
+      }],
+    },
+  };
+}
+
+/** カルーセルに載せられる上限（LINEの仕様は12件） */
+export const DIGEST_MAX_BUBBLES = 10;
+
+/**
+ * 日次ダイジェスト用のメッセージ。
+ * 1件だけなら詳細バブル、複数件なら横スワイプのカルーセルにまとめる。
+ * どちらも「1ユーザーあたり1通」しか消費しない。
+ */
+export function buildQuestDigestMessage(
+  items: { quest: NotifiableQuestSummary; matchReason: string }[],
+  siteUrl: string
+): LineMessage {
+  const base = siteUrl.replace(/\/$/, '');
+  if (items.length === 1) {
+    return buildQuestMatchMessage(items[0].quest, items[0].matchReason, base);
+  }
+  const shown = items.slice(0, DIGEST_MAX_BUBBLES);
+  return {
+    type: 'flex',
+    altText: `【九大ギルド】あなたにおすすめのクエストが${items.length}件あります`,
+    contents: {
+      type: 'carousel',
+      contents: shown.map((it, i) =>
+        digestBubble(it.quest, it.matchReason, i + 1, shown.length, base)
+      ),
     },
   };
 }

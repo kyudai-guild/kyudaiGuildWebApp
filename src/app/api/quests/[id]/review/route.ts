@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { notifyMatchingUsers } from '@/lib/quest-notify';
 
 export async function POST(
   request: Request,
@@ -88,20 +87,12 @@ export async function POST(
       return NextResponse.json({ error: '審査処理に失敗しました。' }, { status: 500 });
     }
 
-    // 承認したら、興味分野が一致する連携済みユーザーへLINE通知
-    // （通知の失敗で審査自体を巻き戻さない）
-    let notified = 0;
-    if (action === 'approve') {
-      try {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
-        const result = await notifyMatchingUsers(updated, siteUrl);
-        notified = result.sent;
-      } catch (notifyError) {
-        console.error('Error sending LINE notifications:', notifyError);
-      }
-    }
+    // LINE通知はここでは送らない。
+    // 承認のたびに送ると「クエスト数 × 対象人数」の通数を消費してしまうため、
+    // 1日1回のダイジェスト（/api/cron/line-digest）でまとめて配信する。
+    // 承認済み・line_notified_at が NULL のクエストが翌朝の配信対象になる。
 
-    return NextResponse.json({ ...updated, notified });
+    return NextResponse.json(updated);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
