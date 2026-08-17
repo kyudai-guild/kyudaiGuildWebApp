@@ -11,16 +11,43 @@ import {
  */
 export async function GET() {
   // NEXT_PUBLIC_ の値はクライアントバンドルに埋め込まれる公開値なので、ここに出しても露出は増えない。
-  // 秘密のキーは真偽値と長さだけを返す。
+  // 秘密のキーは真偽値・長さ・JWTのロール名だけを返す（キー本体は返さない）。
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+
+  // よくある事故: SUPABASE_SERVICE_ROLE_KEY に anon キーを貼ってしまう。
+  // その場合 RLS が効いたままになり、LINEログイン時のプロフィール検索が0件になる。
+  // legacy キーは JWT なので payload の role で判別できる。
+  let svcKeyRole: string | null = null;
+  if (svcKey) {
+    try {
+      svcKeyRole = JSON.parse(Buffer.from(svcKey.split('.')[1], 'base64').toString()).role ?? 'no-role-claim';
+    } catch {
+      svcKeyRole = 'not-a-jwt'; // 新形式（sb_secret_...）の可能性
+    }
+  }
+
+  // 管理クライアントで実際に読めるかの実地テスト。
+  // 正しい service_role なら連携済み件数が見える。anon を貼っていると RLS に阻まれ 0 になる。
+  let lineLinkedProfiles: number | string = 'n/a';
+  const admin = createAdminClient();
+  if (admin) {
+    const { count, error } = await admin
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .not('line_user_id', 'is', null);
+    lineLinkedProfiles = error ? `error: ${error.code}` : (count ?? 0);
+  }
+
   return NextResponse.json({
     endpoint: 'line-webhook',
     messaging_channel_secret: isLineWebhookConfigured(),   // false なら 401 の原因はこれ
     messaging_access_token: isLineMessagingConfigured(),   // false なら通知が送れない
     login_channel: isLineLoginConfigured(),                // false なら連携・ログインが使えない
-    service_role_key: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    service_role_key: Boolean(svcKey),
+    service_role_key_role: svcKeyRole,                     // 'service_role' 以外なら貼り間違い
+    line_linked_profiles_visible: lineLinkedProfiles,      // 連携済みがいるのに 0 なら RLS に阻まれている
     site_url: process.env.NEXT_PUBLIC_SITE_URL ?? null,
-    // ログイン不能の切り分け用: URLが *.supabase.co でない、anon_key_length が極端に短い等が原因になる
     supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? null,
     supabase_anon_key_length: anonKey.length,
   });
