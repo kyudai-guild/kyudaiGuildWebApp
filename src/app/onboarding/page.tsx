@@ -38,8 +38,22 @@ export default function OnboardingPage() {
   const [lineNotify, setLineNotify] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lineLinked, setLineLinked] = useState(false);
+
+  // LINE連携は外部サイトへ遷移するため、入力内容を保存し終えた完了ステップで行う
+  const lineLinkHref = `/api/line/login?mode=link&next=${encodeURIComponent('/onboarding')}`;
 
   useEffect(() => {
+    // LINE連携から戻ってきたときは完了ステップに着地させる
+    const params = new URLSearchParams(window.location.search);
+    const linked = params.get('line') === 'linked';
+    const errParam = params.get('error');
+    if (linked || errParam) {
+      setStep(4);
+      if (errParam) setError(errParam);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+
     Promise.all([
       fetch('/api/options').then(r => r.ok ? r.json() : { purposes: [], interests: [] }),
       fetch('/api/profile').then(r => r.ok ? r.json() : null),
@@ -51,6 +65,7 @@ export default function OnboardingPage() {
         setSelInterests(new Set(profile.interest_ids ?? []));
         setSkills(profile.qualifications ?? []);
         setBio(profile.bio ?? '');
+        setLineLinked(Boolean(profile.line_user_id));
         if (profile.line_notify !== undefined && profile.line_notify !== null) setLineNotify(profile.line_notify);
       }
     }).catch(() => {});
@@ -223,10 +238,37 @@ export default function OnboardingPage() {
             </div>
             <h2 style={{ fontSize: '1.125rem', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '0.5rem' }}>ようこそ、ギルドへ！</h2>
             <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginBottom: '1.5rem' }}>初期設定が完了しました。設定はプロフィールからいつでも変更できます。</p>
+
+            {lineLinked ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.875rem 1rem', borderRadius: '0.75rem', marginBottom: '1.5rem', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <CheckCircle2 size={16} style={{ color: '#16a34a', flexShrink: 0 }} />
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#15803d' }}>LINE連携が完了しました</span>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'left', padding: '1.125rem 1.25rem', borderRadius: '0.75rem', marginBottom: '1.5rem', background: '#f2f7f4', border: '1px solid #cfe3d8' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', marginBottom: '0.625rem' }}>
+                  <span style={{ width: 32, height: 32, borderRadius: '0.5rem', flexShrink: 0, background: '#06c755', color: '#fff', fontWeight: 800, fontSize: '0.625rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)' }}>LINE</span>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 700 }}>LINEと連携する（任意）</span>
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.8, marginBottom: '0.875rem' }}>
+                  ・選んだ分野に合うクエストが掲示されたらお知らせが届きます<br />
+                  ・次回からはLINEでログインできます（パスワード不要）
+                </p>
+                <a href={lineLinkHref}
+                  style={{ display: 'block', textAlign: 'center', padding: '0.75rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 700, background: '#06c755', color: '#fff', textDecoration: 'none' }}
+                >LINEと連携する</a>
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '0.625rem' }}>
               <button style={btnGhost} onClick={() => router.push('/profile')}>プロフィールを見る</button>
               <button style={btnPrimary} onClick={() => router.push('/')}>クエストを探しに行く</button>
             </div>
+            {!lineLinked && (
+              <p style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)', marginTop: '0.875rem' }}>
+                連携はあとからプロフィール画面でも行えます。
+              </p>
+            )}
           </div>
         )}
       </div>

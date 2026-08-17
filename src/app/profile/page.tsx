@@ -52,6 +52,7 @@ export default function ProfilePage() {
   const [interestLabels, setInterestLabels] = useState<string[]>([]);
   const [line, setLine] = useState<{ linked: boolean; name: string | null; friend: boolean; notify: boolean } | null>(null);
   const [lineBusy, setLineBusy] = useState(false);
+  const [lineMessage, setLineMessage] = useState<{ text: string; kind: 'ok' | 'error' } | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -88,6 +89,16 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // LINE連携からの戻り（成功/失敗）を一度だけ表示する
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('error');
+    const linked = params.get('line') === 'linked';
+    if (err) setLineMessage({ text: err, kind: 'error' });
+    else if (linked) setLineMessage({ text: 'LINE連携が完了しました。', kind: 'ok' });
+    if (err || linked) window.history.replaceState(null, '', window.location.pathname);
+  }, []);
 
   const loadMore = async (role: 'posted' | 'applied') => {
     const offset = role === 'posted' ? posted.length : applied.length;
@@ -271,6 +282,15 @@ export default function ProfilePage() {
             </div>
           ))}
         </div>
+
+        {lineMessage && (
+          <div onClick={() => setLineMessage(null)}
+            style={{ padding: '0.75rem 1rem', borderRadius: '0.75rem', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer',
+              background: lineMessage.kind === 'ok' ? '#f0fdf4' : '#fef2f2',
+              border: lineMessage.kind === 'ok' ? '1px solid #bbf7d0' : '1px solid #fecaca',
+              color: lineMessage.kind === 'ok' ? '#15803d' : '#dc2626' }}
+          >{lineMessage.text}</div>
+        )}
 
         {/* LINE連携 */}
         {line && (
