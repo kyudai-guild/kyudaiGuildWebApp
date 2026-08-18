@@ -6,7 +6,7 @@ import { AnimatePresence } from 'framer-motion';
 import { useGuild } from '@/contexts/GuildContext';
 import QuestBoard from '@/components/quest/QuestBoard';
 import EventDetailModal from '@/components/events/EventDetailModal';
-import { GuildEvent, eventStyle, fmtTimeRange } from '@/components/events/types';
+import { GuildEvent, eventStyle, fmtTime } from '@/components/events/types';
 import { Scroll, Clock, XCircle, LogIn, CalendarDays, MapPin, ArrowRight, Lock } from 'lucide-react';
 
 /* ============================================================
@@ -15,6 +15,7 @@ import { Scroll, Clock, XCircle, LogIn, CalendarDays, MapPin, ArrowRight, Lock }
 const STYLES = `
   .page-content  { padding: 3rem 2rem; }
   .hero-section  { padding-top: calc(var(--header-height) + 4rem); padding-bottom: 4rem; }
+  .events-hero   { padding-top: calc(var(--header-height) + 2rem); padding-bottom: 1.75rem; }
   .hero-inner    { padding: 0 2rem; }
 
   /* Guest hero: catch copy + login CTA side by side */
@@ -23,7 +24,37 @@ const STYLES = `
   .guest-hero-cta   { flex-shrink: 0; width: 460px; max-width: 100%; }
 
   /* Logged-in events hero */
-  .events-hero-inner { display: flex; flex-direction: column; gap: 1rem; }
+  .events-hero-inner { display: flex; flex-direction: column; gap: 0.875rem; }
+
+  /* 横スクロールのイベントカード列。画面端まで流して「まだ続く」ことを見せる */
+  .events-rail {
+    display: flex; gap: 0.625rem;
+    overflow-x: auto; overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    padding-bottom: 0.5rem;
+    scrollbar-width: thin;
+  }
+  .events-rail::-webkit-scrollbar { height: 6px; }
+  .events-rail::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 9999px; }
+  .event-card {
+    flex: 0 0 auto; width: 168px;
+    scroll-snap-align: start;
+    display: flex; flex-direction: column; text-align: left;
+    padding: 0.75rem 0.875rem; border-radius: 0.75rem;
+    background: var(--bg-card); border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-card); cursor: pointer;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .event-card-more {
+    align-items: center; justify-content: center; gap: 0.375rem;
+    width: 110px; border-style: dashed; box-shadow: none;
+  }
+
+  @media (max-width: 640px) {
+    /* 端まで流すため、レールだけ左右のパディングを打ち消す */
+    .events-rail { margin: 0 -1rem; padding-left: 1rem; padding-right: 1rem; }
+    .event-card { width: 152px; }
+  }
 
   @media (max-width: 768px) {
     .guest-hero-inner { flex-direction: column; align-items: flex-start; gap: 2rem; }
@@ -168,7 +199,7 @@ function EventsHero() {
   }, []);
 
   return (
-    <section className="hero-section" style={{
+    <section className="hero-section events-hero" style={{
       background: 'radial-gradient(ellipse 80% 60% at 20% 100%, rgba(26,74,58,0.04), transparent), var(--bg-base)',
       borderBottom: '1px solid var(--color-border)',
       marginTop: 'calc(-1 * var(--header-height))',
@@ -177,11 +208,8 @@ function EventsHero() {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '1rem' }}>
           <div className="animate-fade-in-up">
-            <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
-              Upcoming Events
-            </span>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '0.02em' }}>
-              近日開催のイベント
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-display)', fontSize: 'clamp(1rem, 3vw, 1.25rem)', fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '0.02em' }}>
+              <CalendarDays size={17} style={{ color: 'var(--color-primary)' }} />近日開催のイベント
             </h1>
           </div>
           <button onClick={() => router.push('/events')}
@@ -202,43 +230,39 @@ function EventsHero() {
             <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)' }}>予定されているイベントはありません。</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          /* 横スクロールのカード列。掲示板の導線を潰さないよう縦の占有を最小限にする */
+          <div className="events-rail">
             {events.map(ev => {
               const c = eventStyle(ev);
               const d = new Date(ev.event_date);
               return (
-                <button key={ev.id} onClick={() => setSelected(ev)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.875rem 1rem', borderRadius: '0.875rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)', cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'box-shadow 0.2s, transform 0.2s' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-card-hover)'; (e.currentTarget as HTMLElement).style.transform = 'translateX(2px)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-card)'; (e.currentTarget as HTMLElement).style.transform = 'translateX(0)'; }}
+                <button key={ev.id} onClick={() => setSelected(ev)} className="event-card"
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-card-hover)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-card)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
                 >
-                  {/* Date badge */}
-                  <div style={{ width: 48, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0.375rem', borderRadius: '0.625rem', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
-                    <span style={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>{d.toLocaleDateString('ja-JP', { month: 'short' })}</span>
-                    <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1 }}>{d.getDate()}</span>
-                    <span style={{ fontSize: '0.625rem', color: 'var(--color-text-tertiary)' }}>{d.toLocaleDateString('ja-JP', { weekday: 'short' })}</span>
-                  </div>
-                  {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
-                      <span style={{ width: 10, height: 10, borderRadius: '9999px', background: c.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.title}</span>
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                        <Clock size={11} style={{ color: 'var(--color-text-tertiary)' }} />{fmtTimeRange(ev)}
-                      </span>
-                      {ev.location && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          <MapPin size={11} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />{ev.location}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <ArrowRight size={14} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+                  <span style={{ display: 'block', height: 3, background: c.color, borderRadius: '9999px', marginBottom: '0.625rem' }} />
+                  <span style={{ display: 'flex', alignItems: 'baseline', gap: '0.375rem', marginBottom: '0.375rem' }}>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1 }}>
+                      {d.getMonth() + 1}/{d.getDate()}
+                    </span>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)' }}>
+                      ({d.toLocaleDateString('ja-JP', { weekday: 'short' })})
+                    </span>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {ev.all_day ? '終日' : fmtTime(ev.event_date)}
+                    </span>
+                  </span>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.45, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                    {ev.title}
+                  </span>
                 </button>
               );
             })}
+            {/* 末尾からカレンダーへ誘導 */}
+            <button onClick={() => router.push('/events')} className="event-card event-card-more">
+              <CalendarDays size={18} style={{ color: 'var(--color-primary)' }} />
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)' }}>すべて見る</span>
+            </button>
           </div>
         )}
       </div>
