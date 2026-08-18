@@ -33,7 +33,16 @@ export default function EventCalendar({ events, isAdmin }: Props) {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth()); // 0-based
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+  const [showPast, setShowPast] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<GuildEvent | null>(null);
+
+  // リストは全期間が対象。既定では終了済みを隠し、必要なときだけ過去も出す
+  const listEvents = useMemo(() => {
+    if (showPast) return events;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    return events.filter(e => new Date(e.event_end_date ?? e.event_date) >= startOfToday);
+  }, [events, showPast]);
 
   // Navigation
   const prevMonth = () => { if (month === 0) { setYear(y => y - 1); setMonth(11); } else { setMonth(m => m - 1); } };
@@ -115,23 +124,34 @@ export default function EventCalendar({ events, isAdmin }: Props) {
 
       {/* Controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        {/* Month navigation */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button onClick={prevMonth} style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.5rem', border: '1px solid var(--color-border)', background: 'var(--bg-card)', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-secondary)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-card)'; }}
-          ><ChevronLeft size={16} /></button>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)', minWidth: 120, textAlign: 'center' }}>
-            {year}年{month + 1}月
-          </h2>
-          <button onClick={nextMonth} style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.5rem', border: '1px solid var(--color-border)', background: 'var(--bg-card)', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-secondary)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-card)'; }}
-          ><ChevronRight size={16} /></button>
-          <button onClick={() => { setYear(today.getFullYear()); setMonth(today.getMonth()); }}
-            style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid var(--color-border)', background: 'var(--bg-card)', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
-          >今月</button>
-        </div>
+        {/* Month navigation（リスト表示は全期間を並べるので月移動を出さない） */}
+        {viewMode === 'calendar' ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button onClick={prevMonth} style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.5rem', border: '1px solid var(--color-border)', background: 'var(--bg-card)', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-card)'; }}
+            ><ChevronLeft size={16} /></button>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)', minWidth: 120, textAlign: 'center' }}>
+              {year}年{month + 1}月
+            </h2>
+            <button onClick={nextMonth} style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.5rem', border: '1px solid var(--color-border)', background: 'var(--bg-card)', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-secondary)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-card)'; }}
+            ><ChevronRight size={16} /></button>
+            <button onClick={() => { setYear(today.getFullYear()); setMonth(today.getMonth()); }}
+              style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid var(--color-border)', background: 'var(--bg-card)', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
+            >今月</button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.625rem' }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+              {showPast ? 'すべての予定' : 'これからの予定'}
+            </h2>
+            <button onClick={() => setShowPast(v => !v)}
+              style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.75rem', borderRadius: '9999px', border: '1px solid var(--color-border)', background: 'var(--bg-card)', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
+            >{showPast ? 'これから以降のみ' : '過去も表示'}</button>
+          </div>
+        )}
 
         {/* View toggle */}
         <div style={{ display: 'flex', border: '1px solid var(--color-border)', borderRadius: '0.625rem', overflow: 'hidden' }}>
@@ -218,16 +238,18 @@ export default function EventCalendar({ events, isAdmin }: Props) {
       {/* ── LIST VIEW ── */}
       {viewMode === 'list' && (
         <div>
-          {events.length === 0 ? (
+          {listEvents.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem', borderRadius: '1rem', border: '1px dashed var(--color-border)' }}>
               <Calendar size={32} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 0.75rem', opacity: 0.4 }} />
-              <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)' }}>この期間のイベントはありません。</p>
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)' }}>
+                {showPast ? '登録されているイベントはありません。' : 'これから開催されるイベントはありません。'}
+              </p>
             </div>
           ) : (
             (() => {
               // Group by month
               const groups: Record<string, GuildEvent[]> = {};
-              [...events]
+              [...listEvents]
                 .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
                 .forEach(ev => {
                   const d = new Date(ev.event_date);
