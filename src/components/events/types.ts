@@ -9,6 +9,8 @@ export interface GuildEvent {
   all_day: boolean;
   location: string | null;
   location_url: string | null;
+  /** 表示用の主催団体名。登録者(organizer_id)とは別 */
+  organizer_name: string | null;
   color: string | null;
   capacity: number | null;
   tags: string[];

@@ -70,6 +70,7 @@ create table events (
   all_day          boolean not null default false,
   location         text,
   location_url     text,
+  organizer_name   text,          -- 表示用の主催団体名（登録者 organizer_id とは別）
   color            text not null default '#1a4a3a',
   capacity         int,
   tags             text[] default '{}',

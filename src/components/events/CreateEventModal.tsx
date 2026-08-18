@@ -4,6 +4,9 @@ import { motion } from 'framer-motion';
 import { X, Send, AlertCircle, Calendar, Clock, MapPin, Users, Tag, Check } from 'lucide-react';
 import { EVENT_COLORS, DEFAULT_EVENT_COLOR } from './types';
 
+/** 主催欄の既定値。他団体のイベントを代理登録する場合はここを書き換えて使う */
+const DEFAULT_ORGANIZER = '九大ギルド運営';
+
 interface Props { isOpen: boolean; onClose: () => void; onCreated: () => void; }
 
 const iS: React.CSSProperties = { width: '100%', background: 'var(--bg-base)', border: '1px solid var(--color-border)', borderRadius: '0.75rem', padding: '0.625rem 0.875rem', fontSize: '0.875rem', color: 'var(--color-text-primary)', outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s', boxSizing: 'border-box' };
@@ -19,6 +22,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: Props) 
   const [eventEndDate, setEventEndDate] = useState('');
   const [location, setLocation] = useState('');
   const [locationUrl, setLocationUrl] = useState('');
+  const [organizerName, setOrganizerName] = useState(DEFAULT_ORGANIZER);
   const [color, setColor] = useState(DEFAULT_EVENT_COLOR);
   const [capacity, setCapacity] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -33,7 +37,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: Props) 
 
   const reset = () => {
     setTitle(''); setDescription(''); setAllDay(false); setEventDate(''); setEventEndDate('');
-    setLocation(''); setLocationUrl(''); setColor(DEFAULT_EVENT_COLOR);
+    setLocation(''); setLocationUrl(''); setOrganizerName(DEFAULT_ORGANIZER); setColor(DEFAULT_EVENT_COLOR);
     setCapacity(''); setTags([]); setError(null);
   };
 
@@ -77,6 +81,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: Props) 
           event_end_date: endIso,
           all_day: allDay,
           location: location || null, location_url: locationUrl || null,
+          organizer_name: organizerName.trim() || DEFAULT_ORGANIZER,
           color, capacity: capacity ? Number(capacity) : null, tags,
         }),
       });
@@ -153,6 +158,15 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: Props) 
               })}
             </div>
             <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.375rem' }}>カレンダー上での識別に使われます。</p>
+          </div>
+
+          {/* Organizer */}
+          <div>
+            <label style={lS}><Users size={13} style={{ display: 'inline', marginRight: 4 }} />主催</label>
+            <input type="text" value={organizerName} onChange={e => setOrganizerName(e.target.value)} placeholder={DEFAULT_ORGANIZER} style={iS} onFocus={focus} onBlur={blur} />
+            <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>
+              他団体のイベントを代理で登録する場合は、その団体名に変更してください。
+            </p>
           </div>
 
           {/* Location */}

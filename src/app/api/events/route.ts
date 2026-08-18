@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       title, description, event_date, event_end_date, all_day,
-      location, location_url, color, capacity, tags,
+      location, location_url, color, capacity, tags, organizer_name,
     } = body;
 
     if (!title || !event_date) {
@@ -83,6 +83,8 @@ export async function POST(request: Request) {
         title, description, event_date, event_end_date: event_end_date || null,
         all_day: Boolean(all_day),
         location, location_url,
+        // 表示用の主催団体名。登録者（organizer_id）とは別に持つ
+        organizer_name: organizer_name?.trim() || '九大ギルド運営',
         color: color || '#1a4a3a',
         capacity: capacity || null, tags: tags || [],
         status: 'approved', // 管理者が直接登録 → 即承認
