@@ -77,16 +77,13 @@ select
 
 ### A-6. テストデータの掃除
 
-☐ 開発用アカウント（`@guild-dev.test` など）を削除
-☐ テスト投稿を削除
+☐ テストユーザー・クエスト・イベントを一掃する
 
-```sql
--- テスト用アカウントの確認（削除は Authentication → Users から）
-select u.email from auth.users u where u.email like '%guild-dev.test';
+**`supabase/supabase_reset_test_data.sql` を使ってください。**
+手順と注意点は `docs/admin-operations.md`（1. テストデータを消して、まっさらにする）にあります。
 
--- テスト投稿の削除（タイトルで絞る例）
-delete from quests where title like 'テスト%';
-```
+> ⚠️ 削除順序が重要です（quests・events を先に消さないとユーザー削除が外部キー違反で失敗します）。
+> スクリプトはその順序になっているので、上から順に実行してください。
 
 ☐ 日次ダイジェストの初回で過去分が一斉送信されないようにする
 
