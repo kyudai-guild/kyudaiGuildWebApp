@@ -30,7 +30,7 @@ const inputStyle: React.CSSProperties = {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { member, isLoggedIn } = useGuild();
+  const { member, isLoggedIn, updateProfile } = useGuild();
   const [stats, setStats] = useState<Stats | null>(null);
   const [posted, setPosted] = useState<PostedItem[]>([]);
   const [applied, setApplied] = useState<AppliedItem[]>([]);
@@ -47,6 +47,7 @@ export default function ProfilePage() {
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState('');
   const [bio, setBio] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [lineNotify, setLineNotify] = useState(true);
   const [saving, setSaving] = useState(false);
   const [interestLabels, setInterestLabels] = useState<string[]>([]);
@@ -73,6 +74,7 @@ export default function ProfilePage() {
         setSelInterests(new Set(prof.interest_ids ?? []));
         setSkills(prof.qualifications ?? []);
         setBio(prof.bio ?? '');
+        setDisplayName(prof.display_name ?? '');
         if (prof.line_notify !== undefined && prof.line_notify !== null) setLineNotify(prof.line_notify);
         const ids = new Set(prof.interest_ids ?? []);
         setInterestLabels((opts.interests ?? []).filter((o: Option) => ids.has(o.id)).map((o: Option) => o.label));
@@ -137,11 +139,19 @@ export default function ProfilePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          display_name: displayName.trim() || undefined,
           purpose_ids: [...selPurposes], interest_ids: [...selInterests],
           qualifications: skills, bio, line_notify: lineNotify,
         }),
       });
-      if (res.ok) { setEditing(false); loadAll(); }
+      if (res.ok) {
+        // ヘッダー等が使う GuildContext 側の表示名も即時反映する
+        if (displayName.trim() && displayName.trim() !== member.name) {
+          await updateProfile({ name: displayName.trim() });
+        }
+        setEditing(false);
+        loadAll();
+      }
     } finally {
       setSaving(false);
     }
@@ -224,6 +234,9 @@ export default function ProfilePage() {
         {editing && (
           <div style={{ ...card, padding: '1.5rem', marginBottom: '1.5rem' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '1rem' }}>プロフィールの編集</h3>
+            <p style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem' }}>表示名</p>
+            <input style={{ ...inputStyle, marginBottom: '1rem' }} value={displayName} onChange={e => setDisplayName(e.target.value)}
+              placeholder="冒険者名" maxLength={30} />
             <p style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem' }}>利用目的</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
               {options.purposes.map(o => chip(o, selPurposes.has(o.id), () => {

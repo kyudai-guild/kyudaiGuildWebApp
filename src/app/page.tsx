@@ -7,8 +7,7 @@ import { useGuild } from '@/contexts/GuildContext';
 import QuestBoard from '@/components/quest/QuestBoard';
 import EventDetailModal from '@/components/events/EventDetailModal';
 import { GuildEvent, eventStyle, fmtTimeRange } from '@/components/events/types';
-import { Scroll, Clock, XCircle, Shield, LogIn, Edit2, Check, X, CalendarDays, MapPin, ArrowRight, Lock } from 'lucide-react';
-import { createClient } from '@/lib/supabase-client';
+import { Scroll, Clock, XCircle, LogIn, CalendarDays, MapPin, ArrowRight, Lock } from 'lucide-react';
 
 /* ============================================================
    Responsive styles
@@ -26,10 +25,6 @@ const STYLES = `
   /* Logged-in events hero */
   .events-hero-inner { display: flex; flex-direction: column; gap: 1rem; }
 
-  .user-panel          { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: 1.5rem 2rem; border-radius: 1rem; margin-bottom: 2rem; background: var(--bg-card); border: 1px solid var(--color-border); box-shadow: var(--shadow-card); }
-  .user-panel-left     { display: flex; align-items: center; gap: 1.25rem; }
-  .user-tags-desktop   { display: flex; flex-wrap: wrap; gap: 0.375rem; max-width: 280px; }
-
   @media (max-width: 768px) {
     .guest-hero-inner { flex-direction: column; align-items: flex-start; gap: 2rem; }
     .guest-hero-cta { width: 100%; }
@@ -39,9 +34,6 @@ const STYLES = `
     .hero-section  { padding-top: calc(var(--header-height) + 2rem); padding-bottom: 2rem; }
     .hero-inner    { padding: 0 1rem; }
     .guest-hero-inner { gap: 1.75rem; }
-    .user-panel      { flex-direction: column; align-items: flex-start; padding: 1.25rem; gap: 1rem; }
-    .user-panel-left { gap: 0.875rem; align-items: flex-start; }
-    .user-tags-desktop { display: none; }
   }
 `;
 
@@ -97,88 +89,6 @@ function MyQuestsBanner() {
       <button onClick={() => setDismissed(true)} aria-label="閉じる"
         style={{ padding: '0 0.75rem', borderRadius: '0.75rem', fontSize: '0.875rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text-tertiary)', cursor: 'pointer' }}
       >✕</button>
-    </div>
-  );
-}
-
-/* ============================================================
-   UserStatus — shown only when logged in
-   ============================================================ */
-function UserStatus() {
-  const { member, updateProfile } = useGuild();
-  const supabase = createClient();
-  const [editing, setEditing] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const initial = member.name ? member.name.charAt(0).toUpperCase() : '?';
-
-  const saveEdit = async () => {
-    if (!newName.trim()) return;
-    setSaving(true);
-    try {
-      const { error } = await supabase.from('profiles').update({ display_name: newName.trim() }).eq('id', member.id);
-      if (!error) { await updateProfile({ name: newName.trim() }); setEditing(false); }
-    } finally { setSaving(false); }
-  };
-
-  const avatarStyle: React.CSSProperties = {
-    width: 52, height: 52, borderRadius: '0.875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'var(--bg-dark)',
-  };
-
-  return (
-    <div className="user-panel">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flex: 1, minWidth: 0 }}>
-        <div style={{ ...avatarStyle, fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-accent)', fontFamily: 'var(--font-display)' }}>
-          {initial}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-            {editing ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
-                  style={{ fontSize: '1rem', fontWeight: 600, padding: '0.25rem 0.75rem', borderRadius: '0.5rem', outline: 'none', border: '1px solid var(--color-primary)', color: 'var(--color-text-primary)', background: 'var(--bg-base)', boxShadow: '0 0 0 3px rgba(26,74,58,0.1)' }}
-                  autoFocus
-                  onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(false); }}
-                />
-                <button onClick={saveEdit} disabled={saving} style={{ padding: '0.375rem', borderRadius: '0.5rem', color: '#16a34a', cursor: 'pointer', background: 'none', border: 'none' }}><Check size={14} /></button>
-                <button onClick={() => setEditing(false)} style={{ padding: '0.375rem', borderRadius: '0.5rem', color: 'var(--color-text-tertiary)', cursor: 'pointer', background: 'none', border: 'none' }}><X size={14} /></button>
-              </div>
-            ) : (
-              <>
-                <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {member.name || '名無しの冒険者'}
-                </h3>
-                <button onClick={() => { setNewName(member.name || ''); setEditing(true); }}
-                  style={{ padding: '0.25rem', borderRadius: '0.25rem', flexShrink: 0, color: 'var(--color-text-tertiary)', cursor: 'pointer', background: 'none', border: 'none' }}
-                ><Edit2 size={12} /></button>
-              </>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)' }}>九州大学</span>
-            {member.role === 'admin' && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.125rem 0.625rem', borderRadius: '9999px', background: '#ecfdf5', color: '#059669' }}>
-                <Shield size={10} />管理者
-              </span>
-            )}
-            {member.joinDate && (
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
-                {new Date(member.joinDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short' })}参加
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-      {member.tags && member.tags.length > 0 && (
-        <div className="user-tags-desktop">
-          {member.tags.slice(0, 4).map(tag => (
-            <span key={tag} style={{ fontSize: '0.75rem', padding: '0.25rem 0.625rem', borderRadius: '9999px', fontWeight: 500, color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -384,7 +294,6 @@ export default function Home() {
         {isLoggedIn ? (
           <>
             <MyQuestsBanner />
-            <UserStatus />
             <QuestBoard />
           </>
         ) : (
