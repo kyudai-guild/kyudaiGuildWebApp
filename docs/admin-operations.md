@@ -50,9 +50,24 @@ auth.users を削除
 管理者になると、クエストの審査（承認・リジェクト）とイベント登録ができるようになります。
 
 ```sql
-update profiles set role = 'admin'
-where email = 'someone@s.kyushu-u.ac.jp';
+insert into profiles (id, email, display_name, role)
+select
+  u.id,
+  u.email,
+  coalesce(nullif(u.raw_user_meta_data->>'display_name', ''), split_part(u.email, '@', 1)),
+  'admin'
+from auth.users u
+where lower(u.email) = lower('someone@s.kyushu-u.ac.jp')
+on conflict (id) do update set role = 'admin'
+returning id, email, role;
 ```
+
+> **`returning` の結果が 0行 なら、そのアドレスは `auth.users` に存在しません**（＝まだ登録されていない）。
+> 単純な `update profiles set role='admin' where email=...` だと、
+> プロフィール行が無い場合やメールの大文字小文字が違う場合に**黙って0件**になるため、
+> 上の形（行が無ければ作る・大文字小文字を無視する・結果を返す）を使ってください。
+>
+> うまくいかないときは `supabase/supabase_diagnose_admin.sql` で原因を切り分けられます。
 
 **確認:**
 
