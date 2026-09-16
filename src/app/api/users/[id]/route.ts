@@ -14,7 +14,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const [profile, purposes, interests, acceptedCompleted, thanksReceived] = await Promise.all([
+    // 所属団体は「承認済み（profile_organizations に入っている）」もののみ。
+    // 申請中のものを他人に見せると、所属していない団体を名乗っている状態が公開される。
+    const [profile, purposes, interests, organizations, acceptedCompleted, thanksReceived] = await Promise.all([
       supabase.from('profiles')
         .select('id, display_name, bio, qualifications, tags, created_at')
         .eq('id', id).single(),
@@ -22,6 +24,8 @@ export async function GET(
         .select('purpose:purpose_id(label, is_active)').eq('profile_id', id),
       supabase.from('profile_interests')
         .select('interest:interest_id(label, is_active)').eq('profile_id', id),
+      supabase.from('profile_organizations')
+        .select('organization:organization_id(name, is_active)').eq('profile_id', id),
       supabase.from('quest_applications')
         .select('id, quest:quest_id!inner(status)', { count: 'exact', head: true })
         .eq('applicant_id', id).eq('status', 'accepted').eq('quest.status', 'completed'),
@@ -48,6 +52,11 @@ export async function GET(
       member_since: profile.data.created_at,
       purposes: pickLabels(purposes.data as any[], 'purpose'),
       interests: pickLabels(interests.data as any[], 'interest'),
+      // 団体マスタの列は label ではなく name なので pickLabels は使わない
+      organizations: (organizations.data ?? [])
+        .map((r: any) => r.organization)
+        .filter((o: any) => o && o.is_active !== false)
+        .map((o: any) => o.name),
       accepted_completed: acceptedCompleted.count ?? 0,
       thanks_received: thanksReceived.count ?? 0,
     });

@@ -16,6 +16,7 @@ export async function GET() {
       .select(`
         *,
         creator:creator_id (display_name, email),
+        organization:organization_id (id, name, is_active),
         applications:quest_applications (id)
       `)
       .order('created_at', { ascending: false });
@@ -73,10 +74,43 @@ export async function POST(request: Request) {
       listing_end_date,
       contact_email_public,
       preferred_contact,
+      organization_id,
     } = body;
 
     if (!title || !quest_type) {
       return NextResponse.json({ error: 'クエスト名とクエスト種別は必須です。' }, { status: 400 });
+    }
+
+    // どの団体としての申請かを確定させる。
+    // quests の insert ポリシーは creator_id しか見ないため、ここで所属を検証しないと
+    // body に任意の organization_id を混ぜて他団体を騙れてしまう。
+    let organizationId: string | null = null;
+    let organizationName: string | null = null;
+    if (organization_id) {
+      const { data: membership, error: membershipError } = await supabase
+        .from('profile_organizations')
+        .select('organization:organization_id (id, name, is_active)')
+        .eq('profile_id', user.id)
+        .eq('organization_id', organization_id)
+        .maybeSingle();
+
+      if (membershipError) {
+        console.error('Error verifying organization membership:', membershipError);
+        return NextResponse.json({ error: '所属団体の確認に失敗しました。' }, { status: 500 });
+      }
+      const org = (membership as any)?.organization;
+      if (!org) {
+        return NextResponse.json(
+          { error: '選択された団体に所属していません。プロフィール画面から所属を申請してください。' },
+          { status: 403 }
+        );
+      }
+      if (org.is_active === false) {
+        return NextResponse.json({ error: 'この団体は現在利用できません。' }, { status: 400 });
+      }
+      organizationId = org.id;
+      // 団体名は申請時点のスナップショット。改名・無効化されても審査の記録が残る。
+      organizationName = org.name;
     }
 
     // 完了報告していない掲示中の依頼がある間は、新しい依頼を出せない
@@ -123,6 +157,8 @@ export async function POST(request: Request) {
         listing_end_date,
         contact_email_public: contact_email_public !== false, // 既定で公開（オプトアウト式）
         preferred_contact: preferred_contact || null,
+        organization_id: organizationId,
+        organization_name: organizationName,
         status: 'pending',
       })
       .select()

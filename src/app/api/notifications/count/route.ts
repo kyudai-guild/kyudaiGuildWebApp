@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 
-// ヘッダーのバッジ用: 要対応件数（自分の依頼に来ている未処理の応募数）
+// ヘッダーのバッジ用: 要対応件数
+//   pending_applications : 自分の依頼に来ている未処理の応募（→ マイクエスト）
+//   pending_quests       : 審査待ちのクエスト（運営のみ。→ 管理）
+//   pending_org_requests : 審査待ちの所属団体申請（運営のみ。→ 管理）
+//
+// マイクエストのバッジは pending_applications だけを見る。
+// 運営向けの件数を total に混ぜるとマイクエストの数字が実態とズレるため、
+// 用途ごとにフィールドを分けて返している。
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -19,10 +26,38 @@ export async function GET() {
       console.error('Error counting notifications:', error);
       return NextResponse.json({ error: '通知件数の取得に失敗しました。' }, { status: 500 });
     }
-
     const pendingApplications = count ?? 0;
+
+    // 運営向けの件数は管理者のときだけ数える
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    let pendingQuests = 0;
+    let pendingOrgRequests = 0;
+    if (profile?.role === 'admin') {
+      const [quests, orgReqs] = await Promise.all([
+        supabase.from('quests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('organization_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      ]);
+      pendingQuests = quests.count ?? 0;
+      // v13 未実行の環境では organization_requests が無いため、
+      // ここでエラーになってもバッジ全体を落とさず 0 として続行する。
+      if (orgReqs.error) {
+        console.error('Error counting organization requests:', orgReqs.error);
+      } else {
+        pendingOrgRequests = orgReqs.count ?? 0;
+      }
+    }
+
     return NextResponse.json({
       pending_applications: pendingApplications,
+      pending_quests: pendingQuests,
+      pending_org_requests: pendingOrgRequests,
+      admin_total: pendingQuests + pendingOrgRequests,
+      // 後方互換: 既存の呼び出し元が total を読んでいる
       total: pendingApplications,
     });
   } catch (err: any) {

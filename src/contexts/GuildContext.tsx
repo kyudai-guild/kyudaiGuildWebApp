@@ -35,6 +35,11 @@ export interface Quest {
   creator?: { display_name: string; email?: string };
   contact_email_public?: boolean;
   preferred_contact?: string | null;
+  // どの団体としての依頼か。organization_name は申請時点のスナップショット
+  // （団体が改名・無効化されても当時の名乗りが残る）。
+  organization_id?: string | null;
+  organization_name?: string | null;
+  organization?: { id: string; name: string; is_active: boolean } | null;
   reviewer?: { display_name: string };
   reviewed_at: string | null;
   rejection_reason: string | null;
@@ -55,6 +60,7 @@ export interface CreateQuestInput {
   listing_end_date: string | null;
   contact_email_public?: boolean;
   preferred_contact?: string | null;
+  organization_id?: string | null;
 }
 
 export interface GuildState {

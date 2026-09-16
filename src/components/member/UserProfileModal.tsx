@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Award, Heart } from 'lucide-react';
+import { X, Award, Heart, Building2 } from 'lucide-react';
 
 interface UserProfile {
   id: string; display_name: string | null; bio: string | null;
   qualifications: string[]; tags: string[]; member_since: string | null;
-  purposes: string[]; interests: string[];
+  purposes: string[]; interests: string[]; organizations?: string[];
   accepted_completed: number; thanks_received: number;
 }
 
@@ -50,12 +50,21 @@ export default function UserProfileModal({ userId, onClose }: { userId: string; 
               <div style={{ width: 56, height: 56, borderRadius: '9999px', flexShrink: 0, background: 'var(--bg-dark)', color: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.375rem', fontWeight: 800, fontFamily: 'var(--font-display)' }}>
                 {profile.display_name?.charAt(0) ?? '?'}
               </div>
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <p style={{ fontSize: '1.125rem', fontWeight: 700, fontFamily: 'var(--font-display)' }}>{profile.display_name ?? '名無しの冒険者'}</p>
                 {profile.member_since && (
                   <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
                     {new Date(profile.member_since).getFullYear()}年{new Date(profile.member_since).getMonth() + 1}月からギルドに参加
                   </p>
+                )}
+                {(profile.organizations ?? []).length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: '0.375rem' }}>
+                    {(profile.organizations ?? []).map(o => (
+                      <span key={o} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)', borderRadius: '9999px', padding: '0.1875rem 0.625rem' }}>
+                        <Building2 size={11} />{o}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>

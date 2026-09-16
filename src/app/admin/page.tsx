@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Shield, CheckCircle2, XCircle, ChevronDown, ChevronUp, Users, Tag, Calendar, ArrowLeft, AlertCircle, CalendarDays, MapPin, Scroll } from 'lucide-react';
+import { Shield, CheckCircle2, XCircle, ChevronDown, ChevronUp, Users, Tag, Calendar, ArrowLeft, AlertCircle, CalendarDays, MapPin, Scroll, Building2, Search, Plus, Trash2, Pencil, Inbox } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useGuild } from '@/contexts/GuildContext';
 import { GuildEvent, eventStyle, fmtDateLong, fmtTimeRange } from '@/components/events/types';
 import EventDetailModal from '@/components/events/EventDetailModal';
 import { ADMIN_QUEST_STATUS as STATUS } from '@/components/quest/status';
+import OrgBadge from '@/components/quest/OrgBadge';
 
 interface AdminQuest {
   id: string; title: string; description: string; quest_type: string;
@@ -17,6 +18,19 @@ interface AdminQuest {
   rejection_reason: string | null; reviewed_at: string | null;
   created_at: string; creator: { display_name: string } | null;
   application_count: number;
+  organization_id: string | null; organization_name: string | null;
+  organization: { id: string; name: string; is_active: boolean } | null;
+}
+
+interface Organization { id: string; name: string; description: string | null; sort_order: number; is_active: boolean; member_count: number; }
+interface OrgMember { id: string; display_name: string | null; email: string | null; created_at: string; }
+interface AdminUser { id: string; display_name: string | null; email: string | null; role: string; organizations: { id: string; name: string }[]; }
+interface OrgRequest {
+  id: string; organization_id: string | null; requested_name: string | null;
+  message: string | null; status: string; review_note: string | null;
+  created_at: string; reviewed_at: string | null;
+  organization: { id: string; name: string } | null;
+  applicant: { id: string; display_name: string | null; email: string | null } | null;
 }
 
 const S = {
@@ -35,7 +49,13 @@ const S = {
   btnRow: { display: 'flex', gap: '0.5rem' } as React.CSSProperties,
 };
 
-type Tab = 'quests' | 'events';
+type Tab = 'quests' | 'events' | 'orgs' | 'orgRequests';
+
+const ORG_REQ_STATUS: Record<string, { label: string; color: string; bg: string }> = {
+  pending:  { label: '審査待ち', color: '#d97706', bg: '#fffbeb' },
+  approved: { label: '承認済み', color: '#059669', bg: '#ecfdf5' },
+  rejected: { label: '却下',     color: '#6b7280', bg: '#f9fafb' },
+};
 
 export default function AdminPage() {
   const router = useRouter();
@@ -58,6 +78,33 @@ export default function AdminPage() {
   const [eventFilter, setEventFilter] = useState('approved');
   const [selectedEvent, setSelectedEvent] = useState<GuildEvent | null>(null);
 
+  // ── 団体管理 state（state はタブごとに prefix を分けて混線させない）──
+  const [orgs, setOrgs] = useState<Organization[]>([]);
+  const [orgsLoading, setOrgsLoading] = useState(true);
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [orgBusy, setOrgBusy] = useState(false);
+  const [newOrgName, setNewOrgName] = useState('');
+  const [newOrgDesc, setNewOrgDesc] = useState('');
+  const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
+  const [editOrgName, setEditOrgName] = useState('');
+  const [expandedOrgId, setExpandedOrgId] = useState<string | null>(null);
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [userQuery, setUserQuery] = useState('');
+  const [userResults, setUserResults] = useState<AdminUser[]>([]);
+  const [userSearching, setUserSearching] = useState(false);
+
+  // ── 所属申請 state ──
+  const [orgReqs, setOrgReqs] = useState<OrgRequest[]>([]);
+  const [orgReqsLoading, setOrgReqsLoading] = useState(true);
+  const [orgReqFilter, setOrgReqFilter] = useState('pending');
+  const [orgReqError, setOrgReqError] = useState<string | null>(null);
+  const [orgReqBusy, setOrgReqBusy] = useState(false);
+  const [rejectingReqId, setRejectingReqId] = useState<string | null>(null);
+  const [reqNote, setReqNote] = useState('');
+  // タブのバッジ用。一覧を絞り込んでも数字がぶれないよう別に持つ。
+  const [pendingOrgReqCount, setPendingOrgReqCount] = useState(0);
+
   const fetchQuests = useCallback(async () => {
     try { const res = await fetch('/api/quests'); if (res.ok) setQuests(await res.json()); }
     catch (e) { console.error(e); } finally { setLoading(false); }
@@ -68,7 +115,99 @@ export default function AdminPage() {
     catch (e) { console.error(e); } finally { setEventsLoading(false); }
   }, []);
 
+  const fetchOrgs = useCallback(async () => {
+    try { const res = await fetch('/api/organizations'); if (res.ok) setOrgs((await res.json()).organizations ?? []); }
+    catch (e) { console.error(e); } finally { setOrgsLoading(false); }
+  }, []);
+
+  const fetchOrgReqs = useCallback(async (status: string) => {
+    setOrgReqsLoading(true);
+    try {
+      const res = await fetch(`/api/organization-requests?status=${status}`);
+      if (res.ok) {
+        const data: OrgRequest[] = await res.json();
+        setOrgReqs(data);
+        // 審査待ちを含む取得のときだけバッジを更新する
+        if (status === 'pending') setPendingOrgReqCount(data.length);
+        else if (status === 'all') setPendingOrgReqCount(data.filter(r => r.status === 'pending').length);
+      }
+    }
+    catch (e) { console.error(e); } finally { setOrgReqsLoading(false); }
+  }, []);
+
   useEffect(() => { if (isLoggedIn) { fetchQuests(); fetchEvents(); } }, [isLoggedIn, fetchQuests, fetchEvents]);
+
+  // 管理者専用API。isAdmin は profiles を非同期で読んでから true になるので、
+  // 依存配列から落とすと永久に取得されない。
+  useEffect(() => { if (isLoggedIn && isAdmin) fetchOrgs(); }, [isLoggedIn, isAdmin, fetchOrgs]);
+  useEffect(() => { if (isLoggedIn && isAdmin) fetchOrgReqs(orgReqFilter); }, [isLoggedIn, isAdmin, orgReqFilter, fetchOrgReqs]);
+
+  const createOrg = async () => {
+    const name = newOrgName.trim();
+    if (!name) { setOrgError('団体名を入力してください。'); return; }
+    setOrgBusy(true); setOrgError(null);
+    try {
+      const res = await fetch('/api/organizations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, description: newOrgDesc, sort_order: orgs.length + 1 }) });
+      if (!res.ok) throw new Error((await res.json()).error || '団体の追加に失敗しました。');
+      setNewOrgName(''); setNewOrgDesc(''); await fetchOrgs();
+    } catch (e: any) { setOrgError(e.message); } finally { setOrgBusy(false); }
+  };
+
+  const patchOrg = async (id: string, patch: Record<string, any>) => {
+    setOrgBusy(true); setOrgError(null);
+    try {
+      const res = await fetch(`/api/organizations/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
+      if (!res.ok) throw new Error((await res.json()).error || '団体の更新に失敗しました。');
+      setEditingOrgId(null); await fetchOrgs();
+    } catch (e: any) { setOrgError(e.message); } finally { setOrgBusy(false); }
+  };
+
+  const openOrg = async (id: string) => {
+    if (expandedOrgId === id) { setExpandedOrgId(null); return; }
+    setExpandedOrgId(id); setOrgMembers([]); setUserQuery(''); setUserResults([]); setMembersLoading(true); setOrgError(null);
+    try { const res = await fetch(`/api/organizations/${id}/members`); if (res.ok) setOrgMembers(await res.json()); }
+    catch (e) { console.error(e); } finally { setMembersLoading(false); }
+  };
+
+  const searchUsers = async () => {
+    setUserSearching(true); setOrgError(null);
+    try {
+      const res = await fetch(`/api/admin/users?q=${encodeURIComponent(userQuery)}`);
+      if (res.ok) setUserResults((await res.json()).users ?? []);
+    } catch (e) { console.error(e); } finally { setUserSearching(false); }
+  };
+
+  const grantOrg = async (orgId: string, profileId: string) => {
+    setOrgBusy(true); setOrgError(null);
+    try {
+      const res = await fetch(`/api/organizations/${orgId}/members`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile_id: profileId }) });
+      if (!res.ok) throw new Error((await res.json()).error || '所属の付与に失敗しました。');
+      const members = await fetch(`/api/organizations/${orgId}/members`);
+      if (members.ok) setOrgMembers(await members.json());
+      await fetchOrgs();
+    } catch (e: any) { setOrgError(e.message); } finally { setOrgBusy(false); }
+  };
+
+  const revokeOrg = async (orgId: string, profileId: string) => {
+    setOrgBusy(true); setOrgError(null);
+    try {
+      const res = await fetch(`/api/organizations/${orgId}/members?profile_id=${profileId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error((await res.json()).error || '所属の解除に失敗しました。');
+      setOrgMembers(prev => prev.filter(m => m.id !== profileId));
+      await fetchOrgs();
+    } catch (e: any) { setOrgError(e.message); } finally { setOrgBusy(false); }
+  };
+
+  const reviewOrgReq = async (id: string, action: 'approve' | 'reject') => {
+    if (action === 'reject' && !reqNote.trim()) { setOrgReqError('却下理由を入力してください。'); return; }
+    setOrgReqBusy(true); setOrgReqError(null);
+    try {
+      const res = await fetch(`/api/organization-requests/${id}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, review_note: action === 'reject' ? reqNote : undefined }) });
+      if (!res.ok) throw new Error((await res.json()).error || '審査処理に失敗しました。');
+      setRejectingReqId(null); setReqNote('');
+      await Promise.all([fetchOrgReqs(orgReqFilter), fetchOrgs()]);
+    } catch (e: any) { setOrgReqError(e.message); } finally { setOrgReqBusy(false); }
+  };
 
   const handleReview = async (questId: string, action: 'approve' | 'reject') => {
     if (action === 'reject' && !rejectionReason.trim()) { setActionError('リジェクト理由を入力してください。'); return; }
@@ -136,9 +275,11 @@ export default function AdminPage() {
       </div>
 
       <div style={S.content}>
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--color-border)', marginBottom: '1.5rem' }}>
+        {/* Tabs（4つに増えたのでスマホ幅では横スクロールさせる） */}
+        <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--color-border)', marginBottom: '1.5rem', overflowX: 'auto' }}>
           {tabBtn('quests', 'クエスト審査', Scroll, counts.pending)}
+          {tabBtn('orgRequests', '所属申請', Inbox, pendingOrgReqCount)}
+          {tabBtn('orgs', '団体管理', Building2, 0)}
           {tabBtn('events', 'イベント管理', CalendarDays, 0)}
         </div>
 
@@ -185,6 +326,12 @@ export default function AdminPage() {
                                 <StIcon size={10} />{st.label}
                               </span>
                               <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{quest.quest_type}</span>
+                              {/* どの団体からの申請か。団体未設定は『個人申請』と明示する */}
+                              <OrgBadge
+                                name={quest.organization_name ?? quest.organization?.name}
+                                inactive={quest.organization?.is_active === false}
+                                showPersonal
+                              />
                             </div>
                             <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{quest.title}</h3>
                             <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>
@@ -257,6 +404,286 @@ export default function AdminPage() {
                                       ><XCircle size={14} />リジェクト</button>
                                     </div>
                                   )}
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ══════════ ORG REQUEST TAB ══════════ */}
+        {tab === 'orgRequests' && (
+          <>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)', marginBottom: '1rem', lineHeight: 1.7 }}>
+              ユーザーから届いた所属団体の申請です。承認すると、その人はクエスト申請時に団体名を選べるようになります。
+            </p>
+
+            <div style={S.filterRow}>
+              {(['pending', 'approved', 'rejected', 'all'] as const).map(key => {
+                const label = key === 'all' ? 'すべて' : ORG_REQ_STATUS[key].label;
+                const active = orgReqFilter === key;
+                return (
+                  <button key={key} onClick={() => { setOrgReqFilter(key); setRejectingReqId(null); setOrgReqError(null); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 1rem', fontSize: '0.875rem', fontWeight: 600, borderRadius: '9999px', border: '1px solid', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s', background: active ? 'var(--bg-dark)' : 'var(--bg-card)', color: active ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)', borderColor: active ? 'var(--bg-dark)' : 'var(--color-border)' }}
+                  >{label}</button>
+                );
+              })}
+            </div>
+
+            {orgReqError && (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 500, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
+                <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />{orgReqError}
+              </div>
+            )}
+
+            {orgReqsLoading ? (
+              <div style={{ textAlign: 'center', padding: '5rem 0' }}>
+                <div style={{ width: 32, height: 32, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '9999px', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
+              </div>
+            ) : orgReqs.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '4rem 2rem', borderRadius: '1rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}>
+                <Inbox size={32} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 1rem', opacity: 0.3 }} />
+                <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-tertiary)' }}>
+                  {orgReqFilter === 'pending' ? '審査待ちの所属申請はありません。' : '該当する申請はありません。'}
+                </p>
+              </div>
+            ) : (
+              <div style={S.stack}>
+                {orgReqs.map((req, i) => {
+                  const st = ORG_REQ_STATUS[req.status] ?? ORG_REQ_STATUS.pending;
+                  const orgLabel = req.organization?.name ?? req.requested_name;
+                  const isNewOrg = !req.organization_id && !!req.requested_name;
+                  const isRejecting = rejectingReqId === req.id;
+                  return (
+                    <motion.div key={req.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} style={{ ...S.card, padding: '1.25rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '9999px', color: st.color, background: st.bg }}>{st.label}</span>
+                        <OrgBadge name={orgLabel} />
+                        {isNewOrg && (
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '0.1875rem 0.625rem', borderRadius: '9999px', color: '#d97706', background: '#fffbeb' }}>新規団体</span>
+                        )}
+                      </div>
+
+                      <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                        {req.applicant?.display_name || '名称未設定'}
+                      </p>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.125rem' }}>
+                        {req.applicant?.email} / 申請日: {new Date(req.created_at).toLocaleDateString('ja-JP')}
+                      </p>
+
+                      {req.message && (
+                        <div style={{ padding: '0.875rem 1rem', borderRadius: '0.75rem', background: 'var(--bg-base)', fontSize: '0.875rem', lineHeight: 1.7, color: 'var(--color-text-secondary)', margin: '0.75rem 0 0', whiteSpace: 'pre-wrap' }}>
+                          {req.message}
+                        </div>
+                      )}
+
+                      {req.status === 'rejected' && req.review_note && (
+                        <div style={{ padding: '0.875rem 1rem', borderRadius: '0.75rem', background: '#fef2f2', border: '1px solid #fecaca', marginTop: '0.75rem' }}>
+                          <p style={{ fontWeight: 600, fontSize: '0.8125rem', marginBottom: '0.375rem', color: '#dc2626' }}>却下理由:</p>
+                          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{req.review_note}</p>
+                        </div>
+                      )}
+
+                      {req.status === 'pending' && (
+                        <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
+                          {isRejecting ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                却下理由 <span style={{ color: '#dc2626' }}>*</span>
+                              </label>
+                              <textarea value={reqNote} onChange={e => setReqNote(e.target.value)}
+                                style={{ width: '100%', fontSize: '0.875rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', outline: 'none', resize: 'none', minHeight: 64, background: 'var(--bg-base)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', boxSizing: 'border-box' }}
+                                onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,74,58,0.1)'; }}
+                                onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
+                                placeholder="本人に表示されます。所属が確認できなかった理由などを記載してください..."
+                              />
+                              <div style={S.btnRow}>
+                                <button onClick={() => { setRejectingReqId(null); setReqNote(''); setOrgReqError(null); }}
+                                  style={{ flex: 1, padding: '0.625rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+                                >キャンセル</button>
+                                <button onClick={() => reviewOrgReq(req.id, 'reject')} disabled={orgReqBusy}
+                                  style={{ flex: 1, padding: '0.625rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: orgReqBusy ? 'not-allowed' : 'pointer', opacity: orgReqBusy ? 0.5 : 1, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}
+                                >{orgReqBusy ? '処理中...' : '却下する'}</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={S.btnRow}>
+                              <button onClick={() => reviewOrgReq(req.id, 'approve')} disabled={orgReqBusy}
+                                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem', padding: '0.625rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: orgReqBusy ? 'not-allowed' : 'pointer', opacity: orgReqBusy ? 0.5 : 1, background: '#ecfdf5', color: '#059669', border: '1px solid #bbf7d0' }}
+                              ><CheckCircle2 size={14} />{orgReqBusy ? '処理中...' : '承認する'}</button>
+                              <button onClick={() => { setRejectingReqId(req.id); setReqNote(''); setOrgReqError(null); }}
+                                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem', padding: '0.625rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}
+                              ><XCircle size={14} />却下</button>
+                            </div>
+                          )}
+                          {isNewOrg && !isRejecting && (
+                            <p style={{ fontSize: '0.75rem', marginTop: '0.625rem', color: 'var(--color-text-tertiary)' }}>
+                              ※承認すると「{req.requested_name}」が団体として新しく登録されます。
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ══════════ ORG TAB ══════════ */}
+        {tab === 'orgs' && (
+          <>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)', marginBottom: '1rem', lineHeight: 1.7 }}>
+              団体を登録し、ユーザーに所属を付与します。団体は削除せず「無効」にします（過去のクエストの記録を壊さないため）。
+            </p>
+
+            {orgError && (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 500, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
+                <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />{orgError}
+              </div>
+            )}
+
+            {/* 団体を追加 */}
+            <div style={{ ...S.card, padding: '1.25rem', marginBottom: '1.5rem' }}>
+              <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: '0.75rem' }}>団体を追加</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                <input type="text" value={newOrgName} onChange={e => setNewOrgName(e.target.value)} placeholder="団体名（例: 九州大学◯◯サークル）"
+                  style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--color-border)', borderRadius: '0.75rem', padding: '0.625rem 0.875rem', fontSize: '0.875rem', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                  onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,74,58,0.1)'; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
+                />
+                <input type="text" value={newOrgDesc} onChange={e => setNewOrgDesc(e.target.value)} placeholder="説明（任意）"
+                  style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--color-border)', borderRadius: '0.75rem', padding: '0.625rem 0.875rem', fontSize: '0.875rem', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                  onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,74,58,0.1)'; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
+                />
+                <button onClick={createOrg} disabled={orgBusy}
+                  style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 1.25rem', borderRadius: '9999px', fontSize: '0.875rem', fontWeight: 600, cursor: orgBusy ? 'not-allowed' : 'pointer', opacity: orgBusy ? 0.5 : 1, background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', border: 'none' }}
+                ><Plus size={14} />{orgBusy ? '処理中...' : '追加する'}</button>
+              </div>
+            </div>
+
+            {orgsLoading ? (
+              <div style={{ textAlign: 'center', padding: '5rem 0' }}>
+                <div style={{ width: 32, height: 32, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '9999px', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
+              </div>
+            ) : orgs.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '4rem 2rem', borderRadius: '1rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}>
+                <Building2 size={32} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 1rem', opacity: 0.3 }} />
+                <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-tertiary)' }}>まだ団体が登録されていません。</p>
+              </div>
+            ) : (
+              <div style={S.stack}>
+                {orgs.map((org, i) => {
+                  const isOpen = expandedOrgId === org.id;
+                  const isEditing = editingOrgId === org.id;
+                  return (
+                    <motion.div key={org.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} style={{ ...S.card, opacity: org.is_active ? 1 : 0.6 }}>
+                      <div style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {isEditing ? (
+                            <input type="text" value={editOrgName} onChange={e => setEditOrgName(e.target.value)} autoFocus
+                              style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--color-primary)', borderRadius: '0.5rem', padding: '0.375rem 0.625rem', fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                            />
+                          ) : (
+                            <>
+                              <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                                {org.name}{!org.is_active && <span style={{ fontSize: '0.6875rem', fontWeight: 600, marginLeft: '0.5rem', color: 'var(--color-text-tertiary)' }}>（無効）</span>}
+                              </p>
+                              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.125rem' }}>
+                                {org.description ? `${org.description} / ` : ''}所属 {org.member_count}人
+                              </p>
+                            </>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexShrink: 0 }}>
+                          {isEditing ? (
+                            <>
+                              <button onClick={() => patchOrg(org.id, { name: editOrgName })} disabled={orgBusy}
+                                style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.75rem', borderRadius: '9999px', cursor: 'pointer', background: '#ecfdf5', color: '#059669', border: '1px solid #bbf7d0' }}
+                              >保存</button>
+                              <button onClick={() => setEditingOrgId(null)}
+                                style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.75rem', borderRadius: '9999px', cursor: 'pointer', background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+                              >取消</button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={() => { setEditingOrgId(org.id); setEditOrgName(org.name); }} title="名称を変更"
+                                style={{ display: 'inline-flex', padding: '0.375rem', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none' }}
+                              ><Pencil size={14} /></button>
+                              <button onClick={() => patchOrg(org.id, { is_active: !org.is_active })} disabled={orgBusy}
+                                style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.75rem', borderRadius: '9999px', cursor: 'pointer', background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+                              >{org.is_active ? '無効にする' : '有効に戻す'}</button>
+                              <button onClick={() => openOrg(org.id)} title="所属メンバー"
+                                style={{ display: 'inline-flex', padding: '0.375rem', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none' }}
+                              >{isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <AnimatePresence>
+                        {isOpen && (
+                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden' }}>
+                            <div style={S.cardExpanded}>
+                              <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: '0.625rem' }}>所属メンバー</p>
+                              {membersLoading ? (
+                                <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)' }}>読み込み中...</p>
+                              ) : orgMembers.length === 0 ? (
+                                <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)' }}>まだ誰も所属していません。</p>
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginBottom: '1rem' }}>
+                                  {orgMembers.map(m => (
+                                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.625rem 0.875rem', borderRadius: '0.75rem', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
+                                      <div style={{ minWidth: 0 }}>
+                                        <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{m.display_name || '名称未設定'}</p>
+                                        <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{m.email}</p>
+                                      </div>
+                                      <button onClick={() => revokeOrg(org.id, m.id)} disabled={orgBusy} title="所属を解除"
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.75rem', borderRadius: '9999px', cursor: orgBusy ? 'not-allowed' : 'pointer', flexShrink: 0, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}
+                                      ><Trash2 size={12} />解除</button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-text-primary)', margin: '1rem 0 0.625rem' }}>ユーザーを追加</p>
+                              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.625rem' }}>
+                                <input type="text" value={userQuery} onChange={e => setUserQuery(e.target.value)}
+                                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchUsers(); } }}
+                                  placeholder="表示名・メールアドレスで検索"
+                                  style={{ flex: 1, background: 'var(--bg-base)', border: '1px solid var(--color-border)', borderRadius: '0.75rem', padding: '0.625rem 0.875rem', fontSize: '0.875rem', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                                  onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,74,58,0.1)'; }}
+                                  onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
+                                />
+                                <button onClick={searchUsers} disabled={userSearching}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.625rem 1rem', fontSize: '0.875rem', fontWeight: 600, borderRadius: '0.75rem', cursor: userSearching ? 'not-allowed' : 'pointer', background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+                                ><Search size={14} />{userSearching ? '検索中' : '検索'}</button>
+                              </div>
+                              {userResults.length > 0 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                                  {userResults.map(u => {
+                                    const already = u.organizations.some(o => o.id === org.id);
+                                    return (
+                                      <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.625rem 0.875rem', borderRadius: '0.75rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}>
+                                        <div style={{ minWidth: 0 }}>
+                                          <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{u.display_name || '名称未設定'}</p>
+                                          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{u.email}</p>
+                                        </div>
+                                        <button onClick={() => grantOrg(org.id, u.id)} disabled={orgBusy || already}
+                                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.875rem', borderRadius: '9999px', cursor: orgBusy || already ? 'not-allowed' : 'pointer', flexShrink: 0, opacity: already ? 0.5 : 1, background: '#ecfdf5', color: '#059669', border: '1px solid #bbf7d0' }}
+                                        ><Plus size={12} />{already ? '所属済み' : '追加'}</button>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               )}
                             </div>

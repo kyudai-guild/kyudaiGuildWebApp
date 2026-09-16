@@ -1,8 +1,9 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Send, AlertCircle, FileText, Calendar, Clock, Users, Tag } from 'lucide-react';
+import { X, Send, AlertCircle, FileText, Calendar, Clock, Users, Tag, Building2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useGuild } from '@/contexts/GuildContext';
 
 type CreateQuestModalProps = { isOpen: boolean; onClose: () => void };
@@ -49,6 +50,7 @@ const blurI = (e: React.FocusEvent<any>) => { e.currentTarget.style.borderColor 
 
 export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalProps) {
   const { createQuest } = useGuild();
+  const router = useRouter();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [questType, setQuestType] = useState(QUEST_TYPES[0]);
@@ -64,6 +66,31 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
   const [error, setError] = useState<string | null>(null);
   const [guidelinesAccepted, setGuidelinesAccepted] = useState(false);
   const [step, setStep] = useState<'guidelines' | 'form'>('guidelines');
+  // 承認済みの所属団体のみ。申請中の所属で依頼を出されると、
+  // 所属が却下された後に団体名義のクエストだけが残ってしまう。
+  const [myOrgs, setMyOrgs] = useState<{ id: string; name: string }[]>([]);
+  const [orgId, setOrgId] = useState('');
+
+  // このモーダルは QuestBoard で常時マウントされているので、開いた時だけ取得する。
+  // （hooks の数を変えないよう、必ず下の早期 return より上に置くこと）
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    fetch('/api/organizations')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (cancelled || !d) return;
+        const mine = new Set<string>(d.mine ?? []);
+        const list = (d.organizations ?? [])
+          .filter((o: any) => o.is_active !== false && mine.has(o.id))
+          .map((o: any) => ({ id: o.id, name: o.name }));
+        setMyOrgs(list);
+        // 所属が1つだけなら迷わせない
+        if (list.length === 1) setOrgId(list[0].id);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -77,7 +104,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
     if (!title || !questType) { setError('必須項目が入力されていません。'); return; }
     setLoading(true); setError(null);
     try {
-      await createQuest({ title, description, quest_type: questType, max_applicants: maxApplicants, reward, tags, listing_duration_type: durationMode, listing_duration_weeks: durationMode === 'weeks' ? durationWeeks : null, listing_end_date: durationMode === 'date' ? endDate : null, contact_email_public: emailPublic });
+      await createQuest({ title, description, quest_type: questType, max_applicants: maxApplicants, reward, tags, listing_duration_type: durationMode, listing_duration_weeks: durationMode === 'weeks' ? durationWeeks : null, listing_end_date: durationMode === 'date' ? endDate : null, contact_email_public: emailPublic, organization_id: orgId || null });
       onClose();
       setTitle(''); setDescription(''); setQuestType(QUEST_TYPES[0]); setMaxApplicants(1); setReward(''); setTags([]);
       setDurationMode('weeks'); setDurationWeeks(2); setEndDate(''); setStep('guidelines'); setGuidelinesAccepted(false);
@@ -128,6 +155,31 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
             </div>
           ) : (
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <label style={labelS}><Building2 size={13} style={{ display: 'inline', marginRight: 4 }} />申請元（所属団体）</label>
+                {myOrgs.length > 0 ? (
+                  <>
+                    <select value={orgId} onChange={e => setOrgId(e.target.value)} style={iStyle} onFocus={focusI} onBlur={blurI}>
+                      <option value="">個人として申請する</option>
+                      {myOrgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                    </select>
+                    <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>
+                      ※選んだ団体名が掲示板と審査画面に表示されます。
+                    </p>
+                  </>
+                ) : (
+                  <div style={{ padding: '0.875rem 1rem', borderRadius: '0.75rem', background: '#fffbeb', border: '1px solid #fde68a' }}>
+                    <p style={{ fontSize: '0.8125rem', lineHeight: 1.7, color: 'var(--color-text-secondary)' }}>
+                      <b style={{ color: '#d97706' }}>所属団体が登録されていません。</b><br />
+                      試行段階のため、<b>関連団体に所属する方からの依頼のみ</b>を受け付けています。
+                      このまま申請すると「個人申請」として審査されます。
+                    </p>
+                    <button type="button" onClick={() => { onClose(); router.push('/profile'); }}
+                      style={{ marginTop: '0.625rem', fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.875rem', borderRadius: '9999px', cursor: 'pointer', background: 'var(--bg-card)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+                    >プロフィールから所属を申請する</button>
+                  </div>
+                )}
+              </div>
               <div>
                 <label style={labelS}>クエスト名 <span style={{ color: '#dc2626' }}>*</span></label>
                 <input type="text" required value={title} onChange={e => setTitle(e.target.value)} placeholder="例: Webサイト制作の手伝い" style={iStyle} onFocus={focusI} onBlur={blurI} />

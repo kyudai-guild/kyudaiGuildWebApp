@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Search, Plus, Users, Tag, Calendar, X, AlertCircle, CheckCircle2, Send, Mail } from 'lucide-react';
 import { useGuild, Quest } from '@/contexts/GuildContext';
 import CreateQuestModal from './CreateQuestModal';
+import OrgBadge from './OrgBadge';
 
 const CATEGORIES = ['すべて', '仲間探し', '研究協力', '業務委託', 'ボランティア募集', '雇用契約', 'その他'];
 
@@ -75,6 +76,12 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
             <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>
               掲示者: {quest.creator?.display_name || '不明'} / {new Date(quest.created_at).toLocaleDateString('ja-JP')}
             </p>
+            {/* どの団体からの依頼か。個人の依頼では何も出さない */}
+            {(quest.organization_name || quest.organization?.name) && (
+              <div style={{ marginTop: '0.5rem' }}>
+                <OrgBadge name={quest.organization_name ?? quest.organization?.name} />
+              </div>
+            )}
           </div>
           <button onClick={onClose}
             style={{ padding: '0.375rem', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', flexShrink: 0, transition: 'background 0.2s' }}
@@ -324,9 +331,14 @@ const QuestBoard: React.FC = () => {
                   </p>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
-                    <div>
+                    <div style={{ minWidth: 0 }}>
                       <p style={{ fontSize: '0.625rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.125rem', color: 'var(--color-text-tertiary)' }}>依頼者</p>
                       <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-secondary)' }}>{quest.creator?.display_name || '不明'}</p>
+                      {(quest.organization_name || quest.organization?.name) && (
+                        <div style={{ marginTop: '0.25rem' }}>
+                          <OrgBadge name={quest.organization_name ?? quest.organization?.name} />
+                        </div>
+                      )}
                     </div>
                     {quest.reward && (
                       <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-accent)' }}>{quest.reward}</span>

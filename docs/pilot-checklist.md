@@ -38,6 +38,9 @@ LINEログインチャネルは作成直後 **「開発中」** で、この状�
 | `supabase_migration_v8_digest.sql` | 日次ダイジェスト用の列 | ☐ |
 | `supabase_migration_v9_notification_log.sql` | 配信の実行履歴 | ☐ |
 | `supabase_migration_v10_board_login_required.sql` | 掲示板をログイン限定に | ☐ |
+| `supabase_migration_v11_event_colors.sql` | イベントの色・終日（カテゴリ廃止） | ☐ |
+| `supabase_migration_v12_event_organizer_name.sql` | イベントの主催団体名 | ☐ |
+| `supabase_migration_v13_organizations.sql` | 所属団体タグ・所属申請 | ☐ |
 
 **確認用SQL**（すべて行が返れば実行済み）:
 
@@ -47,7 +50,9 @@ select
   (select count(*) from information_schema.tables where table_name = 'talk_rooms')          as v6,
   (select count(*) from information_schema.columns where table_name='profiles' and column_name='line_user_id')     as v7,
   (select count(*) from information_schema.columns where table_name='quests'   and column_name='line_notified_at') as v8,
-  (select count(*) from information_schema.tables where table_name = 'notification_logs')   as v9;
+  (select count(*) from information_schema.tables where table_name = 'notification_logs')   as v9,
+  (select count(*) from information_schema.columns where table_name='events'   and column_name='organizer_name')   as v12,
+  (select count(*) from information_schema.tables where table_name = 'organizations')       as v13;
 ```
 
 ### A-3. Vercel の本番ブランチと環境変数

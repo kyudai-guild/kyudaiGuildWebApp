@@ -13,6 +13,7 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifCount, setNotifCount] = useState(0);
+  const [adminCount, setAdminCount] = useState(0);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -20,14 +21,20 @@ export default function Header() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // 要対応の応募数（60秒ごと + タブ復帰時に更新）
+  // 要対応件数（60秒ごと + タブ復帰時に更新）
+  //   マイクエスト = 自分の依頼に来ている未処理の応募
+  //   管理         = 審査待ちのクエスト + 所属団体申請（運営のみ）
   useEffect(() => {
-    if (!isLoggedIn) { setNotifCount(0); return; }
+    if (!isLoggedIn) { setNotifCount(0); setAdminCount(0); return; }
     let cancelled = false;
     const load = () => {
       fetch('/api/notifications/count')
         .then(r => r.ok ? r.json() : null)
-        .then(d => { if (!cancelled && d) setNotifCount(d.total ?? 0); })
+        .then(d => {
+          if (cancelled || !d) return;
+          setNotifCount(d.pending_applications ?? 0);
+          setAdminCount(d.admin_total ?? 0);
+        })
         .catch(() => {});
     };
     load();
@@ -37,11 +44,13 @@ export default function Header() {
     return () => { cancelled = true; clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
   }, [isLoggedIn]);
 
-  const notifBadge = notifCount > 0 && (
+  const badge = (n: number) => n > 0 && (
     <span style={{ minWidth: 16, height: 16, padding: '0 4px', borderRadius: 9999, background: '#dc2626', color: '#fff', fontSize: '0.625rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
-      {notifCount > 9 ? '9+' : notifCount}
+      {n > 9 ? '9+' : n}
     </span>
   );
+  const notifBadge = badge(notifCount);
+  const adminBadge = badge(adminCount);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -138,7 +147,7 @@ export default function Header() {
             )}
             {isAdmin && (
               <button onClick={() => router.push('/admin')} className="header-nav-link" style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
-                <Shield size={14} />管理
+                <Shield size={14} />管理{adminBadge}
               </button>
             )}
             {isLoggedIn ? (
@@ -197,7 +206,7 @@ export default function Header() {
           {isAdmin && (
             <button onClick={() => { router.push('/admin'); setMobileOpen(false); }}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}
-            ><Shield size={18} />管理</button>
+            ><Shield size={18} />管理{adminBadge}</button>
           )}
           {isLoggedIn ? (
             <button onClick={handleSignOut}

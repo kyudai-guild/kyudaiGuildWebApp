@@ -16,6 +16,7 @@ export async function GET() {
       .select(`
         *,
         reviewer:reviewed_by (display_name),
+        organization:organization_id (id, name, is_active),
         applications:quest_applications (
           id,
           message,

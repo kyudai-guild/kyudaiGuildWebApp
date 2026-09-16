@@ -2,13 +2,18 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Scroll, Heart, Pencil } from 'lucide-react';
+import { ArrowLeft, Scroll, Heart, Pencil, Building2 } from 'lucide-react';
 import { useGuild } from '@/contexts/GuildContext';
 
 interface Option { id: string; label: string; description?: string }
 interface Stats { posted_total: number; posted_completed: number; accepted_completed: number; thanks_received: number; member_since: string | null }
 interface PostedItem { id: string; title: string; quest_type: string; status: string; reward: string; created_at: string; completed_at: string | null }
 interface AppliedItem { id: string; status: string; applied_at: string; quest: { id: string; title: string; quest_type: string; status: string; reward: string; completed_at: string | null } | null }
+interface Org { id: string; name: string; description: string | null; is_active: boolean }
+interface MyOrgRequest {
+  id: string; organization_id: string | null; requested_name: string | null;
+  message: string | null; status: string; review_note: string | null; created_at: string;
+}
 
 const TYPE_COLORS: Record<string, [string, string]> = {
   '業務委託': ['#d97706', '#fffbeb'], '仲間探し': ['#059669', '#ecfdf5'],
@@ -55,16 +60,32 @@ export default function ProfilePage() {
   const [lineBusy, setLineBusy] = useState(false);
   const [lineMessage, setLineMessage] = useState<{ text: string; kind: 'ok' | 'error' } | null>(null);
 
+  // 所属団体
+  const [allOrgs, setAllOrgs] = useState<Org[]>([]);
+  const [myOrgIds, setMyOrgIds] = useState<string[]>([]);
+  const [myOrgReqs, setMyOrgReqs] = useState<MyOrgRequest[]>([]);
+  const [orgFormOpen, setOrgFormOpen] = useState(false);
+  const [reqOrgId, setReqOrgId] = useState('');
+  const [reqNewName, setReqNewName] = useState('');
+  const [reqMessage, setReqMessage] = useState('');
+  const [reqBusy, setReqBusy] = useState(false);
+  const [reqError, setReqError] = useState<string | null>(null);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, p, a, opts, prof] = await Promise.all([
+      const [s, p, a, opts, prof, orgData] = await Promise.all([
         fetch('/api/profile/stats').then(r => r.ok ? r.json() : null),
         fetch('/api/profile/history?role=posted').then(r => r.ok ? r.json() : { items: [], hasMore: false }),
         fetch('/api/profile/history?role=applied').then(r => r.ok ? r.json() : { items: [], hasMore: false }),
         fetch('/api/options').then(r => r.ok ? r.json() : { purposes: [], interests: [] }),
         fetch('/api/profile').then(r => r.ok ? r.json() : null),
+        // v13 未実行の環境でも他の情報が出るよう、失敗しても空で続ける
+        fetch('/api/organizations').then(r => r.ok ? r.json() : { organizations: [], mine: [], my_requests: [] }).catch(() => ({ organizations: [], mine: [], my_requests: [] })),
       ]);
+      setAllOrgs(orgData.organizations ?? []);
+      setMyOrgIds(orgData.mine ?? []);
+      setMyOrgReqs(orgData.my_requests ?? []);
       setStats(s);
       setPosted(p.items); setPostedMore(p.hasMore);
       setApplied(a.items); setAppliedMore(a.hasMore);
@@ -109,6 +130,25 @@ export default function ProfilePage() {
     const data = await res.json();
     if (role === 'posted') { setPosted(prev => [...prev, ...data.items]); setPostedMore(data.hasMore); }
     else { setApplied(prev => [...prev, ...data.items]); setAppliedMore(data.hasMore); }
+  };
+
+  const submitOrgRequest = async () => {
+    if (!reqOrgId && !reqNewName.trim()) { setReqError('所属する団体を選ぶか、団体名を入力してください。'); return; }
+    if (!reqMessage.trim()) { setReqError('運営が確認できるよう、所属が分かる情報を入力してください。'); return; }
+    setReqBusy(true); setReqError(null);
+    try {
+      const res = await fetch('/api/organization-requests', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organization_id: reqOrgId || null,
+          requested_name: reqOrgId ? null : reqNewName.trim(),
+          message: reqMessage.trim(),
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || '申請の送信に失敗しました。');
+      setOrgFormOpen(false); setReqOrgId(''); setReqNewName(''); setReqMessage('');
+      await loadAll();
+    } catch (e: any) { setReqError(e.message); } finally { setReqBusy(false); }
   };
 
   const unlinkLine = async () => {
@@ -304,6 +344,103 @@ export default function ProfilePage() {
               color: lineMessage.kind === 'ok' ? '#15803d' : '#dc2626' }}
           >{lineMessage.text}</div>
         )}
+
+        {/* 所属団体（LINEカードの取得に失敗しても消えないよう、必ず外側の兄弟に置く） */}
+        <div style={{ ...card, padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div>
+              <p style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.9375rem', fontWeight: 700 }}>
+                <Building2 size={15} style={{ color: 'var(--color-accent)' }} />所属団体
+              </p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', lineHeight: 1.6, marginTop: '0.125rem' }}>
+                クエストを掲示するとき、どの団体からの依頼かを示せます。
+              </p>
+            </div>
+            {!orgFormOpen && (
+              <button onClick={() => { setOrgFormOpen(true); setReqError(null); }}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.8125rem', fontWeight: 600, borderRadius: '0.75rem', cursor: 'pointer', color: 'var(--color-text-secondary)', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}
+              >所属を申請する</button>
+            )}
+          </div>
+
+          {/* 承認済みの所属 */}
+          {myOrgIds.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginTop: '0.875rem' }}>
+              {allOrgs.filter(o => myOrgIds.includes(o.id)).map(o => (
+                <span key={o.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)', borderRadius: '9999px', padding: '0.1875rem 0.625rem' }}>
+                  <Building2 size={11} />{o.name}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* 申請の状況（審査待ち・却下） */}
+          {myOrgReqs.filter(r => r.status !== 'approved').length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.875rem' }}>
+              {myOrgReqs.filter(r => r.status !== 'approved').map(r => {
+                const orgName = allOrgs.find(o => o.id === r.organization_id)?.name ?? r.requested_name ?? '団体';
+                const pending = r.status === 'pending';
+                return (
+                  <div key={r.id} style={{ padding: '0.75rem 0.875rem', borderRadius: '0.75rem', background: pending ? '#fffbeb' : '#f9fafb', border: `1px solid ${pending ? '#fde68a' : 'var(--color-border)'}` }}>
+                    <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: pending ? '#d97706' : '#6b7280' }}>
+                      {orgName}{pending ? ' — 審査待ち' : ' — 却下されました'}
+                    </p>
+                    {!pending && r.review_note && (
+                      <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '0.25rem', lineHeight: 1.6 }}>理由: {r.review_note}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {myOrgIds.length === 0 && myOrgReqs.length === 0 && !orgFormOpen && (
+            <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)', marginTop: '0.875rem' }}>
+              まだ所属団体が登録されていません。
+            </p>
+          )}
+
+          {/* 申請フォーム */}
+          {orgFormOpen && (
+            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {reqError && (
+                <div style={{ padding: '0.75rem 1rem', borderRadius: '0.75rem', fontSize: '0.8125rem', fontWeight: 500, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>{reqError}</div>
+              )}
+              <div>
+                <p style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>団体</p>
+                <select value={reqOrgId} onChange={e => setReqOrgId(e.target.value)} style={inputStyle}>
+                  <option value="">一覧にない団体を申請する</option>
+                  {allOrgs.filter(o => o.is_active !== false && !myOrgIds.includes(o.id)).map(o => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+              </div>
+              {!reqOrgId && (
+                <div>
+                  <p style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>団体名</p>
+                  <input style={inputStyle} value={reqNewName} onChange={e => setReqNewName(e.target.value)}
+                    placeholder="例: 九州大学◯◯サークル" maxLength={60} />
+                </div>
+              )}
+              <div>
+                <p style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem' }}>
+                  運営へのメッセージ <span style={{ color: '#dc2626' }}>*</span>
+                </p>
+                <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: 88, lineHeight: 1.7 }}
+                  value={reqMessage} onChange={e => setReqMessage(e.target.value)}
+                  placeholder="運営が本人確認できるよう、学部・学年・団体での役職・所属歴などを書いてください。" />
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button onClick={() => { setOrgFormOpen(false); setReqError(null); }}
+                  style={{ padding: '0.625rem 1.25rem', fontSize: '0.8125rem', fontWeight: 600, borderRadius: '0.75rem', cursor: 'pointer', color: 'var(--color-text-secondary)', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}
+                >キャンセル</button>
+                <button onClick={submitOrgRequest} disabled={reqBusy}
+                  style={{ padding: '0.625rem 1.5rem', fontSize: '0.8125rem', fontWeight: 700, borderRadius: '0.75rem', cursor: reqBusy ? 'not-allowed' : 'pointer', opacity: reqBusy ? 0.5 : 1, color: 'var(--color-text-inverse)', background: 'var(--bg-dark)', border: 'none' }}
+                >{reqBusy ? '送信中...' : '申請する'}</button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* LINE連携 */}
         {line && (

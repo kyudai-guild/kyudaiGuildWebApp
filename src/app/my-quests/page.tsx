@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { MY_QUEST_STATUS as STATUS } from '@/components/quest/status';
 import UserProfileModal from '@/components/member/UserProfileModal';
 import ThanksModal from '@/components/quest/ThanksModal';
+import OrgBadge from '@/components/quest/OrgBadge';
 
 interface Application {
   id: string; message: string | null; status: string; applied_at: string;
@@ -19,6 +20,8 @@ interface MyQuest {
   rejection_reason: string | null; reviewed_at: string | null;
   reviewer: { display_name: string } | null;
   effective_end_date: string | null; created_at: string;
+  organization_name: string | null;
+  organization: { id: string; name: string; is_active: boolean } | null;
   applications: Application[];
 }
 interface AppliedItem {
@@ -249,6 +252,10 @@ export default function MyQuestsPage() {
                                 <StIcon size={10} />{st.label}
                               </span>
                               <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{quest.quest_type}</span>
+                              <OrgBadge
+                                name={quest.organization_name ?? quest.organization?.name}
+                                inactive={quest.organization?.is_active === false}
+                              />
                             </div>
                             <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{quest.title}</h3>
                             <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>
