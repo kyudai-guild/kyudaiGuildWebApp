@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { notifyQuestSubmitted } from '@/lib/slack';
 
 export async function GET() {
   try {
@@ -168,6 +169,23 @@ export async function POST(request: Request) {
       console.error('Error inserting quest:', insertError);
       return NextResponse.json({ error: 'クエストの作成に失敗しました。' }, { status: 500 });
     }
+
+    // 運営Slackへ即時通知。after() でレスポンス送出後に実行するので、
+    // Slack が遅くても申請した人を待たせない。失敗しても申請は成立済み。
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin).replace(/\/$/, '');
+    after(async () => {
+      await notifyQuestSubmitted({
+        title: quest.title,
+        description: quest.description,
+        questType: quest.quest_type,
+        reward: quest.reward,
+        maxApplicants: quest.max_applicants,
+        organizationName: quest.organization_name,
+        creatorId: user.id,
+        creatorEmail: user.email ?? null,
+        siteUrl,
+      });
+    });
 
     return NextResponse.json(quest);
   } catch (err: any) {

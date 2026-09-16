@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { notifyOrgRequest } from '@/lib/slack';
 
 // 所属団体の申請
 //   GET : 運営 = 全件（既定は審査待ち）、一般 = 自分の申請のみ
@@ -105,6 +106,29 @@ export async function POST(request: Request) {
       console.error('Error creating organization request:', error);
       return NextResponse.json({ error: '所属申請の送信に失敗しました。' }, { status: 500 });
     }
+
+    // 運営Slackへ即時通知（レスポンス送出後に実行）
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin).replace(/\/$/, '');
+    after(async () => {
+      // 既存団体への申請なら団体名を引く。新規団体名の申請ならそのまま使う。
+      let orgName = requestedName || null;
+      if (organizationId) {
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('name')
+          .eq('id', organizationId)
+          .maybeSingle();
+        orgName = org?.name ?? null;
+      }
+      await notifyOrgRequest({
+        organizationName: orgName,
+        isNewOrg: !organizationId,
+        message,
+        profileId: user.id,
+        applicantEmail: user.email ?? null,
+        siteUrl,
+      });
+    });
 
     return NextResponse.json(created);
   } catch (err: any) {
