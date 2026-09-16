@@ -71,6 +71,8 @@ export default function AdminPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // 審査は成功したがメール通知に失敗した場合の警告（握り潰さず運営に見せる）
+  const [actionWarning, setActionWarning] = useState<string | null>(null);
 
   // ── Event state ──
   const [events, setEvents] = useState<GuildEvent[]>([]);
@@ -211,10 +213,12 @@ export default function AdminPage() {
 
   const handleReview = async (questId: string, action: 'approve' | 'reject') => {
     if (action === 'reject' && !rejectionReason.trim()) { setActionError('リジェクト理由を入力してください。'); return; }
-    setActionLoading(true); setActionError(null);
+    setActionLoading(true); setActionError(null); setActionWarning(null);
     try {
       const res = await fetch(`/api/quests/${questId}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, rejection_reason: action === 'reject' ? rejectionReason : undefined }) });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error || '審査処理に失敗しました。'); }
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || '審査処理に失敗しました。');
+      if (d.mail_warning) setActionWarning(d.mail_warning);
       setReviewingId(null); setRejectionReason(''); await fetchQuests();
     } catch (err: any) { setActionError(err.message); } finally { setActionLoading(false); }
   };
@@ -286,6 +290,11 @@ export default function AdminPage() {
         {/* ══════════ QUEST TAB ══════════ */}
         {tab === 'quests' && (
           <>
+            {actionWarning && (
+              <div onClick={() => setActionWarning(null)}
+                style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', background: '#fffbeb', border: '1px solid #fde68a', color: '#d97706' }}
+              ><AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />{actionWarning}</div>
+            )}
             <div style={S.filterRow}>
               {(['pending','approved','rejected','all'] as const).map(key => {
                 const cfg = key === 'all' ? { label: 'すべて' } : STATUS[key];

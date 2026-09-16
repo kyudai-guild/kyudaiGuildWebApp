@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { sendQuestReviewMail } from '@/lib/quest-mail';
 
 export async function POST(
   request: Request,
@@ -91,8 +92,23 @@ export async function POST(
     // 承認のたびに送ると「クエスト数 × 対象人数」の通数を消費してしまうため、
     // 1日1回のダイジェスト（/api/cron/line-digest）でまとめて配信する。
     // 承認済み・line_notified_at が NULL のクエストが翌朝の配信対象になる。
+    //
+    // 一方、審査結果のメールは掲示者1人宛てなので都度送る。
+    // 送信に失敗しても審査自体は成立させ、警告として管理画面に返す
+    // （握り潰すと「通知が来ない」ことに誰も気づけない）。
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin).replace(/\/$/, '');
+    const mail = await sendQuestReviewMail(
+      { id: updated.id, title: updated.title, creator_id: updated.creator_id, effective_end_date: updated.effective_end_date },
+      action,
+      action === 'reject' ? rejection_reason : null,
+      siteUrl
+    );
 
-    return NextResponse.json(updated);
+    return NextResponse.json({
+      ...updated,
+      mail_sent: mail.ok,
+      ...(mail.ok ? {} : { mail_warning: `審査は完了しましたが、掲示者へのメール通知に失敗しました。${mail.error}` }),
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

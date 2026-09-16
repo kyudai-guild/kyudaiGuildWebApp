@@ -148,7 +148,8 @@ where status = 'approved' and line_notified_at is null;
 | 見る場所 | 何を見るか | 頻度 |
 |---|---|---|
 | Supabase → Authentication → Users | 登録できているか、確認待ちで止まっている人がいないか | 毎日 |
-| Resend → Emails | 確認メールが delivered か、bounce していないか | 毎日 |
+| Resend → Emails | 確認メール・審査結果メールが delivered か、bounce していないか | 毎日 |
+| `/admin` のクエスト審査タブ | 審査後に黄色の「メール通知に失敗しました」が出ていないか | 審査のたび |
 | `/admin` | 承認待ちのクエスト | 毎日 |
 | `/api/cron/line-digest/history` | 通知が動いているか、今月の消費通数 | 数日に1回 |
 | Vercel → Logs | 500エラーが出ていないか | 異常時 |

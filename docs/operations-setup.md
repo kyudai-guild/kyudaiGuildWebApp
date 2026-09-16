@@ -84,6 +84,35 @@ Cloudflare → 対象ドメイン → **DNS → Records** で、Resend が示し
 Resend → **API Keys → Create API Key**（権限は Sending access で十分）。
 表示は一度きりなので、パスワードマネージャに保存してください。
 
+### 2-4. アプリ発の通知メール用に、もう1本APIキーを発行する
+
+メールの経路は**2つ**あります。混同しないでください。
+
+| 用途 | 経路 | 設定場所 |
+|---|---|---|
+| 登録確認コード | Supabase Auth → SMTP(Resend) | Supabase の SMTP Settings |
+| **クエストの審査結果** | アプリ → Resend の HTTP API | **Vercel の環境変数** |
+
+後者のために **2本目のAPIキー**を発行し、Vercel に環境変数として登録します。
+
+> **なぜ使い回さないか**: 片方だけローテーションしたいときや、
+> 片方を止めたいときに、もう片方（＝新規登録）を巻き込まないためです。
+
+| 環境変数 | 値 | 例 |
+|---|---|---|
+| `RESEND_API_KEY` | 2本目のAPIキー | `re_...` |
+| `MAIL_FROM` | 差出人。**認証済みドメインのアドレス**にすること | `九大ギルド <no-reply@send.ドメイン>` |
+| `MAIL_REPLY_TO` | 返信先（任意） | `admin@ドメイン` |
+
+Vercel → Settings → Environment Variables で **Production / Preview / Development すべて**に登録し、
+**再デプロイ**してください（環境変数は再デプロイしないと反映されません）。
+
+`MAIL_FROM` が認証していないドメインだと Resend が 403 を返します。
+**必ず Domains で緑になっているドメイン**のアドレスを使ってください。
+
+> 未設定でも審査そのものは通ります（メール送信だけスキップされ、
+> 管理画面に「メール通知に失敗しました」と黄色の警告が出ます）。
+
 ---
 
 ## 3. Supabase の設定
