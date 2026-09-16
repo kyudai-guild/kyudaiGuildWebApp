@@ -41,6 +41,11 @@ LINEログインチャネルは作成直後 **「開発中」** で、この状�
 | `supabase_migration_v11_event_colors.sql` | イベントの色・終日（カテゴリ廃止） | ☐ |
 | `supabase_migration_v12_event_organizer_name.sql` | イベントの主催団体名 | ☐ |
 | `supabase_migration_v13_organizations.sql` | 所属団体タグ・所属申請 | ☐ |
+| `supabase_migration_v14_rls_hardening.sql` | **RLSの穴をふさぐ（セキュリティ修正・必須）** | ☐ |
+
+> ⚠️ **v14 は一般公開前に必ず実行してください。** 未実行だと、ログイン中の誰でも
+> 公開されている anon キーで Supabase を直接叩き、**自分を運営(admin)に昇格**させたり、
+> **審査を通さずクエストを掲示**したりできます。詳しくは v14 の冒頭コメント。
 
 **確認用SQL**（すべて行が返れば実行済み）:
 
