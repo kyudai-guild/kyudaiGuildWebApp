@@ -8,6 +8,11 @@ import { MY_QUEST_STATUS as STATUS } from '@/components/quest/status';
 import UserProfileModal from '@/components/member/UserProfileModal';
 import ThanksModal from '@/components/quest/ThanksModal';
 import OrgBadge from '@/components/quest/OrgBadge';
+import { CardListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
+import { readCache, writeCache } from '@/lib/client-cache';
+
+const POSTED_CACHE = 'my-quests-posted';
+const CACHE_MAX_AGE = 3 * 60 * 1000;
 
 interface Application {
   id: string; message: string | null; status: string; applied_at: string;
@@ -73,6 +78,9 @@ export default function MyQuestsPage() {
   const [appliedItems, setAppliedItems] = useState<AppliedItem[]>([]);
   const [appliedMore, setAppliedMore] = useState(false);
   const [loading, setLoading] = useState(true);
+  // 「応募した依頼」は別に持つ。掲示側をキャッシュで先に描いたときに、
+  // まだ取得中の応募一覧を「0件」と見せないため。
+  const [appliedLoading, setAppliedLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -81,7 +89,14 @@ export default function MyQuestsPage() {
   const [thanksTarget, setThanksTarget] = useState<{ questId: string; questTitle: string; recipientName: string; recipientId?: string } | null>(null);
 
   const loadPosted = useCallback(() => {
-    return fetch('/api/my-quests').then(r => r.ok ? r.json() : []).then(setQuests).catch(() => {});
+    return fetch('/api/my-quests')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        setQuests(data);
+        writeCache(POSTED_CACHE, null, data);
+      })
+      .catch(() => {});
   }, []);
   const loadApplied = useCallback((offset = 0) => {
     return fetch(`/api/profile/history?role=applied&offset=${offset}`)
@@ -93,7 +108,12 @@ export default function MyQuestsPage() {
   }, []);
 
   useEffect(() => {
-    Promise.all([loadPosted(), loadApplied()]).finally(() => setLoading(false));
+    // 掲示した依頼だけ先に描いておく。応募状況は毎回取り直す
+    // （承認待ちの件数がずれていると判断を誤るため、キャッシュに頼らない）。
+    const cached = readCache<MyQuest[]>(POSTED_CACHE, null, CACHE_MAX_AGE);
+    if (cached) { setQuests(cached); setLoading(false); }
+    loadPosted().finally(() => setLoading(false));
+    loadApplied().finally(() => setAppliedLoading(false));
   }, [loadPosted, loadApplied]);
 
   const reviewApplication = async (appId: string, action: 'accept' | 'reject') => {
@@ -208,10 +228,7 @@ export default function MyQuestsPage() {
         )}
 
         {loading ? (
-          <div style={S.spinner}>
-            <div style={{ width: 32, height: 32, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '9999px', animation: 'spin 0.8s linear infinite' }} />
-            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)' }}>読み込み中...</p>
-          </div>
+          <CardListSkeleton rows={3} lines={2} />
         ) : view === 'posted' ? (
           <>
             <div style={S.filterRow}>{(['all', 'pending', 'approved', 'completed', 'rejected'] as const).map(filterBtn)}</div>
@@ -373,7 +390,11 @@ export default function MyQuestsPage() {
           </>
         ) : (
           /* ===== 応募した依頼 ===== */
-          appliedItems.length === 0 ? (
+          /* 掲示側をキャッシュで先に描いたときは、こちらがまだ取得中のことがある。
+             件数0の空表示を出すと「応募していない」と誤解させるので骨組みにする。 */
+          appliedLoading ? (
+            <CardListSkeleton rows={2} lines={2} />
+          ) : appliedItems.length === 0 ? (
             <div style={S.emptyBox}>
               <Send size={32} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 1rem', opacity: 0.3 }} />
               <p style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '1rem', color: 'var(--color-text-tertiary)' }}>まだクエストに応募していません。</p>
@@ -425,7 +446,7 @@ export default function MyQuestsPage() {
         <ThanksModal questTitle={thanksTarget.questTitle} recipientName={thanksTarget.recipientName}
           onSend={sendThanks} onClose={() => setThanksTarget(null)} />
       )}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <SkeletonStyles />
     </div>
   );
 }

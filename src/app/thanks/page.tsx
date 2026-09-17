@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Heart } from 'lucide-react';
+import { CardListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 
 interface ThanksItem {
   id: string; message: string; created_at: string;
@@ -37,6 +38,7 @@ export default function ThanksPage() {
 
   return (
     <div style={{ minHeight: '100vh' }}>
+      <SkeletonStyles />
       <div style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--color-border)', padding: 'clamp(1rem, 4vw, 1.5rem) clamp(1rem, 4vw, 2rem)', marginBottom: '1.5rem' }}>
         <div style={{ maxWidth: 760, margin: '0 auto' }}>
           <button onClick={() => router.push('/profile')}
@@ -67,7 +69,7 @@ export default function ThanksPage() {
         </div>
 
         {loading ? (
-          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)', padding: '2rem 0', textAlign: 'center' }}>読み込み中...</p>
+          <CardListSkeleton rows={3} lines={3} />
         ) : items.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '4rem 2rem', borderRadius: '1rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}>
             <Heart size={32} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 1rem', opacity: 0.3 }} />

@@ -8,6 +8,7 @@ import QuestBoard from '@/components/quest/QuestBoard';
 import EventDetailModal from '@/components/events/EventDetailModal';
 import { GuildEvent, eventStyle, fmtTime } from '@/components/events/types';
 import { readCache, writeCache } from '@/lib/client-cache';
+import { Bar, SkeletonStyles } from '@/components/ui/Skeleton';
 import { Scroll, Clock, XCircle, LogIn, CalendarDays, MapPin, ArrowRight, Lock } from 'lucide-react';
 
 /* ============================================================
@@ -235,8 +236,15 @@ function EventsHero() {
 
         {/* List */}
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 0' }}>
-            <div style={{ width: 28, height: 28, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '9999px', animation: 'spin 0.8s linear infinite' }} />
+          /* 本物のカードと同じ幅のまま並べる。データ到着時に横幅が跳ねない */
+          <div className="events-rail" aria-busy="true" aria-label="読み込み中">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="event-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}>
+                <Bar w="55%" h={10} mb={10} />
+                <Bar w="90%" h={13} mb={8} />
+                <Bar w="70%" h={10} />
+              </div>
+            ))}
           </div>
         ) : events.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2.5rem 1.5rem', borderRadius: '1rem', background: 'var(--bg-card)', border: '1px dashed var(--color-border-strong)' }}>
@@ -354,7 +362,7 @@ export default function Home() {
         </div>
       </footer>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <SkeletonStyles />
     </>
   );
 }

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Scroll, Heart, Pencil, Building2, Mail } from 'lucide-react';
 import { useGuild } from '@/contexts/GuildContext';
+import { RowListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 
 interface Option { id: string; label: string; description?: string }
 interface Stats { posted_total: number; posted_completed: number; accepted_completed: number; thanks_received: number; member_since: string | null }
@@ -254,6 +255,7 @@ export default function ProfilePage() {
 
   return (
     <div style={{ minHeight: '100vh' }}>
+      <SkeletonStyles />
       <div style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--color-border)', padding: 'clamp(1rem, 4vw, 1.5rem) clamp(1rem, 4vw, 2rem)', marginBottom: '1.5rem' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <button onClick={() => router.push('/')}
@@ -533,7 +535,7 @@ export default function ProfilePage() {
         </div>
 
         {loading ? (
-          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)', padding: '2rem 0', textAlign: 'center' }}>読み込み中...</p>
+          <RowListSkeleton rows={4} />
         ) : rows.length === 0 ? (
           <div style={{ ...card, textAlign: 'center', padding: '3rem 2rem' }}>
             <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)' }}>まだ履歴がありません。掲示板からクエストに応募してみましょう。</p>

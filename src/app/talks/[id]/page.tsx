@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Send, ShieldCheck } from 'lucide-react';
 import { useGuild } from '@/contexts/GuildContext';
+import { ChatSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 
 interface TalkMessage {
   id: string; body: string; created_at: string; sender_id: string;
@@ -102,6 +103,7 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
 
   return (
     <div style={{ minHeight: 'calc(100vh - var(--header-height))', display: 'flex', flexDirection: 'column', maxWidth: 760, margin: '0 auto', padding: '1rem clamp(0.5rem, 3vw, 1.5rem) 1.5rem' }}>
+      <SkeletonStyles />
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, borderRadius: '1rem', overflow: 'hidden', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}>
         {/* ヘッダー */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.875rem 1.25rem', borderBottom: '1px solid var(--color-border)', background: 'var(--bg-card)' }}>
@@ -120,7 +122,7 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
         {/* メッセージ */}
         <div ref={bodyRef} style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', gap: '0.375rem', minHeight: 300 }}>
           {loading ? (
-            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)', textAlign: 'center', padding: '2rem 0' }}>読み込み中...</p>
+            <ChatSkeleton rows={4} />
           ) : messages.length === 0 ? (
             <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)', textAlign: 'center', padding: '2rem 0' }}>
               マッチングが成立しました🎉 まずは挨拶を送ってみましょう。

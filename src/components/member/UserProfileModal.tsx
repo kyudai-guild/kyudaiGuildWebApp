@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Award, Heart, Building2 } from 'lucide-react';
+import { Bar, TileRowSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 
 interface UserProfile {
   id: string; display_name: string | null; bio: string | null;
@@ -43,7 +44,23 @@ export default function UserProfileModal({ userId, onClose }: { userId: string; 
         {error ? (
           <p style={{ fontSize: '0.875rem', color: '#dc2626', padding: '2rem 0', textAlign: 'center' }}>{error}</p>
         ) : !profile ? (
-          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)', padding: '2rem 0', textAlign: 'center' }}>読み込み中...</p>
+          /* 本物のレイアウトと同じ並びにして、届いた瞬間に要素が飛ばないようにする */
+          <div aria-busy="true" aria-label="読み込み中">
+            <SkeletonStyles />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div className="sk-bar" style={{ width: 56, height: 56, borderRadius: 9999, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Bar w="55%" h={16} mb={8} />
+                <Bar w="40%" h={10} />
+              </div>
+            </div>
+            <TileRowSkeleton tiles={2} />
+            <div style={{ marginTop: '1.25rem' }}>
+              <Bar w="30%" h={10} mb={10} />
+              <Bar w="90%" h={10} mb={6} />
+              <Bar w="70%" h={10} />
+            </div>
+          </div>
         ) : (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>

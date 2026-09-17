@@ -9,6 +9,7 @@ import { GuildEvent, eventStyle, fmtDateLong, fmtTimeRange } from '@/components/
 import EventDetailModal from '@/components/events/EventDetailModal';
 import { ADMIN_QUEST_STATUS as STATUS } from '@/components/quest/status';
 import OrgBadge from '@/components/quest/OrgBadge';
+import { CardListSkeleton, RowListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 
 interface AdminQuest {
   id: string; title: string; description: string; quest_type: string;
@@ -308,9 +309,7 @@ export default function AdminPage() {
             </div>
 
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '5rem 0' }}>
-                <div style={{ width: 32, height: 32, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '9999px', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
-              </div>
+              <CardListSkeleton rows={3} lines={2} />
             ) : filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '4rem 2rem', borderRadius: '1rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}>
                 <Shield size={32} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 1rem', opacity: 0.3 }} />
@@ -453,9 +452,7 @@ export default function AdminPage() {
             )}
 
             {orgReqsLoading ? (
-              <div style={{ textAlign: 'center', padding: '5rem 0' }}>
-                <div style={{ width: 32, height: 32, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '9999px', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
-              </div>
+              <CardListSkeleton rows={3} lines={2} />
             ) : orgReqs.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '4rem 2rem', borderRadius: '1rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}>
                 <Inbox size={32} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 1rem', opacity: 0.3 }} />
@@ -581,9 +578,7 @@ export default function AdminPage() {
             </div>
 
             {orgsLoading ? (
-              <div style={{ textAlign: 'center', padding: '5rem 0' }}>
-                <div style={{ width: 32, height: 32, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '9999px', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
-              </div>
+              <CardListSkeleton rows={3} lines={2} />
             ) : orgs.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '4rem 2rem', borderRadius: '1rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}>
                 <Building2 size={32} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 1rem', opacity: 0.3 }} />
@@ -645,7 +640,7 @@ export default function AdminPage() {
                             <div style={S.cardExpanded}>
                               <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: '0.625rem' }}>所属メンバー</p>
                               {membersLoading ? (
-                                <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)' }}>読み込み中...</p>
+                                <RowListSkeleton rows={2} />
                               ) : orgMembers.length === 0 ? (
                                 <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)' }}>まだ誰も所属していません。</p>
                               ) : (
@@ -726,9 +721,7 @@ export default function AdminPage() {
             </div>
 
             {eventsLoading ? (
-              <div style={{ textAlign: 'center', padding: '5rem 0' }}>
-                <div style={{ width: 32, height: 32, border: '2px solid var(--color-primary)', borderTopColor: 'transparent', borderRadius: '9999px', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
-              </div>
+              <CardListSkeleton rows={3} lines={2} />
             ) : eventFiltered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '4rem 2rem', borderRadius: '1rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}>
                 <CalendarDays size={32} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 1rem', opacity: 0.3 }} />
@@ -769,7 +762,7 @@ export default function AdminPage() {
         {selectedEvent && <EventDetailModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
       </AnimatePresence>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <SkeletonStyles />
     </div>
   );
 }

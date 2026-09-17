@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, MessageCircle } from 'lucide-react';
 import { useGuild } from '@/contexts/GuildContext';
+import { RowListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
+import { readCache, writeCache } from '@/lib/client-cache';
+
+const TALKS_CACHE = 'talks';
+const TALKS_CACHE_MAX_AGE = 2 * 60 * 1000;
 
 interface TalkRoom {
   id: string; created_at: string;
@@ -19,7 +24,18 @@ export default function TalksPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/talks').then(r => r.ok ? r.json() : []).then(setRooms).catch(() => {}).finally(() => setLoading(false));
+    // キャッシュで先に描き、再取得は必ず走らせて差し替える
+    const cached = readCache<TalkRoom[]>(TALKS_CACHE, null, TALKS_CACHE_MAX_AGE);
+    if (cached) { setRooms(cached); setLoading(false); }
+    fetch('/api/talks')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        setRooms(data);
+        writeCache(TALKS_CACHE, null, data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   if (!isLoggedIn && !loading) {
@@ -32,6 +48,7 @@ export default function TalksPage() {
 
   return (
     <div style={{ minHeight: '100vh' }}>
+      <SkeletonStyles />
       <div style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--color-border)', padding: 'clamp(1rem, 4vw, 1.5rem) clamp(1rem, 4vw, 2rem)', marginBottom: '1.5rem' }}>
         <div style={{ maxWidth: 760, margin: '0 auto' }}>
           <button onClick={() => router.push('/')}
@@ -51,7 +68,7 @@ export default function TalksPage() {
 
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '0 clamp(1rem, 4vw, 2rem) 3rem' }}>
         {loading ? (
-          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-tertiary)', padding: '2rem 0', textAlign: 'center' }}>読み込み中...</p>
+          <RowListSkeleton rows={3} />
         ) : rooms.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '4rem 2rem', borderRadius: '1rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}>
             <MessageCircle size={32} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 1rem', opacity: 0.3 }} />
