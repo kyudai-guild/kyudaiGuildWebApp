@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { sendApplicationMail } from '@/lib/quest-mail';
 
 export async function POST(
   request: Request,
@@ -77,6 +78,25 @@ export async function POST(
       console.error('Error applying to quest:', insertError);
       return NextResponse.json({ error: '応募に失敗しました。' }, { status: 500 });
     }
+
+    // 掲示者にメールで知らせる。応募した本人はメールの成否に関心がないので、
+    // after() でレスポンスを返したあとに送る（応募者を待たせない）。
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin).replace(/\/$/, '');
+    after(async () => {
+      const { data: me } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', user.id)
+        .maybeSingle();
+      const result = await sendApplicationMail({
+        questTitle: quest.title,
+        creatorId: quest.creator_id,
+        applicantName: me?.display_name || user.email?.split('@')[0] || '冒険者',
+        message: message || null,
+        siteUrl,
+      });
+      if (!result.ok) console.error('Apply mail failed:', result.error);
+    });
 
     return NextResponse.json(application);
   } catch (err: any) {

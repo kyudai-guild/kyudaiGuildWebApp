@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Scroll, Heart, Pencil, Building2 } from 'lucide-react';
+import { ArrowLeft, Scroll, Heart, Pencil, Building2, Mail } from 'lucide-react';
 import { useGuild } from '@/contexts/GuildContext';
 
 interface Option { id: string; label: string; description?: string }
@@ -71,6 +71,9 @@ export default function ProfilePage() {
   const [reqBusy, setReqBusy] = useState(false);
   const [reqError, setReqError] = useState<string | null>(null);
 
+  // トークの未読メール（1日1回）。既定はON。
+  const [talkMailNotify, setTalkMailNotify] = useState(true);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -97,6 +100,7 @@ export default function ProfilePage() {
         setBio(prof.bio ?? '');
         setDisplayName(prof.display_name ?? '');
         if (prof.line_notify !== undefined && prof.line_notify !== null) setLineNotify(prof.line_notify);
+        setTalkMailNotify(prof.talk_mail_notify !== false);
         const ids = new Set(prof.interest_ids ?? []);
         setInterestLabels((opts.interests ?? []).filter((o: Option) => ids.has(o.id)).map((o: Option) => o.label));
         setLine({
@@ -130,6 +134,20 @@ export default function ProfilePage() {
     const data = await res.json();
     if (role === 'posted') { setPosted(prev => [...prev, ...data.items]); setPostedMore(data.hasMore); }
     else { setApplied(prev => [...prev, ...data.items]); setAppliedMore(data.hasMore); }
+  };
+
+  const toggleTalkMail = async () => {
+    const next = !talkMailNotify;
+    setTalkMailNotify(next); // 楽観的に反映し、失敗したら戻す
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ talk_mail_notify: next }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setTalkMailNotify(!next);
+    }
   };
 
   const submitOrgRequest = async () => {
@@ -344,6 +362,27 @@ export default function ProfilePage() {
               color: lineMessage.kind === 'ok' ? '#15803d' : '#dc2626' }}
           >{lineMessage.text}</div>
         )}
+
+        {/* メール通知の設定 */}
+        <div style={{ ...card, padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.9375rem', fontWeight: 700 }}>
+                <Mail size={15} style={{ color: 'var(--color-accent)' }} />トークの未読をメールで知らせる
+              </p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', lineHeight: 1.6, marginTop: '0.125rem' }}>
+                未読のメッセージがあるときだけ、1日1回まとめてお送りします。内容は本文に含めません。
+              </p>
+            </div>
+            <button onClick={toggleTalkMail} aria-label="トークの未読メール"
+              style={{ width: 44, height: 24, borderRadius: '9999px', border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0, background: talkMailNotify ? 'var(--color-primary)' : 'var(--bg-tertiary)' }}>
+              <span style={{ position: 'absolute', top: 2, left: talkMailNotify ? 22 : 2, width: 20, height: 20, borderRadius: '9999px', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
+            </button>
+          </div>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', lineHeight: 1.6, marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
+            ※ クエストの審査結果と、自分の依頼への応募のお知らせは、この設定にかかわらず届きます。
+          </p>
+        </div>
 
         {/* 所属団体（LINEカードの取得に失敗しても消えないよう、必ず外側の兄弟に置く） */}
         <div style={{ ...card, padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>

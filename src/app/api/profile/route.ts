@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { display_name, tags, qualifications, bio, line_notify, onboarded, purpose_ids, interest_ids } = body;
+  const { display_name, tags, qualifications, bio, line_notify, talk_mail_notify, onboarded, purpose_ids, interest_ids } = body;
 
   const upsertData: Record<string, unknown> = {
     id: user.id,
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
   if (qualifications !== undefined) upsertData.qualifications = qualifications;
   if (bio !== undefined) upsertData.bio = bio;
   if (line_notify !== undefined) upsertData.line_notify = line_notify;
+  if (talk_mail_notify !== undefined) upsertData.talk_mail_notify = talk_mail_notify;
   if (onboarded === true) upsertData.onboarded_at = new Date().toISOString();
 
   const { data, error } = await supabase

@@ -1,4 +1,6 @@
-import { NextResponse } from 'next/server';
+// このファイルには ?after= のクエリパラメータを受ける `after` 変数があるため、
+// next/server の after は別名で取り込む
+import { NextResponse, after as afterResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 
 // ルームの情報とメッセージ取得。?after=<ISO日時> を渡すと差分のみ（ポーリング用）
@@ -27,6 +29,22 @@ export async function GET(
 
     const { data: messages, error: msgError } = await query;
     if (msgError) throw msgError;
+
+    // 既読時刻を進める。未読メールのダイジェストがこれを見て未読を判定する。
+    //   この GET は数秒おきのポーリングでも呼ばれるので、
+    //   毎回 UPDATE すると書き込みが増える。初回読み込みと、
+    //   差分で実際に新着があったときだけに絞る。
+    const shouldMarkRead = !after || (messages?.length ?? 0) > 0;
+    if (shouldMarkRead) {
+      afterResponse(async () => {
+        const { error } = await supabase
+          .from('talk_members')
+          .update({ last_read_at: new Date().toISOString() })
+          .eq('room_id', id)
+          .eq('profile_id', user.id);
+        if (error) console.error('Failed to update last_read_at:', error);
+      });
+    }
 
     // 差分取得時はメッセージのみ返す
     if (after) return NextResponse.json({ messages: messages ?? [] });

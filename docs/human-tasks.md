@@ -10,6 +10,31 @@
 
 ---
 
+## 🔴 いますぐ必要な作業
+
+### 0. SQLマイグレーション v15 を実行する
+
+**トークの未読メール通知に必要です。** 未実行だと、トーク画面を開いたときに
+既読の記録でエラーになり、未読メールも飛びません。
+
+- ☐ Supabase → **SQL Editor** で `supabase/supabase_migration_v15_talk_read_state.sql` を実行
+
+**実行後の確認** — すべて 1 が返れば成功:
+
+```sql
+select
+  (select count(*) from information_schema.columns where table_name='talk_members' and column_name='last_read_at')     as last_read_at,
+  (select count(*) from information_schema.columns where table_name='talk_members' and column_name='last_notified_at') as last_notified_at,
+  (select count(*) from information_schema.columns where table_name='profiles'     and column_name='talk_mail_notify') as talk_mail_notify,
+  (select count(*) from pg_policies where tablename='talk_members' and policyname='talk_members_update')               as update_policy,
+  (select count(*) from pg_trigger  where tgname='protect_talk_membership')                                            as membership_guard;
+```
+
+> このマイグレーションは、実行時点の未読を「通知済み」に倒します。
+> 運用開始前の古いメッセージで、翌朝いきなりメールが飛ぶのを防ぐためです。
+
+---
+
 ## 🔴 本番デプロイ後に確認すること
 
 SlackとメールはPreview環境では試しにくいので、**本番デプロイが終わってから**上から順に確認してください。
@@ -34,6 +59,23 @@ SlackとメールはPreview環境では試しにくいので、**本番デプロ
 
 > 黄色い警告が出たら `MAIL_FROM` が Resend で**認証済みのドメイン**か確認してください。
 > 未認証ドメインだと Resend が 403 を返します。
+
+### 2b. 応募のお知らせメール
+
+- ☐ 別アカウントから掲示中のクエストに応募する
+- ☐ **掲示者**の受信箱に「応募がありました」が届き、応募メッセージが本文に入っている
+
+### 2c. トークの未読メール（1日1回）
+
+cron は既存の `/api/cron/line-digest` に相乗りしています（Hobbyプランは cron が1日1本まで）。
+**運営アカウントでそのURLをブラウザで開くと手動実行できます。**
+
+- ☐ AさんからBさんへトークを送る（Bさんはトーク画面を開かない）
+- ☐ `https://（ドメイン）/api/cron/line-digest` を運営アカウントで開く
+- ☐ 返ってきた JSON の `talk_mail` が `{"ok":true, "sent":1, ...}` になっている
+- ☐ Bさんの受信箱に「未読のメッセージがあります」が届いた（**本文に中身は入りません**）
+- ☐ Bさんがトーク画面を開いてから、もう一度実行 → `sent":0`（既読なので送られない）
+- ☐ プロフィール画面の「トークの未読をメールで知らせる」をOFFにすると届かなくなる
 
 ### 3. Slack通知
 

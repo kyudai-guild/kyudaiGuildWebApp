@@ -168,6 +168,73 @@ async function resolveRecipient(creatorId: string): Promise<string | null> {
   return data.user.email;
 }
 
+function buildApplication(
+  questTitle: string,
+  applicantName: string,
+  message: string | null,
+  siteUrl: string
+) {
+  const title = escapeHtml(questTitle);
+  const who = escapeHtml(applicantName);
+  const msg = (message ?? '').trim();
+
+  const body = [
+    p(`クエスト「<span style="color:${TEXT}; font-weight:bold;">${title}</span>」に応募がありました。`),
+    p(`応募者: <span style="color:${TEXT}; font-weight:bold;">${who}</span>`, '0 0 16px'),
+    msg
+      ? `            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px; width:100%;">
+              <tr>
+                <td style="background-color:#f5f3ef; border:1px solid ${LINE}; border-radius:8px; padding:16px 20px;
+                           font-size:15px; line-height:1.9; color:${TEXT};">${nl2br(escapeHtml(msg))}</td>
+              </tr>
+            </table>`
+      : p('（応募メッセージはありません）', '0 0 24px'),
+    `            <p style="margin:0 0 24px;">
+              <a href="${siteUrl}/my-quests" target="_blank" style="color:#1a4a3a; font-weight:bold; text-decoration:underline;">マイクエストで応募者を確認する</a>
+            </p>`,
+    `            <p style="margin:0; font-size:12px; line-height:1.9; color:${FAINT};">
+              ※ 応募者のプロフィール（資格・自己PR・所属団体）を見てから判断できます。<br>
+              ※ 承認するとマッチ成立となり、トーク画面で連絡を取れるようになります。
+            </p>`,
+  ].join('\n');
+
+  const text = [
+    `クエスト「${questTitle}」に応募がありました。`,
+    '',
+    `応募者: ${applicantName}`,
+    msg ? `\n【応募メッセージ】\n${msg}` : '（応募メッセージはありません）',
+    '',
+    `マイクエスト: ${siteUrl}/my-quests`,
+    '',
+    '※ 承認するとマッチ成立となり、トーク画面で連絡を取れるようになります。',
+    '',
+    '九大ギルド 運営',
+    siteUrl,
+  ].join('\n');
+
+  return {
+    subject: `【九大ギルド】クエスト「${questTitle}」に応募がありました`,
+    html: layout({ preview: `${applicantName}さんから応募が届いています。`, heading: 'クエストに応募がありました', body, siteUrl }),
+    text,
+  };
+}
+
+/** 応募があったことを掲示者にメールで知らせる。例外は投げず、結果を返す。 */
+export async function sendApplicationMail(params: {
+  questTitle: string;
+  creatorId: string;
+  applicantName: string;
+  message: string | null;
+  siteUrl: string;
+}): Promise<MailResult> {
+  const to = await resolveRecipient(params.creatorId);
+  if (!to) {
+    return { ok: false, error: '掲示者のメールアドレスを取得できませんでした。' };
+  }
+  const mail = buildApplication(params.questTitle, params.applicantName, params.message, params.siteUrl);
+  return sendMail({ to, ...mail });
+}
+
 /** 審査結果を掲示者にメールで知らせる。例外は投げず、結果を返す。 */
 export async function sendQuestReviewMail(
   quest: QuestForMail,
