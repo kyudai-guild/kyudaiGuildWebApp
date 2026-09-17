@@ -4,27 +4,22 @@ import { createClient } from '@/lib/supabase-server';
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
     const { searchParams } = new URL(request.url);
     const year  = searchParams.get('year');
     const month = searchParams.get('month');
     const upcoming = searchParams.get('upcoming'); // "3" など件数指定
 
+    // 表示してよい範囲は events_select の RLS が決める
+    //   （承認済み / 自分が登録したもの / 管理者は全件）。
+    // 以前はここで getUser() と profiles を引いて管理者かどうかを調べ、
+    // 非管理者には status='approved' を付けていたが、RLS が同じことを
+    // しているため往復2回ぶんまるごと無駄だった。
+    // イベントを登録できるのは管理者だけなので、一般ユーザーに
+    // 「自分が登録した未承認イベント」は存在せず、挙動は変わらない。
     let query = supabase
       .from('events')
       .select('*, organizer:organizer_id(display_name)')
       .order('event_date', { ascending: true });
-
-    // 管理者以外は承認済みのみ
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles').select('role').eq('id', user.id).single();
-      if (profile?.role !== 'admin') {
-        query = query.eq('status', 'approved');
-      }
-    } else {
-      query = query.eq('status', 'approved');
-    }
 
     // 月絞り込み
     if (year && month) {
