@@ -180,15 +180,6 @@ function GuestHero() {
             研究協力、業務委託、仲間探し、イベント ——<br />
             九州大学生のあらゆる活動が集まるプラットフォーム
           </p>
-          {/* 関連団体向けのデモへの導線。ログイン不要で見られる。
-              不要になったらこのブロックごと消してよい。 */}
-          <button onClick={() => router.push('/demo')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', marginTop: '1.25rem', padding: '0.5rem 1rem', borderRadius: '9999px', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer', background: 'var(--bg-card)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)', transition: 'transform 0.2s' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
-          >
-            団体の方へ：依頼の流れを見る<ArrowRight size={13} />
-          </button>
         </div>
 
         {/* Big login CTA */}
