@@ -23,20 +23,29 @@ export default function TalksPage() {
   const [rooms, setRooms] = useState<TalkRoom[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // 取得はマウント直後に始める（ユーザーIDの確定を待たない）
   useEffect(() => {
-    // キャッシュで先に描き、再取得は必ず走らせて差し替える
-    const cached = readCache<TalkRoom[]>(TALKS_CACHE, null, TALKS_CACHE_MAX_AGE);
-    if (cached) { setRooms(cached); setLoading(false); }
     fetch('/api/talks')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return;
         setRooms(data);
-        writeCache(TALKS_CACHE, null, data);
+        writeCache(TALKS_CACHE, member.id, data);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [member.id]);
+
+  // キャッシュは「誰のものか」が確定してから読む。
+  // トーク一覧は本人にしか見せてはいけないので、鍵にIDを必ず混ぜる。
+  useEffect(() => {
+    if (member.isVisitor) return;
+    const cached = readCache<TalkRoom[]>(TALKS_CACHE, member.id, TALKS_CACHE_MAX_AGE);
+    if (!cached) return;
+    // 取得のほうが先に終わっていたら、新しい方を残す
+    setRooms(prev => (prev.length > 0 ? prev : cached));
+    setLoading(false);
+  }, [member.id, member.isVisitor]);
 
   if (!isLoggedIn && !loading) {
     return (

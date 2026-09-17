@@ -188,6 +188,7 @@ function GuestHero() {
    ============================================================ */
 function EventsHero() {
   const router = useRouter();
+  const { member } = useGuild();
   const [events, setEvents] = useState<GuildEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<GuildEvent | null>(null);
@@ -198,7 +199,8 @@ function EventsHero() {
     // サーバーが吐いたHTMLと食い違ってハイドレーションエラーになる。
     //
     // イベントは誰が見ても同じ内容なので、鍵はユーザーに紐づけない。
-    const cached = readCache<GuildEvent[]>('events-upcoming', null, 5 * 60 * 1000);
+    // 管理者は未承認のイベントも見えるので、鍵にユーザーIDを混ぜる
+    const cached = readCache<GuildEvent[]>('events-upcoming', member.id, 5 * 60 * 1000);
     if (cached) { setEvents(cached); setLoading(false); }
 
     // キャッシュの有無にかかわらず毎回取りに行き、届いたら差し替える
@@ -207,11 +209,11 @@ function EventsHero() {
       .then(data => {
         if (!data) return;
         setEvents(data);
-        writeCache('events-upcoming', null, data);
+        writeCache('events-upcoming', member.id, data);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [member.id]);
 
   return (
     <section className="hero-section events-hero" style={{

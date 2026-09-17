@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { CalendarDays, Plus } from 'lucide-react';
 import { useGuild } from '@/contexts/GuildContext';
@@ -22,10 +22,12 @@ const PAGE_STYLES = `
 ` + SKELETON_STYLES;
 
 export default function EventsPage() {
-  const { isAdmin, isLoggedIn } = useGuild();
+  const { isAdmin, isLoggedIn, member } = useGuild();
   const [events, setEvents] = useState<GuildEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  // writeCache 時点で最新のIDを読みたいので ref に持つ
+  const memberIdForCache = useRef<string | null>(null);
 
   // 再取得のたびに骨組みへ戻すと画面がちらつくので、
   // すでに何か出ているときは表示を保ったまま裏で差し替える。
@@ -35,20 +37,25 @@ export default function EventsPage() {
       if (res.ok) {
         const data = await res.json();
         setEvents(data);
-        writeCache(EVENTS_CACHE, null, data);
+        writeCache(EVENTS_CACHE, memberIdForCache.current, data);
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, []);
 
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
+  // キャッシュは「誰のものか」が確定してから読む。
+  // 管理者だけは未承認のイベントも見えるため、共通の鍵にすると
+  // 一般ユーザーに未承認イベントが一瞬見えてしまう。必ずIDを混ぜる。
+  // 読み出しを effect 内に置くのは、ハイドレーションのズレを避けるため。
   useEffect(() => {
-    // キャッシュがあれば先に描く。再取得は必ず走らせて差し替えるので、
-    // 表示は最終的に必ずサーバーと一致する（stale-while-revalidate）。
-    // 読み出しを effect 内に置くのは、ハイドレーションのズレを避けるため。
-    const cached = readCache<GuildEvent[]>(EVENTS_CACHE, null, EVENTS_CACHE_MAX_AGE);
-    if (cached) { setEvents(cached); setLoading(false); }
-    fetchEvents();
-  }, [fetchEvents]);
+    memberIdForCache.current = member.id;
+    const cached = readCache<GuildEvent[]>(EVENTS_CACHE, member.id, EVENTS_CACHE_MAX_AGE);
+    if (!cached) return;
+    setEvents(prev => (prev.length > 0 ? prev : cached));
+    setLoading(false);
+  }, [member.id]);
 
   return (
     <div style={{ minHeight: '100vh' }}>

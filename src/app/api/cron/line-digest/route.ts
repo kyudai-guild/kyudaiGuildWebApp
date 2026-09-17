@@ -20,6 +20,12 @@ import { sendTalkDigest } from '@/lib/talk-mail';
  *    パスが line-digest のままなのは、動作確認済みの CRON_SECRET の経路を
  *    壊さないため（名前と実態がずれている点はこのコメントで補う）。
  */
+// LINE配信とメール配信を1回の実行でまとめて行うため、既定の実行時間では足りない。
+// Hobby プランの上限は60秒。受信者が増えて足りなくなったら、
+// 1回あたりの送信数（quest-notify の MAX_RECIPIENTS / talk-mail の MAX_RECIPIENTS）を
+// 下げるか、プランを上げて cron を分けること。
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get('authorization');

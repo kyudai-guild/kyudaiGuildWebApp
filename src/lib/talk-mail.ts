@@ -103,19 +103,28 @@ export async function sendTalkDigest(siteUrl: string): Promise<TalkDigestResult>
   let failed = 0;
   const notifiedIds: string[] = [];
 
-  for (const profile of profiles ?? []) {
-    if (profile.talk_mail_notify === false) continue;
-    const info = pending.get(profile.id);
-    if (!info) continue;
+  const targets = (profiles ?? []).filter(p => p.talk_mail_notify !== false && pending.has(p.id));
 
-    // 宛先は auth.users を正とする（profiles.email は本人が書き換えられるため）
-    const { data: authUser } = await admin.auth.admin.getUserById(profile.id);
-    const to = authUser?.user?.email;
-    if (!to) { failed++; continue; }
-
-    const result = await sendMail({ to, ...buildDigest(info.unread, info.rooms, siteUrl) });
-    if (result.ok) { sent++; notifiedIds.push(profile.id); }
-    else { failed++; console.error('TalkDigest: send failed', result.error); }
+  // 1人あたり「宛先の取得」と「送信」で2回の外部呼び出しが必要。
+  // 直列にすると受信者数×2回ぶん待つことになり、上限200人では
+  // 関数の実行時間(60秒)を超える。少しずつ並行して流す。
+  const CONCURRENCY = 5;
+  for (let i = 0; i < targets.length; i += CONCURRENCY) {
+    const batch = targets.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(batch.map(async profile => {
+      const info = pending.get(profile.id)!;
+      // 宛先は auth.users を正とする（profiles.email は本人が書き換えられるため）
+      const { data: authUser } = await admin.auth.admin.getUserById(profile.id);
+      const to = authUser?.user?.email;
+      if (!to) return { id: profile.id, ok: false };
+      const result = await sendMail({ to, ...buildDigest(info.unread, info.rooms, siteUrl) });
+      if (!result.ok) console.error('TalkDigest: send failed', result.error);
+      return { id: profile.id, ok: result.ok };
+    }));
+    for (const r of results) {
+      if (r.ok) { sent++; notifiedIds.push(r.id); }
+      else failed++;
+    }
   }
 
   // 送れた人だけ通知済みにする。失敗した人は次回また対象になる。

@@ -143,6 +143,12 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session?.user) {
+        // 同じタブで別のアカウントに切り替わったら、前の人のキャッシュを必ず捨てる。
+        // ログアウトを挟まずにログインし直すとサインアウトのイベントが起きないため、
+        // ここで拾わないと前の人のデータが一瞬見えてしまう。
+        if (memberIdRef.current && memberIdRef.current !== session.user.id) {
+          clearCache();
+        }
         // キャッシュの読み出しより先に確定させる（誰のキャッシュかを間違えないため）
         memberIdRef.current = session.user.id;
         setIsLoggedIn(true);

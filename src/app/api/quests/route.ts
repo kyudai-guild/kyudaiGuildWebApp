@@ -2,6 +2,10 @@ import { NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { notifyQuestSubmitted } from '@/lib/slack';
 
+// 1人が同時に抱えられる審査待ちの件数。
+// （export すると Next.js のルートファイル規約に反するので外に出さない）
+const MAX_PENDING_QUESTS = 3;
+
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -123,6 +127,21 @@ export async function POST(request: Request) {
     if ((activeCount ?? 0) > 0) {
       return NextResponse.json(
         { error: '完了報告をしていない掲示中の依頼があります。マイクエストから「完了報告」をしてから、新しい依頼を申請してください。' },
+        { status: 400 }
+      );
+    }
+
+    // 審査待ちの件数にも上限を設ける。
+    // 上の制限は status='approved' しか見ていないため、審査待ちのまま
+    // 何件でも申請でき、運営の審査待ち行列と Slack 通知を一人で溢れさせられる。
+    const { count: pendingCount } = await supabase
+      .from('quests')
+      .select('id', { count: 'exact', head: true })
+      .eq('creator_id', user.id)
+      .eq('status', 'pending');
+    if ((pendingCount ?? 0) >= MAX_PENDING_QUESTS) {
+      return NextResponse.json(
+        { error: `審査待ちの依頼が${MAX_PENDING_QUESTS}件あります。審査の結果をお待ちください。` },
         { status: 400 }
       );
     }

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Scroll, XCircle, AlertCircle, Users, Tag, Calendar, ChevronDown, ChevronUp, ArrowLeft, Plus, CheckCircle2, Heart, UserRound, Send } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useGuild } from '@/contexts/GuildContext';
 import { MY_QUEST_STATUS as STATUS } from '@/components/quest/status';
 import UserProfileModal from '@/components/member/UserProfileModal';
 import ThanksModal from '@/components/quest/ThanksModal';
@@ -73,6 +74,7 @@ const S = {
 
 export default function MyQuestsPage() {
   const router = useRouter();
+  const { member } = useGuild();
   const [view, setView] = useState<'posted' | 'applied'>('posted');
   const [quests, setQuests] = useState<MyQuest[]>([]);
   const [appliedItems, setAppliedItems] = useState<AppliedItem[]>([]);
@@ -88,13 +90,16 @@ export default function MyQuestsPage() {
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [thanksTarget, setThanksTarget] = useState<{ questId: string; questTitle: string; recipientName: string; recipientId?: string } | null>(null);
 
+  // writeCache 時点で最新のIDを読みたいので ref に持つ（依存配列を増やさない）
+  const memberIdForCache = useRef<string | null>(null);
+
   const loadPosted = useCallback(() => {
     return fetch('/api/my-quests')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return;
         setQuests(data);
-        writeCache(POSTED_CACHE, null, data);
+        writeCache(POSTED_CACHE, memberIdForCache.current, data);
       })
       .catch(() => {});
   }, []);
@@ -108,13 +113,21 @@ export default function MyQuestsPage() {
   }, []);
 
   useEffect(() => {
-    // 掲示した依頼だけ先に描いておく。応募状況は毎回取り直す
-    // （承認待ちの件数がずれていると判断を誤るため、キャッシュに頼らない）。
-    const cached = readCache<MyQuest[]>(POSTED_CACHE, null, CACHE_MAX_AGE);
-    if (cached) { setQuests(cached); setLoading(false); }
     loadPosted().finally(() => setLoading(false));
     loadApplied().finally(() => setAppliedLoading(false));
   }, [loadPosted, loadApplied]);
+
+  // キャッシュは「誰のものか」が確定してから読む。自分の依頼は本人にしか
+  // 見せてはいけないので、鍵にIDを必ず混ぜる。
+  // 応募状況はキャッシュしない（承認待ちの件数がずれると判断を誤るため）。
+  useEffect(() => {
+    memberIdForCache.current = member.id;
+    if (member.isVisitor) return;
+    const cached = readCache<MyQuest[]>(POSTED_CACHE, member.id, CACHE_MAX_AGE);
+    if (!cached) return;
+    setQuests(prev => (prev.length > 0 ? prev : cached));
+    setLoading(false);
+  }, [member.id, member.isVisitor]);
 
   const reviewApplication = async (appId: string, action: 'accept' | 'reject') => {
     setBusy(true); setActionError(null);

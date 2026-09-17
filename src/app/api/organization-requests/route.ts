@@ -2,6 +2,12 @@ import { NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { notifyOrgRequest } from '@/lib/slack';
 
+// 1人が同時に出せる審査待ちの所属申請の件数。
+// 既存団体への重複申請は DB の部分ユニークインデックスで防いでいるが、
+// 「一覧にない団体名」での申請には制約がかからず、何件でも出せてしまう。
+// 運営の審査待ち行列と Slack 通知が一人で溢れるのを防ぐ。
+const MAX_PENDING_REQUESTS = 3;
+
 // 所属団体の申請
 //   GET : 運営 = 全件（既定は審査待ち）、一般 = 自分の申請のみ
 //   POST: 自分の所属を申請する（メッセージ付き）
@@ -70,6 +76,18 @@ export async function POST(request: Request) {
     if (!message) {
       return NextResponse.json(
         { error: '運営が確認できるよう、所属が分かる情報（役職・所属歴など）を入力してください。' },
+        { status: 400 }
+      );
+    }
+
+    const { count: pendingCount } = await supabase
+      .from('organization_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('profile_id', user.id)
+      .eq('status', 'pending');
+    if ((pendingCount ?? 0) >= MAX_PENDING_REQUESTS) {
+      return NextResponse.json(
+        { error: `審査待ちの所属申請が${MAX_PENDING_REQUESTS}件あります。運営の確認をお待ちください。` },
         { status: 400 }
       );
     }
