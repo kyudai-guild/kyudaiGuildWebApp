@@ -117,6 +117,13 @@ export default function MyQuestsPage() {
     loadApplied().finally(() => setAppliedLoading(false));
   }, [loadPosted, loadApplied]);
 
+  // この画面を開いた＝リジェクトを実際に目にした、とみなして確認済みにする。
+  // 以降ホーム画面のバナーには出ない。
+  // 記録に失敗してもこの画面の表示には影響しないので、黙って見送る。
+  useEffect(() => {
+    fetch('/api/my-quests/seen', { method: 'POST' }).catch(() => {});
+  }, []);
+
   // キャッシュは「誰のものか」が確定してから読む。自分の依頼は本人にしか
   // 見せてはいけないので、鍵にIDを必ず混ぜる。
   // 応募状況はキャッシュしない（承認待ちの件数がずれると判断を誤るため）。

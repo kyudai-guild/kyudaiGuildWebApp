@@ -73,23 +73,48 @@ const STYLES = `
 /* ============================================================
    MyQuestsBanner
    ============================================================ */
+const BANNER_DISMISS_KEY = 'my-quests-banner-dismissed';
+
 function MyQuestsBanner() {
-  const { isLoggedIn } = useGuild();
+  const { isLoggedIn, member } = useGuild();
   const router = useRouter();
   const [counts, setCounts] = useState<{ pending: number; rejected: number } | null>(null);
   const [dismissed, setDismissed] = useState(false);
+
+  // 閉じた状態をタブが開いている間は覚えておく。
+  // リジェクトはサーバーに「確認済み」を記録するので再読み込みでも出ないが、
+  // 「審査中n件」だけのときは記録する対象が無いので、ここで抑える。
+  // 読み出しを effect 内に置くのは、ハイドレーションのズレを避けるため。
+  useEffect(() => {
+    if (member.isVisitor) return;
+    if (readCache<boolean>(BANNER_DISMISS_KEY, member.id, 12 * 60 * 60 * 1000)) {
+      setDismissed(true);
+    }
+  }, [member.id, member.isVisitor]);
 
   useEffect(() => {
     if (!isLoggedIn) return;
     fetch('/api/my-quests')
       .then(r => r.ok ? r.json() : [])
-      .then((quests: Array<{ status: string }>) => {
+      .then((quests: Array<{ status: string; rejection_seen_at?: string | null }>) => {
         const pending = quests.filter(q => q.status === 'pending').length;
-        const rejected = quests.filter(q => q.status === 'rejected').length;
+        // 一度確認したリジェクトは数えない。ここを status だけで数えると、
+        // 確認済みでも再読み込みのたびにバナーが出てしまう。
+        const rejected = quests.filter(q => q.status === 'rejected' && !q.rejection_seen_at).length;
         if (pending > 0 || rejected > 0) setCounts({ pending, rejected });
       })
       .catch(() => {});
   }, [isLoggedIn]);
+
+  // 閉じる＝本人が「確認した」と示した操作。サーバーにも記録するので、
+  // 再読み込みしても、別の端末で開いても、同じリジェクトでは出てこない。
+  const dismiss = () => {
+    setDismissed(true);
+    writeCache(BANNER_DISMISS_KEY, member.id, true);
+    if (counts && counts.rejected > 0) {
+      fetch('/api/my-quests/seen', { method: 'POST' }).catch(() => {});
+    }
+  };
 
   if (!isLoggedIn || !counts || dismissed) return null;
 
@@ -119,7 +144,7 @@ function MyQuestsBanner() {
         </div>
         <span style={{ fontSize: '0.75rem', flexShrink: 0, color: 'var(--color-text-tertiary)' }}>詳細 →</span>
       </button>
-      <button onClick={() => setDismissed(true)} aria-label="閉じる"
+      <button onClick={dismiss} aria-label="閉じる"
         style={{ padding: '0 0.75rem', borderRadius: '0.75rem', fontSize: '0.875rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', color: 'var(--color-text-tertiary)', cursor: 'pointer' }}
       >✕</button>
     </div>
