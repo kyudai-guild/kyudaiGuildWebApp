@@ -76,7 +76,7 @@ function buildApproved(quest: QuestForMail, siteUrl: string) {
             </p>`,
     `            <p style="margin:0; font-size:12px; line-height:1.9; color:${FAINT};">
               ※ 応募があるとサイト内の「マイクエスト」に件数が表示されます。<br>
-              ※ 依頼が終わったら、マイクエストから「完了報告」をしてください。完了報告をするまで次の依頼を出せません。
+              ※ 依頼が終わったら、マイクエストから「完了報告」をしてください。未完了の依頼は10件までです。
             </p>`,
   ].join('\n');
 
@@ -89,7 +89,7 @@ function buildApproved(quest: QuestForMail, siteUrl: string) {
     `マイクエスト: ${siteUrl}/my-quests`,
     '',
     '※ 応募があるとサイト内の「マイクエスト」に件数が表示されます。',
-    '※ 依頼が終わったら、マイクエストから「完了報告」をしてください。',
+    '※ 依頼が終わったら、マイクエストから「完了報告」をしてください。未完了の依頼は10件までです。',
     '',
     '九大ギルド 運営',
     siteUrl,

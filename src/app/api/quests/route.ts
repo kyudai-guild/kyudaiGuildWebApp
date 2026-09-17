@@ -2,9 +2,19 @@ import { NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { notifyQuestSubmitted } from '@/lib/slack';
 
-// 1人が同時に抱えられる審査待ちの件数。
+// 1人が同時に抱えられる未完了の依頼（審査待ち + 掲示中）の件数。
+// 以前は掲示中1件までだったが、実運用では不便なので緩めた。
+// 上限自体は残す。無制限だと運営の審査待ち行列と Slack 通知を
+// 一人で溢れさせられるため。
 // （export すると Next.js のルートファイル規約に反するので外に出さない）
-const MAX_PENDING_QUESTS = 3;
+const MAX_OPEN_QUESTS = 10;
+
+// 1回の取得で返すクエストの上限。
+// 掲示板は全件を受け取ってクライアント側で絞り込む作りなので、
+// 上限が無いとクエストが増えるほど重くなる。
+// ここに達するようになったら、サーバー側のページングに切り替えること
+// （切り捨てが起きたことは truncated で返している）。
+const BOARD_LIMIT = 300;
 
 export async function GET() {
   try {
@@ -16,15 +26,25 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // select('*') をやめて画面が使う列だけにする。
+    // reviewed_by / line_notified_at / completed_at は掲示板でも審査画面でも
+    // 使っていないのに毎回運んでいた。
+    // 併せて件数に上限を設ける。以前は無制限で、承認済みクエストが
+    // 増えるほど掲示板を開くたびの転送量とDB負荷が線形に増えていた。
     let query = supabase
       .from('quests')
       .select(`
-        *,
+        id, title, description, quest_type, max_applicants, reward, tags, status,
+        listing_duration_type, listing_duration_weeks, listing_end_date, effective_end_date,
+        rejection_reason, reviewed_at, created_at, creator_id,
+        contact_email_public, preferred_contact,
+        organization_id, organization_name,
         creator:creator_id (display_name, email),
         organization:organization_id (id, name, is_active),
         applications:quest_applications (id)
       `)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(BOARD_LIMIT);
 
     // 管理者なら全件、一般ユーザーなら承認済みのみ
     const { data: profile } = await supabase
@@ -50,6 +70,12 @@ export async function GET() {
       application_count: q.applications?.length || 0,
       applications: undefined, // 詳細は別APIで返す
     }));
+
+    // 上限に達したことを黙って隠さない。
+    // 「全件見えているつもりで一部しか見えていない」のが一番まずい。
+    if (questsWithCount.length >= BOARD_LIMIT) {
+      console.warn(`Quests: hit BOARD_LIMIT (${BOARD_LIMIT}). サーバー側ページングへの切り替えを検討すること。`);
+    }
 
     return NextResponse.json(questsWithCount);
   } catch (err: any) {
@@ -118,30 +144,17 @@ export async function POST(request: Request) {
       organizationName = org.name;
     }
 
-    // 完了報告していない掲示中の依頼がある間は、新しい依頼を出せない
-    const { count: activeCount } = await supabase
+    // 未完了の依頼の件数を数える。
+    // 審査待ちと掲示中をまとめて1つの上限にしている。以前は掲示中だけを
+    // 見ていたため、審査待ちのままなら何件でも申請できてしまっていた。
+    const { count: openCount } = await supabase
       .from('quests')
       .select('id', { count: 'exact', head: true })
       .eq('creator_id', user.id)
-      .eq('status', 'approved');
-    if ((activeCount ?? 0) > 0) {
+      .in('status', ['pending', 'approved']);
+    if ((openCount ?? 0) >= MAX_OPEN_QUESTS) {
       return NextResponse.json(
-        { error: '完了報告をしていない掲示中の依頼があります。マイクエストから「完了報告」をしてから、新しい依頼を申請してください。' },
-        { status: 400 }
-      );
-    }
-
-    // 審査待ちの件数にも上限を設ける。
-    // 上の制限は status='approved' しか見ていないため、審査待ちのまま
-    // 何件でも申請でき、運営の審査待ち行列と Slack 通知を一人で溢れさせられる。
-    const { count: pendingCount } = await supabase
-      .from('quests')
-      .select('id', { count: 'exact', head: true })
-      .eq('creator_id', user.id)
-      .eq('status', 'pending');
-    if ((pendingCount ?? 0) >= MAX_PENDING_QUESTS) {
-      return NextResponse.json(
-        { error: `審査待ちの依頼が${MAX_PENDING_QUESTS}件あります。審査の結果をお待ちください。` },
+        { error: `未完了の依頼が${MAX_OPEN_QUESTS}件あります。マイクエストから完了報告をしてから、新しい依頼を申請してください。` },
         { status: 400 }
       );
     }

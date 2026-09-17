@@ -12,7 +12,27 @@
 
 ## 🔴 いますぐ必要な作業
 
+### 0-b. SQLマイグレーション v16 を実行する
+
+**トークの未読メールの集計をDB側に移しました。** 未実行だと未読メールが
+まったく飛ばなくなります（管理画面から手動実行すると `talk_mail` に
+「v16 未実行の可能性」と出ます）。
+
+- ☐ Supabase → **SQL Editor** で `supabase/supabase_migration_v16_unread_digest_fn.sql` を実行
+
+**実行後の確認**:
+
+```sql
+-- 関数ができているか（1が返る）
+select count(*) from pg_proc where proname = 'talk_unread_digest';
+
+-- 一般ユーザーから呼べないこと（false が返れば正しい）
+select has_function_privilege('authenticated', 'public.talk_unread_digest(int)', 'execute');
+```
+
+
 ### 0. SQLマイグレーション v15 を実行する
+//実行済み
 
 **トークの未読メール通知に必要です。** 未実行だと、トーク画面を開いたときに
 既読の記録でエラーになり、未読メールも飛びません。

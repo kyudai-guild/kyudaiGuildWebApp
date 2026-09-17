@@ -34,76 +34,38 @@ export async function sendTalkDigest(siteUrl: string): Promise<TalkDigestResult>
     return { ok: false, candidates: 0, sent: 0, failed: 0, skipped: 'SUPABASE_SERVICE_ROLE_KEY が未設定' };
   }
 
-  const since = new Date(Date.now() - LOOKBACK_DAYS * 86400_000).toISOString();
+  // 未読の集計はDB側（talk_unread_digest / v16）で行う。
+  // 以前は「全メンバー」と「直近30日の全メッセージ」を丸ごと取得して
+  // JS で突き合わせていたため、メッセージが増えるほど転送量と
+  // 実行時間が線形に増えていた。同じ計算はSQLの集計1回で終わる。
+  // 「通知を希望している人だけ」「前回の通知より後に新着があるルームだけ」
+  // の絞り込みも関数側でやっている。
+  const { data: rows, error } = await admin.rpc('talk_unread_digest', { p_lookback_days: LOOKBACK_DAYS });
 
-  // メンバーと、直近のメッセージをそれぞれ1回ずつ取ってJS側で突き合わせる。
-  // メンバーごとにCOUNTを投げるとルーム数だけクエリが増えるため。
-  const [membersRes, messagesRes] = await Promise.all([
-    admin.from('talk_members').select('room_id, profile_id, joined_at, last_read_at, last_notified_at'),
-    admin.from('talk_messages').select('room_id, sender_id, created_at').gt('created_at', since),
-  ]);
-
-  if (membersRes.error || messagesRes.error) {
-    console.error('TalkDigest: query failed', membersRes.error || messagesRes.error);
-    return { ok: false, candidates: 0, sent: 0, failed: 0, skipped: 'データ取得に失敗' };
+  if (error) {
+    console.error('TalkDigest: rpc failed', error);
+    return {
+      ok: false, candidates: 0, sent: 0, failed: 0,
+      skipped: 'talk_unread_digest の呼び出しに失敗（v16 未実行の可能性）',
+    };
   }
 
-  const members = membersRes.data ?? [];
-  const messages = messagesRes.data ?? [];
-  if (members.length === 0 || messages.length === 0) {
-    return { ok: true, candidates: 0, sent: 0, failed: 0 };
-  }
-
-  // room_id ごとにメッセージをまとめる
-  const byRoom = new Map<string, { sender_id: string; created_at: string }[]>();
-  for (const m of messages) {
-    const list = byRoom.get(m.room_id) ?? [];
-    list.push({ sender_id: m.sender_id, created_at: m.created_at });
-    byRoom.set(m.room_id, list);
-  }
-
-  // profile_id ごとに未読を集計する
-  type Pending = { rooms: number; unread: number; newest: string };
-  const pending = new Map<string, Pending>();
-
-  for (const member of members) {
-    const roomMessages = byRoom.get(member.room_id);
-    if (!roomMessages) continue;
-
-    // 既読時刻が無い場合は参加時刻を既読とみなす
-    const readAt = member.last_read_at ?? member.joined_at ?? since;
-    const unread = roomMessages.filter(m => m.sender_id !== member.profile_id && m.created_at > readAt);
-    if (unread.length === 0) continue;
-
-    const newest = unread.reduce((a, b) => (a.created_at > b.created_at ? a : b)).created_at;
-    // 前回の通知以降に新しい未読が無ければ、同じ内容なので送らない
-    if (member.last_notified_at && newest <= member.last_notified_at) continue;
-
-    const cur = pending.get(member.profile_id) ?? { rooms: 0, unread: 0, newest: '' };
-    pending.set(member.profile_id, {
-      rooms: cur.rooms + 1,
-      unread: cur.unread + unread.length,
-      newest: newest > cur.newest ? newest : cur.newest,
-    });
-  }
-
-  const candidates = pending.size;
+  type DigestRow = { profile_id: string; rooms: number; unread: number; newest: string };
+  const all: DigestRow[] = (rows ?? []) as DigestRow[];
+  const candidates = all.length;
   if (candidates === 0) {
     return { ok: true, candidates: 0, sent: 0, failed: 0 };
   }
-
-  // メール通知を希望している人だけに絞る
-  const profileIds = [...pending.keys()].slice(0, MAX_RECIPIENTS);
-  const { data: profiles } = await admin
-    .from('profiles')
-    .select('id, display_name, talk_mail_notify')
-    .in('id', profileIds);
 
   let sent = 0;
   let failed = 0;
   const notifiedIds: string[] = [];
 
-  const targets = (profiles ?? []).filter(p => p.talk_mail_notify !== false && pending.has(p.id));
+  // 1回の実行で送りすぎないよう頭打ちにする。新しい未読がある順に並んでいる。
+  const targets = all.slice(0, MAX_RECIPIENTS);
+  if (all.length > MAX_RECIPIENTS) {
+    console.warn(`TalkDigest: ${all.length}人が対象だが ${MAX_RECIPIENTS}人で打ち切った`);
+  }
 
   // 1人あたり「宛先の取得」と「送信」で2回の外部呼び出しが必要。
   // 直列にすると受信者数×2回ぶん待つことになり、上限200人では
@@ -111,15 +73,14 @@ export async function sendTalkDigest(siteUrl: string): Promise<TalkDigestResult>
   const CONCURRENCY = 5;
   for (let i = 0; i < targets.length; i += CONCURRENCY) {
     const batch = targets.slice(i, i + CONCURRENCY);
-    const results = await Promise.all(batch.map(async profile => {
-      const info = pending.get(profile.id)!;
+    const results = await Promise.all(batch.map(async row => {
       // 宛先は auth.users を正とする（profiles.email は本人が書き換えられるため）
-      const { data: authUser } = await admin.auth.admin.getUserById(profile.id);
+      const { data: authUser } = await admin.auth.admin.getUserById(row.profile_id);
       const to = authUser?.user?.email;
-      if (!to) return { id: profile.id, ok: false };
-      const result = await sendMail({ to, ...buildDigest(info.unread, info.rooms, siteUrl) });
+      if (!to) return { id: row.profile_id, ok: false };
+      const result = await sendMail({ to, ...buildDigest(row.unread, row.rooms, siteUrl) });
       if (!result.ok) console.error('TalkDigest: send failed', result.error);
-      return { id: profile.id, ok: result.ok };
+      return { id: row.profile_id, ok: result.ok };
     }));
     for (const r of results) {
       if (r.ok) { sent++; notifiedIds.push(r.id); }
