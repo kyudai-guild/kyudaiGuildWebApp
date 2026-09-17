@@ -1,8 +1,14 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase-client';
+import { readCache, writeCache, clearCache } from '@/lib/client-cache';
 import { useRouter, usePathname } from 'next/navigation';
+
+// 掲示板のキャッシュ。取得が終われば必ず上書きされるので、
+// ここは「再取得が終わるまで何を出しておくか」の猶予でしかない。
+const QUESTS_CACHE = 'quests';
+const QUESTS_CACHE_MAX_AGE = 5 * 60 * 1000;
 
 /* ============================================================
    型定義
@@ -99,26 +105,35 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
   const [quests, setQuests] = useState<Quest[]>([]);
   // undefined=未取得 / null=初期設定が未完了 / string=完了日時
   const [onboardedAt, setOnboardedAt] = useState<string | null | undefined>(undefined);
+  // キャッシュの鍵に混ぜるログインユーザーID。
+  // refreshQuests の依存配列を増やさずに最新値を読みたいので ref で持つ。
+  const memberIdRef = useRef<string | null>(null);
 
-  // クエスト一覧取得
+  // クエスト一覧取得。成功したらキャッシュも更新する。
   const refreshQuests = useCallback(async () => {
     try {
       const res = await fetch('/api/quests');
       if (res.ok) {
         const data = await res.json();
         setQuests(data);
+        writeCache(QUESTS_CACHE, memberIdRef.current, data);
       }
     } catch (err) {
       console.error('Failed to fetch quests:', err);
     }
   }, []);
 
-  // 掲示板はログイン限定。未ログイン時は取得せず、ログイン後に読み込む
+  // 掲示板はログイン限定。未ログイン時は取得せず、ログイン後に読み込む。
+  //
+  // キャッシュがあれば先に描いてから取りに行く（stale-while-revalidate）。
+  // 再取得は毎回必ず走るので、表示は最終的に必ずサーバーと一致する。
   useEffect(() => {
     if (!isLoggedIn) {
       setQuests([]);
       return;
     }
+    const cached = readCache<Quest[]>(QUESTS_CACHE, memberIdRef.current, QUESTS_CACHE_MAX_AGE);
+    if (cached) setQuests(cached);
     refreshQuests();
   }, [isLoggedIn, refreshQuests]);
 
@@ -128,9 +143,11 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session?.user) {
+        // キャッシュの読み出しより先に確定させる（誰のキャッシュかを間違えないため）
+        memberIdRef.current = session.user.id;
         setIsLoggedIn(true);
         const user = session.user;
-        
+
         try {
           const { data: profile } = await supabase
             .from('profiles')
@@ -155,6 +172,9 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
           console.error('Error fetching user data:', err);
         }
       } else {
+        // 端末を共有していても前の人のデータが残らないよう、必ず捨てる
+        memberIdRef.current = null;
+        clearCache();
         setIsLoggedIn(false);
         setMember(INITIAL_MEMBER);
         setOnboardedAt(undefined);
@@ -167,6 +187,8 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
       if (session) {
         fetchUserData();
       } else {
+        memberIdRef.current = null;
+        clearCache();
         setIsLoggedIn(false);
         setMember(INITIAL_MEMBER);
       }

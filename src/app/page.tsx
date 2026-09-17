@@ -7,6 +7,7 @@ import { useGuild } from '@/contexts/GuildContext';
 import QuestBoard from '@/components/quest/QuestBoard';
 import EventDetailModal from '@/components/events/EventDetailModal';
 import { GuildEvent, eventStyle, fmtTime } from '@/components/events/types';
+import { readCache, writeCache } from '@/lib/client-cache';
 import { Scroll, Clock, XCircle, LogIn, CalendarDays, MapPin, ArrowRight, Lock } from 'lucide-react';
 
 /* ============================================================
@@ -191,9 +192,22 @@ function EventsHero() {
   const [selected, setSelected] = useState<GuildEvent | null>(null);
 
   useEffect(() => {
+    // キャッシュの読み出しは必ず effect の中で行う。
+    // このページは静的プリレンダリングされるため、レンダリング中に読むと
+    // サーバーが吐いたHTMLと食い違ってハイドレーションエラーになる。
+    //
+    // イベントは誰が見ても同じ内容なので、鍵はユーザーに紐づけない。
+    const cached = readCache<GuildEvent[]>('events-upcoming', null, 5 * 60 * 1000);
+    if (cached) { setEvents(cached); setLoading(false); }
+
+    // キャッシュの有無にかかわらず毎回取りに行き、届いたら差し替える
     fetch('/api/events?upcoming=5')
-      .then(r => r.ok ? r.json() : [])
-      .then(setEvents)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        setEvents(data);
+        writeCache('events-upcoming', null, data);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

@@ -71,6 +71,17 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // api/ を除外している。ここが重要:
+    //   このミドルウェアは supabase.auth.getUser() を呼ぶが、これは
+    //   Supabase の認証APIへの**ネットワーク往復**であってローカル検証ではない。
+    //   各ルートハンドラも先頭で同じ getUser() を呼んでいるため、
+    //   除外しないと 1回のAPI呼び出しにつき認証の往復が2回発生する。
+    //   ミドルウェアが守っているのは /my-quests と /admin の**ページ遷移**だけで、
+    //   APIの認可はルートハンドラ側と RLS が担っているので、除外しても穴は空かない。
+    //
+    //   ページ側を matcher に残しているのはセッション更新のため。
+    //   久しぶりの訪問でアクセストークンが期限切れのとき、ここで
+    //   Cookie が更新されるので、直後のAPI呼び出しが 401 にならずに済む。
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
