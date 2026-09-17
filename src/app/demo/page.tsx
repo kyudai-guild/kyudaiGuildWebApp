@@ -97,6 +97,51 @@ function MockFrame({ label, children }: { label: string; children: React.ReactNo
 
 /* ── 各ステップの画面モック ─────────────────────── */
 
+const MockOrgRegister = (
+  <MockFrame label="運営の管理画面 — 団体管理">
+    <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: '0.625rem' }}>団体を追加</p>
+    <Field label="団体名" value={DEMO_ORG} />
+    <Field label="説明（任意）" value="学園祭の企画・運営" />
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, padding: '0.5rem 1.25rem', borderRadius: '9999px', background: 'var(--bg-dark)', color: 'var(--color-text-inverse)' }}>
+      追加する
+    </span>
+    <div style={{ marginTop: '1rem', paddingTop: '0.875rem', borderTop: '1px solid var(--color-border)' }}>
+      <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>登録済みの団体</p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+        {orgBadge}
+        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', alignSelf: 'center' }}>所属 0人</span>
+      </div>
+    </div>
+  </MockFrame>
+);
+
+const MockOrgRequest = (
+  <MockFrame label="担当者のプロフィール — 所属団体">
+    <p style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', fontWeight: 700, marginBottom: '0.625rem' }}>
+      <Building2 size={13} style={{ color: 'var(--color-accent)' }} />所属団体
+    </p>
+    <Field label="団体" value={DEMO_ORG} />
+    <Field label="運営へのメッセージ（必須）" value="工学部3年、〇〇実行委員会で広報を担当しています。" />
+
+    <div style={{ marginTop: '0.875rem', paddingTop: '0.875rem', borderTop: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-text-tertiary)', width: 68, flexShrink: 0 }}>承認前</span>
+        <div style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: '#fffbeb', border: '1px solid #fde68a' }}>
+          <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#d97706' }}>{DEMO_ORG} — 審査待ち</p>
+          <p style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)', marginTop: '0.125rem' }}>この間はまだ団体名義で依頼を出せません</p>
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-text-tertiary)', width: 68, flexShrink: 0 }}>承認後</span>
+        <div style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
+          {orgBadge}
+          <p style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)', marginTop: '0.25rem' }}>タグが付き、依頼を出すときに選べるようになります</p>
+        </div>
+      </div>
+    </div>
+  </MockFrame>
+);
+
 const MockForm = (
   <MockFrame label="依頼の申請フォーム">
     <Field label="申請元（所属団体）" value={DEMO_ORG} />
@@ -229,10 +274,28 @@ const MockDone = (
 
 const STEPS: Step[] = [
   {
+    actor: '運営',
+    title: 'はじめに、団体を登録します',
+    lead: 'まず運営が団体名を登録します。ここが最初の一歩です。',
+    detail: <>この登録が済むまで、担当者の画面に<b>団体名は選択肢として出てきません</b>。団体の登録は運営が行いますので、ご利用の際は<b>まず運営までお声がけください</b>。</>,
+    action: '団体を登録する',
+    mock: MockOrgRegister,
+    notice: { icon: Building2, text: '団体の登録は運営だけが行えます。担当者ご自身では登録できません' },
+  },
+  {
+    actor: '団体',
+    title: '担当者が所属を申請し、運営が承認する',
+    lead: '承認されてはじめて、団体のタグが付きます。',
+    detail: <>担当者はプロフィール画面から所属を申請します。運営が本人確認できるよう、<b>学部・学年・団体での役職</b>などをメッセージに書いていただきます。<br /><b>運営が承認するまで、所属団体のタグは付きません。</b>承認前に依頼を出すと団体名が表示されず、「個人からの申請」として扱われます。</>,
+    action: '運営が承認する',
+    mock: MockOrgRequest,
+    notice: { icon: Shield, text: '申請が届くと運営に通知が飛びます。承認は運営の画面から行います' },
+  },
+  {
     actor: '団体',
     title: '団体として依頼を出す',
     lead: '所属団体を選んで、依頼内容を書くだけです。',
-    detail: <>運営が団体を登録し、担当者のアカウントに所属を付与します。以降は<b>団体名義で依頼を出せます</b>。学生からは「どの団体からの依頼か」がはっきり見えます。</>,
+    detail: <>申請元の欄には、<b>承認済みの団体だけ</b>が選択肢として出てきます。選んだ団体名が掲示板と審査画面に表示されるので、学生からは「どの団体からの依頼か」がはっきり見えます。</>,
     action: '申請する',
     mock: MockForm,
   },
@@ -404,8 +467,24 @@ export default function DemoPage() {
         {isLast && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
             style={{ ...card, marginTop: '2rem', padding: 'clamp(1.25rem, 4vw, 1.75rem)' }}>
+            {/* 前提条件を最初に置く。ここを飛ばすと何も始まらないため */}
+            <div style={{ padding: '1rem 1.25rem', borderRadius: '0.75rem', marginBottom: '1.5rem', background: '#fffbeb', border: '1px solid #fde68a' }}>
+              <p style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 700, color: '#92400e', marginBottom: '0.5rem' }}>
+                <Building2 size={14} />はじめる前に：団体の登録が必要です
+              </p>
+              <ol style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.8125rem', lineHeight: 2, color: '#92400e' }}>
+                <li><b>運営が団体を登録します</b>（担当者ご自身では登録できません）</li>
+                <li>担当者がプロフィールから所属を申請します</li>
+                <li><b>運営が承認してはじめて、所属団体のタグが付きます</b></li>
+              </ol>
+              <p style={{ fontSize: '0.8125rem', lineHeight: 1.8, color: '#92400e', marginTop: '0.625rem' }}>
+                承認前に依頼を出すと団体名が表示されず、「個人からの申請」として扱われます。
+                ご利用の際は、まず運営までお声がけください。
+              </p>
+            </div>
+
             <h3 style={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: '1rem' }}>
-              団体側でやることは3つだけ
+              登録が済んだあと、団体側でやることは3つだけ
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {[
@@ -429,7 +508,7 @@ export default function DemoPage() {
               <Clock size={14} style={{ marginTop: 3, flexShrink: 0, color: 'var(--color-accent)' }} />
               <p style={{ fontSize: '0.8125rem', lineHeight: 1.8, color: 'var(--color-text-secondary)' }}>
                 現在は<b>試行期間</b>のため、関連団体に所属する方からの依頼のみをお受けしています。
-                団体の登録と担当者の設定は運営が行いますので、運営までお声がけください。
+                所属が承認されていない方からの依頼は、掲載を見送らせていただく場合があります。
               </p>
             </div>
           </motion.div>
