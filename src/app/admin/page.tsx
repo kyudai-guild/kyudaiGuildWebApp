@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Shield, CheckCircle2, XCircle, ChevronDown, ChevronUp, Users, Tag, Calendar, ArrowLeft, AlertCircle, CalendarDays, MapPin, Scroll, Building2, Search, Plus, Trash2, Pencil, Inbox } from 'lucide-react';
+import { Shield, CheckCircle2, XCircle, ChevronDown, ChevronUp, Users, Tag, Calendar, ArrowLeft, AlertCircle, CalendarDays, MapPin, Scroll, Building2, Search, Plus, Trash2, Pencil, Inbox, BellRing } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useGuild } from '@/contexts/GuildContext';
 import { GuildEvent, eventStyle, fmtDateLong, fmtTimeRange } from '@/components/events/types';
@@ -108,6 +108,11 @@ export default function AdminPage() {
   // タブのバッジ用。一覧を絞り込んでも数字がぶれないよう別に持つ。
   const [pendingOrgReqCount, setPendingOrgReqCount] = useState(0);
 
+  // ── 運営設定（Slack通知のON/OFF）──
+  const [slackOn, setSlackOn] = useState(true);
+  const [settingsReady, setSettingsReady] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
   const fetchQuests = useCallback(async () => {
     try { const res = await fetch('/api/quests'); if (res.ok) setQuests(await res.json()); }
     catch (e) { console.error(e); } finally { setLoading(false); }
@@ -144,6 +149,37 @@ export default function AdminPage() {
   // 依存配列から落とすと永久に取得されない。
   useEffect(() => { if (isLoggedIn && isAdmin) fetchOrgs(); }, [isLoggedIn, isAdmin, fetchOrgs]);
   useEffect(() => { if (isLoggedIn && isAdmin) fetchOrgReqs(orgReqFilter); }, [isLoggedIn, isAdmin, orgReqFilter, fetchOrgReqs]);
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/settings');
+      if (!res.ok) return;
+      const d = await res.json();
+      setSlackOn(d.slack_notifications !== false);
+      setSettingsReady(true);
+    } catch (e) { console.error(e); }
+  }, []);
+
+  // この effect は fetchSettings の宣言より後に置くこと。
+  // 依存配列はレンダリング中に評価されるため、前に置くと
+  // 「Cannot access 'fetchSettings' before initialization」で落ちる。
+  useEffect(() => { if (isLoggedIn && isAdmin) fetchSettings(); }, [isLoggedIn, isAdmin, fetchSettings]);
+
+  const toggleSlack = async () => {
+    const next = !slackOn;
+    setSlackOn(next); // 楽観的に反映し、失敗したら戻す
+    setSettingsError(null);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slack_notifications: next }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || '設定の保存に失敗しました。');
+    } catch (e: any) {
+      setSlackOn(!next);
+      setSettingsError(e.message);
+    }
+  };
 
   const createOrg = async () => {
     const name = newOrgName.trim();
@@ -280,6 +316,39 @@ export default function AdminPage() {
       </div>
 
       <div style={S.content}>
+        {/* 運営設定。動作確認の前後で触るものなので、タブより上の一番目立つ位置に置く */}
+        <div style={{ ...S.card, padding: '0.875rem 1.25rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                <BellRing size={14} style={{ color: 'var(--color-accent)' }} />Slackへの通知
+              </p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', lineHeight: 1.6, marginTop: '0.125rem' }}>
+                {slackOn
+                  ? 'クエストの申請と所属申請をSlackに通知します。'
+                  : '停止中。動作確認が終わったら戻してください。'}
+              </p>
+            </div>
+            <button onClick={toggleSlack} aria-label="Slack通知" disabled={!settingsReady}
+              style={{ width: 44, height: 24, borderRadius: '9999px', border: 'none', cursor: settingsReady ? 'pointer' : 'not-allowed', position: 'relative', flexShrink: 0, opacity: settingsReady ? 1 : 0.4, background: slackOn ? 'var(--color-primary)' : 'var(--bg-tertiary)' }}>
+              <span style={{ position: 'absolute', top: 2, left: slackOn ? 22 : 2, width: 20, height: 20, borderRadius: '9999px', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
+            </button>
+          </div>
+
+          {!slackOn && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.625rem 0.875rem', borderRadius: '0.625rem', marginTop: '0.75rem', fontSize: '0.8125rem', lineHeight: 1.7, background: '#fffbeb', border: '1px solid #fde68a', color: '#d97706' }}>
+              <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />
+              停止中に届いた申請はSlackに流れません。<b>この画面のバッジとメール通知は止まりません</b>ので、見落としはしません。
+            </div>
+          )}
+
+          {settingsError && (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.625rem 0.875rem', borderRadius: '0.625rem', marginTop: '0.75rem', fontSize: '0.8125rem', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
+              <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />{settingsError}
+            </div>
+          )}
+        </div>
+
         {/* Tabs（4つに増えたのでスマホ幅では横スクロールさせる） */}
         <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--color-border)', marginBottom: '1.5rem', overflowX: 'auto' }}>
           {tabBtn('quests', 'クエスト審査', Scroll, counts.pending)}

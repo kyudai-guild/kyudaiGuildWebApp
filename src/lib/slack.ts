@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase-admin';
+import { isSlackNotificationEnabled } from '@/lib/app-settings';
 
 /**
  * 運営Slackへの即時通知（Incoming Webhook）。
@@ -16,6 +17,20 @@ const MESSAGE_MAX = 300;
 
 export function isSlackConfigured(): boolean {
   return Boolean(process.env.SLACK_WEBHOOK_URL);
+}
+
+/**
+ * 実際に送ってよいか。
+ *   - Webhook が設定されているか（環境変数）
+ *   - 運営が管理画面でONにしているか（v18 の app_settings）
+ *
+ * 動作確認でテスト用のクエストを出すときなど、管理画面のスイッチで
+ * 一時的に止められる。設定が読めない場合はON扱いにするので、
+ * 通知が黙って止まることはない。
+ */
+async function shouldNotify(): Promise<boolean> {
+  if (!isSlackConfigured()) return false;
+  return isSlackNotificationEnabled();
 }
 
 /** Slack の mrkdwn で特別扱いされる文字を無害化する */
@@ -89,7 +104,7 @@ export async function notifyQuestSubmitted(params: {
   creatorEmail: string | null;
   siteUrl: string;
 }): Promise<void> {
-  if (!isSlackConfigured()) return;
+  if (!(await shouldNotify())) return;
 
   const name = await resolveName(params.creatorId, params.creatorEmail);
   const org = params.organizationName
@@ -143,7 +158,7 @@ export async function notifyOrgRequest(params: {
   applicantEmail: string | null;
   siteUrl: string;
 }): Promise<void> {
-  if (!isSlackConfigured()) return;
+  if (!(await shouldNotify())) return;
 
   const name = await resolveName(params.profileId, params.applicantEmail);
   const orgLabel = params.organizationName ?? '（団体名なし）';
