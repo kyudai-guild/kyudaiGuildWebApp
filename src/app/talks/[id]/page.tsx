@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Send, ShieldCheck, Users, ChevronDown, ChevronUp, UserPlus, UserMinus } from 'lucide-react';
 import { useGuild } from '@/contexts/GuildContext';
 import { ChatSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 
@@ -17,6 +17,84 @@ interface RoomInfo {
 }
 
 const POLL_INTERVAL_MS = 5000;
+
+type StaffCandidate = { profile_id: string; email: string | null; role: string; in_room: boolean; locked: boolean };
+
+/**
+ * 団体長だけに出す「トークの人員」パネル。
+ * 同じ団体のメンバーを、このクエストのトークに追加・削除できる。
+ * 候補はメールアドレスで表示する（団体長の管理画面と同じく、表示名は出さない）。
+ * 掲示した本人と、応募した学生は外せない（DB側でも拒否される）。
+ */
+function StaffPanel({ roomId, onChanged }: { roomId: string; onChanged: () => void }) {
+  const [candidates, setCandidates] = useState<StaffCandidate[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/talks/${roomId}/staff`);
+    if (!res.ok) { setCandidates(null); return; }  // 団体長でなければ何も出さない
+    setCandidates((await res.json()).candidates ?? []);
+  }, [roomId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (!candidates) return null;
+
+  const toggle = async (c: StaffCandidate) => {
+    setBusy(true); setErr(null);
+    try {
+      const res = c.in_room
+        ? await fetch(`/api/talks/${roomId}/staff?profile_id=${c.profile_id}`, { method: 'DELETE' })
+        : await fetch(`/api/talks/${roomId}/staff`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile_id: c.profile_id }) });
+      if (!res.ok) throw new Error((await res.json()).error || '変更に失敗しました。');
+      await load();
+      onChanged();
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  };
+
+  const inRoom = candidates.filter(c => c.in_room).length;
+
+  return (
+    <div style={{ borderBottom: '1px solid var(--color-border)', background: '#fffbeb' }}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.625rem 1.25rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 700, color: '#92400e', textAlign: 'left' }}>
+        <Users size={14} />トークの人員（団体長）— 団体のメンバー {inRoom}人が参加中
+        <span style={{ marginLeft: 'auto' }}>{open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 1.25rem 0.875rem' }}>
+          <p style={{ fontSize: '0.75rem', color: '#92400e', lineHeight: 1.6, marginBottom: '0.5rem' }}>
+            このクエストのトークに入れる、団体のメンバーを選べます。掲示した本人と応募した学生は外せません。
+          </p>
+          {err && <p style={{ fontSize: '0.75rem', color: '#dc2626', marginBottom: '0.5rem' }}>{err}</p>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+            {candidates.map(c => (
+              <div key={c.profile_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.4375rem 0.75rem', borderRadius: '0.625rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}>
+                <span style={{ fontSize: '0.8125rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-primary)' }}>
+                  {c.email ?? '（不明）'}{c.role === 'manager' ? '（団体長）' : ''}
+                </span>
+                {c.locked ? (
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>参加中（外せません）</span>
+                ) : (
+                  <button onClick={() => toggle(c)} disabled={busy}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.75rem', borderRadius: '9999px', cursor: busy ? 'not-allowed' : 'pointer', flexShrink: 0,
+                      ...(c.in_room
+                        ? { background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }
+                        : { background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', border: 'none' }) }}>
+                    {c.in_room ? <><UserMinus size={11} />外す</> : <><UserPlus size={11} />追加</>}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export default function TalkRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -57,7 +135,12 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
         if (cancelled) return;
         setRoom(data.room);
         setMessages(data.messages);
-        if (data.messages.length > 0) lastTsRef.current = data.messages[data.messages.length - 1].created_at;
+        // メッセージが1件もない部屋でも更新を拾えるよう、起点を最古の時刻にしておく。
+        // （以前は起点が無いとポーリングが一度も動かず、相手の最初のメッセージが
+        //   再読み込みするまで表示されなかった）
+        lastTsRef.current = data.messages.length > 0
+          ? data.messages[data.messages.length - 1].created_at
+          : new Date(0).toISOString();
         scrollToBottom();
       })
       .catch(() => setError('トークルームを開けませんでした。'))
@@ -76,6 +159,15 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
 
     return () => { cancelled = true; clearInterval(timer); };
   }, [id, appendMessages]);
+
+  const reloadRoom = useCallback(async () => {
+    const res = await fetch(`/api/talks/${id}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setRoom(data.room);
+    setMessages(data.messages);
+    lastTsRef.current = data.messages.length > 0 ? data.messages[data.messages.length - 1].created_at : new Date(0).toISOString();
+  }, [id]);
 
   const send = async () => {
     const body = input.trim();
@@ -97,6 +189,8 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
   };
 
   const others = (room?.members ?? []).filter(m => m.profile_id !== member.id);
+  // 団体長として開いているが、まだ自分は参加していない
+  const notMember = !!room && !room.members.some(m => m.profile_id === member.id);
   const headerName = others.map(m => m.profile?.display_name ?? '不明').join('、') || 'トーク';
 
   let lastDate = '';
@@ -119,10 +213,17 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
           </div>
         </div>
 
+        <StaffPanel roomId={id} onChanged={reloadRoom} />
+
         {/* メッセージ */}
         <div ref={bodyRef} style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', gap: '0.375rem', minHeight: 300 }}>
           {loading ? (
             <ChatSkeleton rows={4} />
+          ) : notMember ? (
+            <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)', textAlign: 'center', padding: '2rem 1rem', lineHeight: 1.8 }}>
+              あなたはこのトークに参加していません。<br />
+              上の「トークの人員」から自分を追加すると、内容を見てやり取りできます。
+            </p>
           ) : messages.length === 0 ? (
             <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)', textAlign: 'center', padding: '2rem 0' }}>
               マッチングが成立しました🎉 まずは挨拶を送ってみましょう。
@@ -163,7 +264,7 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
         {error && (
           <p style={{ fontSize: '0.75rem', color: '#dc2626', padding: '0.5rem 1rem 0', background: 'var(--bg-card)' }}>{error}</p>
         )}
-        <div style={{ display: 'flex', gap: '0.625rem', padding: '0.875rem 1rem', background: 'var(--bg-card)', borderTop: '1px solid var(--color-border)' }}>
+        {!notMember && <div style={{ display: 'flex', gap: '0.625rem', padding: '0.875rem 1rem', background: 'var(--bg-card)', borderTop: '1px solid var(--color-border)' }}>
           <input value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }}
             placeholder="メッセージを入力" autoComplete="off"
@@ -171,7 +272,7 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
           <button onClick={send} disabled={sending} aria-label="送信"
             style={{ width: 42, height: 42, borderRadius: '9999px', flexShrink: 0, background: 'var(--bg-dark)', color: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: 'none', opacity: sending ? 0.6 : 1 }}
           ><Send size={16} /></button>
-        </div>
+        </div>}
         <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem', fontSize: '0.6875rem', color: 'var(--color-text-tertiary)', padding: '0 1rem 0.75rem', background: 'var(--bg-card)', textAlign: 'center' }}>
           <ShieldCheck size={12} />安心してご利用いただくため、会話の内容は運営が確認することがあります
         </p>

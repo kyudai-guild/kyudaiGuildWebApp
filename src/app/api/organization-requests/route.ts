@@ -1,5 +1,6 @@
 import { NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { createAdminClient } from '@/lib/supabase-admin';
 import { notifyOrgRequest } from '@/lib/slack';
 
 // 1人が同時に出せる審査待ちの所属申請の件数。
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
         id, organization_id, requested_name, message, status, review_note,
         created_at, reviewed_at,
         organization:organization_id (id, name),
-        applicant:profile_id (id, display_name, email)
+        applicant:profile_id (id, display_name)
       `)
       .order('created_at', { ascending: false });
 
@@ -51,7 +52,20 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '所属申請の取得に失敗しました。' }, { status: 500 });
     }
 
-    return NextResponse.json(data ?? []);
+    // 申請者のメールアドレスは運営の画面にだけ出す。
+    // 一般の権限では他人のメール列を読めない（v22）ので、運営のときだけサーバー権限で付ける。
+    let rows: any[] = data ?? [];
+    if (isAdmin && rows.length > 0) {
+      const admin = createAdminClient();
+      if (admin) {
+        const ids = [...new Set(rows.map(r => r.applicant?.id).filter(Boolean))];
+        const { data: emails } = await admin.from('profiles').select('id, email').in('id', ids);
+        const byId = new Map((emails ?? []).map((e: any) => [e.id, e.email]));
+        rows = rows.map(r => r.applicant ? { ...r, applicant: { ...r.applicant, email: byId.get(r.applicant.id) ?? null } } : r);
+      }
+    }
+
+    return NextResponse.json(rows);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

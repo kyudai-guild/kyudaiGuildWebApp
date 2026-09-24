@@ -33,7 +33,7 @@ interface AdminQuest {
 }
 
 interface Organization { id: string; name: string; description: string | null; sort_order: number; is_active: boolean; member_count: number; }
-interface OrgMember { id: string; display_name: string | null; email: string | null; created_at: string; }
+interface OrgMember { id: string; display_name: string | null; email: string | null; role: 'member' | 'manager'; created_at: string; }
 interface AdminUser { id: string; display_name: string | null; email: string | null; role: string; organizations: { id: string; name: string }[]; }
 interface OrgRequest {
   id: string; organization_id: string | null; requested_name: string | null;
@@ -233,6 +233,15 @@ export default function AdminPage() {
       const members = await fetch(`/api/organizations/${orgId}/members`);
       if (members.ok) setOrgMembers(await members.json());
       await fetchOrgs();
+    } catch (e: any) { setOrgError(e.message); } finally { setOrgBusy(false); }
+  };
+
+  const setMemberRole = async (orgId: string, profileId: string, role: 'manager' | 'member') => {
+    setOrgBusy(true); setOrgError(null);
+    try {
+      const res = await fetch(`/api/organizations/${orgId}/members`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profile_id: profileId, role }) });
+      if (!res.ok) throw new Error((await res.json()).error || '役割の変更に失敗しました。');
+      setOrgMembers(prev => prev.map(m => (m.id === profileId ? { ...m, role } : m)));
     } catch (e: any) { setOrgError(e.message); } finally { setOrgBusy(false); }
   };
 
@@ -720,9 +729,16 @@ export default function AdminPage() {
                                   {orgMembers.map(m => (
                                     <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.625rem 0.875rem', borderRadius: '0.75rem', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
                                       <div style={{ minWidth: 0 }}>
-                                        <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{m.display_name || '名称未設定'}</p>
+                                        <p style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                          {m.display_name || '名称未設定'}
+                                          {m.role === 'manager' && <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '0.125rem 0.5rem', borderRadius: '9999px', color: '#92400e', background: '#fef3c7' }}>団体長</span>}
+                                        </p>
                                         <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{m.email}</p>
                                       </div>
+                                      {/* 団体長の指名・解除は運営だけができる */}
+                                      <button onClick={() => setMemberRole(org.id, m.id, m.role === 'manager' ? 'member' : 'manager')} disabled={orgBusy}
+                                        style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.75rem', borderRadius: '9999px', cursor: orgBusy ? 'not-allowed' : 'pointer', flexShrink: 0, background: 'var(--bg-card)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+                                      >{m.role === 'manager' ? '団体長を外す' : '団体長にする'}</button>
                                       <button onClick={() => revokeOrg(org.id, m.id)} disabled={orgBusy} title="所属を解除"
                                         style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.75rem', borderRadius: '9999px', cursor: orgBusy ? 'not-allowed' : 'pointer', flexShrink: 0, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}
                                       ><Trash2 size={12} />解除</button>

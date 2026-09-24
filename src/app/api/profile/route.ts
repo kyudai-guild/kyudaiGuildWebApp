@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { createAdminClient } from '@/lib/supabase-admin';
 
 // 自分のプロフィールを取得
 export async function GET(req: NextRequest) {
@@ -11,7 +12,9 @@ export async function GET(req: NextRequest) {
   }
 
   const [profileRes, purposesRes, interestsRes] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user.id).single(),
+    // 自分の行でも、メールアドレス・LINE関連の列は本人のセッションでは読めない（v22）。
+    // 認証済みの本人の ID に限って、サーバー権限で全列を読む。
+    (createAdminClient() ?? supabase).from('profiles').select('*').eq('id', user.id).single(),
     supabase.from('profile_purposes').select('purpose_id').eq('profile_id', user.id),
     supabase.from('profile_interests').select('interest_id').eq('profile_id', user.id),
   ]);
@@ -57,7 +60,8 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase
     .from('profiles')
     .upsert(upsertData)
-    .select()
+    // select() だと全列を返そうとして、v22 以降は権限エラーになる
+    .select('id, display_name, tags, qualifications, bio, onboarded_at')
     .single();
 
   if (error) {

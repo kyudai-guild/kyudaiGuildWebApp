@@ -155,6 +155,54 @@ export async function notifyQuestSubmitted(params: {
   });
 }
 
+/* ── 団体長の操作（事後確認用） ─────────────────── */
+
+/**
+ * 団体長がメンバーを追加・削除したことを運営に知らせる。
+ * 団体長は運営の承認なしに所属を変えられるので、あとから確認できるようにしておく。
+ */
+export async function notifyOrgManagerAction(params: {
+  actorId: string;
+  organizationId: string;
+  action: 'add' | 'remove';
+  targetEmail: string | null;
+}): Promise<void> {
+  if (!(await shouldNotify())) return;
+
+  const admin = createAdminClient();
+  let orgName = '（不明な団体）';
+  let actorEmail: string | null = null;
+  if (admin) {
+    const [{ data: org }, { data: actor }] = await Promise.all([
+      admin.from('organizations').select('name').eq('id', params.organizationId).maybeSingle(),
+      admin.from('profiles').select('email').eq('id', params.actorId).maybeSingle(),
+    ]);
+    orgName = org?.name ?? orgName;
+    actorEmail = actor?.email ?? null;
+  }
+  const actorName = await resolveName(params.actorId, actorEmail);
+  const verb = params.action === 'add' ? '所属を追加しました' : '所属から外しました';
+  const icon = params.action === 'add' ? ':heavy_plus_sign:' : ':heavy_minus_sign:';
+
+  await post({
+    text: `団体長の操作: ${orgName} ${verb}`,
+    blocks: [
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: `${icon} *団体長が${verb}*\n*${esc(orgName)}*` },
+      },
+      {
+        type: 'section',
+        fields: [
+          { type: 'mrkdwn', text: `*団体長*\n${esc(actorName)}` },
+          { type: 'mrkdwn', text: `*対象*\n${esc(params.targetEmail ?? '不明')}` },
+        ],
+      },
+      { type: 'context', elements: [{ type: 'mrkdwn', text: '確認のための通知です。問題がなければ対応は不要です。' }] },
+    ],
+  });
+}
+
 /* ── 所属団体の申請 ─────────────────────────────── */
 
 export async function notifyOrgRequest(params: {

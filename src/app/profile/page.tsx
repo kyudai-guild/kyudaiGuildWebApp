@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Scroll, Heart, Pencil, Building2, Mail } from 'lucide-react';
 import { useGuild } from '@/contexts/GuildContext';
 import { RowListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
+import OrgManagerPanel from '@/components/org/OrgManagerPanel';
 
 interface Option { id: string; label: string; description?: string }
 interface Stats { posted_total: number; posted_completed: number; accepted_completed: number; thanks_received: number; member_since: string | null }
@@ -386,6 +387,9 @@ export default function ProfilePage() {
           </p>
         </div>
 
+        {/* 団体長にだけ表示される（団体長でなければ何も描画しない） */}
+        <OrgManagerPanel />
+
         {/* 所属団体（LINEカードの取得に失敗しても消えないよう、必ず外側の兄弟に置く） */}
         <div style={{ ...card, padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -394,7 +398,7 @@ export default function ProfilePage() {
                 <Building2 size={15} style={{ color: 'var(--color-accent)' }} />所属団体
               </p>
               <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', lineHeight: 1.6, marginTop: '0.125rem' }}>
-                クエストを掲示するとき、どの団体からの依頼かを示せます。
+                クエストは団体として出すものです。所属は、団体長か運営にログインしたメールアドレスを伝えて追加してもらうか、ここから申請できます。
               </p>
             </div>
             {!orgFormOpen && (

@@ -58,8 +58,10 @@ export async function GET(request: NextRequest) {
 
     /* ---------- ログイン中 → 紐付け ---------- */
     if (user) {
-      // 他のアカウントで使われているLINEは紐付けさせない
-      const { data: taken } = await supabase
+      // 他のアカウントで使われているLINEは紐付けさせない。
+      // 他人の line_user_id は本人のセッションでは読めない（v22）ので、サーバー権限で確かめる。
+      const checker = createAdminClient() ?? supabase;
+      const { data: taken } = await checker
         .from('profiles')
         .select('id')
         .eq('line_user_id', lineUserId)
