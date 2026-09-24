@@ -60,6 +60,13 @@ export function todayJst(): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** 今日（日本時間）から date（YYYY-MM-DD）まで何日か。今日なら 0、過ぎていれば負。形式が違えば null */
+export function daysUntil(date: string | null | undefined, today: string = todayJst()): number | null {
+  if (!date || !DATE_RE.test(date)) return null;
+  const toUtc = (s: string) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((toUtc(date) - toUtc(today)) / 86400000);
+}
+
 /** 日程を日付・開始時刻の順に並べる */
 export function sortSessions(sessions: QuestSession[]): QuestSession[] {
   return [...sessions].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));

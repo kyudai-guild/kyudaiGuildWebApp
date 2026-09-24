@@ -177,8 +177,9 @@ function GuestHero() {
             が始まる。
           </h1>
           <p style={{ fontSize: '0.9375rem', color: 'var(--color-text-secondary)', lineHeight: 1.8, maxWidth: 420 }}>
-            研究協力、業務委託、仲間探し、イベント ——<br />
-            九州大学生のあらゆる活動が集まるプラットフォーム
+            サークルや学生団体の活動に、<br />
+            一日だけ参加してみる。<br />
+            九大生と団体をつなぐ、体験クエスト掲示板。
           </p>
         </div>
 
@@ -189,7 +190,7 @@ function GuestHero() {
               ギルドに参加しよう
             </h2>
             <p style={{ fontSize: '0.875rem', color: 'rgba(234,232,227,0.7)', lineHeight: 1.7, marginBottom: '1.5rem' }}>
-              九大メールアドレスで登録すると、クエストへの応募・依頼の掲示・イベントの閲覧ができます。
+              九大メールアドレスで登録すると、クエストへの応募やイベントの確認ができます。団体の方は、クエストの掲示もできます。
             </p>
             <button onClick={() => router.push('/auth')}
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.9375rem', fontWeight: 700, background: 'var(--color-accent)', color: '#1f140f', cursor: 'pointer', border: 'none', transition: 'filter 0.2s, transform 0.2s' }}
@@ -381,10 +382,10 @@ export default function Home() {
             <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.125rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>Guild</span>
           </div>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>
-            大学生のための依頼掲示板。研究協力、業務委託、仲間探しなど。
+            九大生が、団体の活動を一日だけ体験できるクエスト掲示板。
           </p>
           <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--color-border)' }}>
-            <small style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>九大ギルド © 2024 — All Rights Reserved</small>
+            <small style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>© 九大ギルド</small>
           </div>
         </div>
       </footer>

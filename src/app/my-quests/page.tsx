@@ -13,6 +13,7 @@ import QuestDetails from '@/components/quest/QuestDetails';
 import type { QuestSession, ScheduleRow } from '@/lib/quest-form';
 import { CardListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 import { readCache, writeCache } from '@/lib/client-cache';
+import { refreshBadges } from '@/lib/badges';
 
 const POSTED_CACHE = 'my-quests-posted';
 const CACHE_MAX_AGE = 3 * 60 * 1000;
@@ -159,6 +160,7 @@ export default function MyQuestsPage() {
       if (!res.ok) throw new Error(data.error);
       if (data.warning) setActionError(data.warning);
       await loadPosted();
+      refreshBadges(); // マイクエストの赤い数字（未処理の応募）を減らす
     } catch (e: any) {
       setActionError(e.message || '操作に失敗しました。');
     } finally {

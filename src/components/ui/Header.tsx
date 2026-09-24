@@ -5,6 +5,13 @@ import { useGuild } from '@/contexts/GuildContext';
 import { Scroll, Shield, LogIn, LogOut, Menu, X, CalendarDays, UserRound, MessageCircle, BookOpen } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
+import { BADGES_EVENT } from '@/lib/badges';
+import MobileTabBar, { MOBILE_TAB_BAR_STYLES } from './MobileTabBar';
+
+// スマホの下部メニューを出さないページ
+//   トークの画面: 入力欄が画面の一番下にあるため
+//   デモ・初期設定・ログイン: 会議での説明用 / 途中で他の画面へ行かせないため
+const NO_TAB_BAR = [/^\/talks\/.+/, /^\/demo/, /^\/onboarding/, /^\/auth/];
 
 export default function Header() {
   const { isLoggedIn, isAdmin } = useGuild();
@@ -17,6 +24,8 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifCount, setNotifCount] = useState(0);
   const [adminCount, setAdminCount] = useState(0);
+  const [talkUnread, setTalkUnread] = useState(0);
+  const showTabBar = isLoggedIn && !NO_TAB_BAR.some(re => re.test(pathname ?? ''));
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -24,11 +33,12 @@ export default function Header() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // 要対応件数（60秒ごと + タブ復帰時に更新）
+  // 要対応件数（画面の移動・60秒ごと・タブ復帰・件数が変わる操作の後に更新）
   //   マイクエスト = 自分の依頼に来ている未処理の応募
+  //   トーク       = 参加しているトークの未読メッセージ
   //   管理         = 審査待ちのクエスト + 所属団体申請（運営のみ）
   useEffect(() => {
-    if (!isLoggedIn) { setNotifCount(0); setAdminCount(0); return; }
+    if (!isLoggedIn) { setNotifCount(0); setAdminCount(0); setTalkUnread(0); return; }
     let cancelled = false;
     const load = () => {
       fetch('/api/notifications/count')
@@ -37,6 +47,7 @@ export default function Header() {
           if (cancelled || !d) return;
           setNotifCount(d.pending_applications ?? 0);
           setAdminCount(d.admin_total ?? 0);
+          setTalkUnread(d.talk_unread ?? 0);
         })
         .catch(() => {});
     };
@@ -44,8 +55,13 @@ export default function Header() {
     const timer = setInterval(load, 60000);
     const onVisible = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', onVisible);
-    return () => { cancelled = true; clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
-  }, [isLoggedIn]);
+    window.addEventListener(BADGES_EVENT, load);
+    return () => {
+      cancelled = true; clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener(BADGES_EVENT, load);
+    };
+  }, [isLoggedIn, pathname]);
 
   const badge = (n: number) => n > 0 && (
     <span style={{ minWidth: 16, height: 16, padding: '0 4px', borderRadius: 9999, background: '#dc2626', color: '#fff', fontSize: '0.625rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
@@ -53,7 +69,10 @@ export default function Header() {
     </span>
   );
   const notifBadge = badge(notifCount);
+  const talkBadge = badge(talkUnread);
   const adminBadge = badge(adminCount);
+  // メニューボタンの赤い印。下部メニューが出ているときは、そこに出ない「管理」の件数だけを示す
+  const menuDot = adminCount > 0 || (!showTabBar && notifCount + talkUnread > 0);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -64,6 +83,7 @@ export default function Header() {
 
   return (
     <>
+      <style>{MOBILE_TAB_BAR_STYLES}</style>
       <style>{`
         .header-mobile-btn { display: none; }
         @media (max-width: 639px) {
@@ -140,7 +160,7 @@ export default function Header() {
             )}
             {isLoggedIn && (
               <button onClick={() => router.push('/talks')} className="header-nav-link">
-                <MessageCircle size={14} />トーク
+                <MessageCircle size={14} />トーク{talkBadge}
               </button>
             )}
             {isLoggedIn && (
@@ -181,7 +201,7 @@ export default function Header() {
           >
             {mobileOpen ? <X size={24} /> : <Menu size={24} />}
             {/* スマホではメニューの中の赤い数字が見えないので、ボタンに印を出す */}
-            {!mobileOpen && notifCount + adminCount > 0 && (
+            {!mobileOpen && menuDot && (
               <span aria-label="対応が必要なものがあります" style={{ position: 'absolute', top: 6, right: 4, width: 10, height: 10, borderRadius: 9999, background: '#dc2626', border: '2px solid var(--bg-base)' }} />
             )}
           </button>
@@ -211,7 +231,7 @@ export default function Header() {
           {isLoggedIn && (
             <button onClick={() => { router.push('/talks'); setMobileOpen(false); }}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)', padding: '1rem 0', borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}
-            ><MessageCircle size={18} />トーク</button>
+            ><MessageCircle size={18} />トーク{talkBadge}</button>
           )}
           {isLoggedIn && (
             <button onClick={() => { router.push('/profile'); setMobileOpen(false); }}
@@ -239,6 +259,8 @@ export default function Header() {
           )}
         </div>
       )}
+
+      {showTabBar && <MobileTabBar pathname={pathname ?? '/'} badges={{ myQuests: notifCount, talks: talkUnread }} />}
     </>
   );
 }

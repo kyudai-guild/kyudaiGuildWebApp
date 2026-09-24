@@ -57,17 +57,60 @@ export function writeCache<T>(name: string, uid: string | null, data: T): void {
   }
 }
 
-/** ログアウト時など、このアプリのキャッシュをすべて捨てる */
+/* ── 書きかけの下書き ─────────────────────────────
+ * キャッシュと違い、タブを閉じても、スマホが裏でタブを破棄しても残したいので
+ * localStorage に置く。本人のIDを鍵に含め、ログアウト時には clearCache() で
+ * まとめて消す（共有の端末に、前の人の書きかけを残さない）。
+ */
+const DRAFT_PREFIX = 'guild-draft:';
+
+function draftKey(name: string, uid: string): string {
+  return `${DRAFT_PREFIX}${name}:${uid}`;
+}
+
+export function readDraft<T>(name: string, uid: string): T | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(draftKey(name, uid));
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeDraft<T>(name: string, uid: string, data: T): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(draftKey(name, uid), JSON.stringify(data));
+  } catch {
+    // 保存できなくても入力は続けられる
+  }
+}
+
+export function removeDraft(name: string, uid: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(draftKey(name, uid));
+  } catch {
+    /* 消せなくても実害はない */
+  }
+}
+
+function removeByPrefix(store: Storage, prefix: string): void {
+  const doomed: string[] = [];
+  for (let i = 0; i < store.length; i++) {
+    const k = store.key(i);
+    if (k?.startsWith(prefix)) doomed.push(k);
+  }
+  doomed.forEach(k => store.removeItem(k));
+}
+
+/** ログアウト時など、このアプリのキャッシュと下書きをすべて捨てる */
 export function clearCache(): void {
   if (typeof window === 'undefined') return;
   try {
-    const store = window.sessionStorage;
-    const doomed: string[] = [];
-    for (let i = 0; i < store.length; i++) {
-      const k = store.key(i);
-      if (k?.startsWith(PREFIX)) doomed.push(k);
-    }
-    doomed.forEach(k => store.removeItem(k));
+    removeByPrefix(window.sessionStorage, PREFIX);
+    removeByPrefix(window.localStorage, DRAFT_PREFIX);
   } catch {
     /* 消せなくても実害はない */
   }

@@ -13,6 +13,7 @@ import {
   type QuestSession, type ScheduleRow,
 } from '@/lib/quest-form';
 import { isSubmitEnter } from '@/lib/keyboard';
+import { readDraft, writeDraft, removeDraft } from '@/lib/client-cache';
 
 type CreateQuestModalProps = { isOpen: boolean; onClose: () => void };
 type MyOrg = { id: string; name: string; description: string | null; public_contact: string | null };
@@ -179,6 +180,22 @@ const emptyForm = (): FormState => ({
   confirmations: CONFIRMATIONS.map(() => false),
 });
 
+/* ── 下書き ──
+ * 依頼書は項目が多く、スマホで書いている途中に別のアプリを開くと、
+ * ブラウザがタブを破棄して内容が消えることがある。書いた内容はこの端末に自動で保存し、
+ * 次に開いたときに復元する。申請が済むか「最初から書き直す」を押すと消える。
+ * ログアウトすると消える（client-cache の clearCache）。
+ */
+const DRAFT_NAME = 'quest-request';
+type Draft = { f: FormState; photoPath: string | null; touched: { intro: boolean; contact: boolean } };
+
+/** 何か書き始めているか。団体を選ぶと紹介・問い合わせ先は自動で入るので、それは数えない */
+function hasContent(f: FormState, photoPath: string | null): boolean {
+  return !!f.title.trim() || !!f.location.trim() || !!f.appeal.trim() || !!f.description.trim()
+    || f.schedule.some(r => r.content.trim()) || f.sessions.some(s => s.date)
+    || !!f.receiver_name.trim() || !!f.receiver_contact.trim() || !!photoPath;
+}
+
 function SectionTitle({ icon: Icon, children, note }: { icon: React.ElementType; children: React.ReactNode; note?: React.ReactNode }) {
   return (
     <div style={{ paddingTop: '0.25rem', borderTop: '1px solid var(--color-border)' }}>
@@ -195,9 +212,13 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
   const router = useRouter();
   const supabase = createClient();
 
-  const [step, setStep] = useState<'guidelines' | 'form'>('guidelines');
-  const [guidelinesAccepted, setGuidelinesAccepted] = useState(false);
-  const [f, setF] = useState<FormState>(emptyForm);
+  // 前回の書きかけ。あれば注意事項は確認済みとして、依頼書から再開する
+  const [draft] = useState(() => (member.isVisitor ? null : readDraft<Draft>(DRAFT_NAME, member.id)));
+  const [restored, setRestored] = useState(!!draft);
+
+  const [step, setStep] = useState<'guidelines' | 'form'>(draft ? 'form' : 'guidelines');
+  const [guidelinesAccepted, setGuidelinesAccepted] = useState(!!draft);
+  const [f, setF] = useState<FormState>(() => (draft ? { ...emptyForm(), ...draft.f } : emptyForm()));
   const [customTag, setCustomTag] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -207,9 +228,9 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
   const [orgsLoaded, setOrgsLoaded] = useState(false);
   const [counts, setCounts] = useState<OpenCounts | null>(null);
   // 団体の紹介・問い合わせ先を本人が書き換えたか。書き換えていなければ、団体を選び直したときに団体の登録情報で入れ直す
-  const touched = useRef({ intro: false, contact: false });
+  const touched = useRef(draft?.touched ?? { intro: false, contact: false });
 
-  const [photoPath, setPhotoPath] = useState<string | null>(null);
+  const [photoPath, setPhotoPath] = useState<string | null>(draft?.photoPath ?? null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -238,6 +259,16 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
+
+  // 書いた内容を少し待ってから保存する（打つたびに書き込まない）
+  useEffect(() => {
+    if (!isOpen || step !== 'form' || member.isVisitor) return;
+    const timer = setTimeout(() => {
+      if (hasContent(f, photoPath)) writeDraft<Draft>(DRAFT_NAME, member.id, { f, photoPath, touched: touched.current });
+      else removeDraft(DRAFT_NAME, member.id);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [isOpen, step, f, photoPath, member.id, member.isVisitor]);
 
   // 選んだ団体の未完了クエスト数（1団体10件まで）
   useEffect(() => {
@@ -310,26 +341,26 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
     setPhotoPath(null);
   };
 
-  const reset = () => {
-    setF(emptyForm()); setStep('guidelines'); setGuidelinesAccepted(false);
-    setPhotoPath(null); setError(null); setCounts(null);
-    touched.current = { intro: false, contact: false };
+  // 閉じても書きかけは消さない（下書きとして残し、次に開いたときに復元する）。
+  // 自動保存の待ち時間中に閉じた分を取りこぼさないよう、ここでも保存する
+  const handleClose = () => {
+    if (step === 'form' && !member.isVisitor) {
+      if (hasContent(f, photoPath)) writeDraft<Draft>(DRAFT_NAME, member.id, { f, photoPath, touched: touched.current });
+      else removeDraft(DRAFT_NAME, member.id);
+    }
+    onClose();
   };
 
-  // 何か書き始めているか。団体を選ぶと紹介・問い合わせ先は自動で入るので、それは数えない
-  const isDirty = step === 'form' && (
-    !!f.title.trim() || !!f.location.trim() || !!f.appeal.trim() || !!f.description.trim()
-    || f.schedule.some(r => r.content.trim()) || f.sessions.some(s => s.date)
-    || !!f.receiver_name.trim() || !!photoPath
-  );
-
-  // 申請せずに閉じたら、アップロード済みの写真は消しておく（使われない画像を残さない）
-  const handleClose = () => {
-    // スマホでは閉じるボタンに指が当たりやすい。書いた内容は戻せないので確かめる
-    if (isDirty && !confirm('書きかけの依頼書を閉じますか？\n入力した内容は消えます。')) return;
+  // 下書きを捨てて、空の依頼書から書き直す。使わなくなった写真も消す
+  const discardDraft = () => {
+    if (!confirm('書きかけの内容を消して、最初から書き直しますか？')) return;
     if (photoPath) supabase.storage.from('quest-photos').remove([photoPath]).catch(() => {});
-    reset();
-    onClose();
+    removeDraft(DRAFT_NAME, member.id);
+    touched.current = { intro: false, contact: false };
+    setF(emptyForm());
+    setPhotoPath(null); setError(null); setRestored(false);
+    // 所属が1つだけなら、団体と団体情報を入れ直す
+    if (myOrgs.length === 1) selectOrg(myOrgs[0].id);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -341,7 +372,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
     setLoading(true); setError(null);
     try {
       await createQuest(checked.value);
-      reset();
+      removeDraft(DRAFT_NAME, member.id);
       onClose();
     } catch (err: any) {
       setError(err.message || 'クエストの申請に失敗しました。');
@@ -393,6 +424,18 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
             </div>
           ) : (
             <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
+
+              {/* 下書きの案内 */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', padding: '0.625rem 0.875rem', borderRadius: '0.75rem', background: restored ? '#f2f7f4' : 'var(--bg-base)', border: `1px solid ${restored ? '#cfe3d8' : 'var(--color-border)'}` }}>
+                <span style={{ flex: '1 1 200px', fontSize: '0.75rem', lineHeight: 1.6, color: restored ? 'var(--color-primary)' : 'var(--color-text-tertiary)', fontWeight: restored ? 600 : 400 }}>
+                  {restored
+                    ? '前回の書きかけを復元しました。'
+                    : '書いた内容はこの端末に自動で保存されます。途中で閉じても、次に開いたときに続きから書けます。'}
+                </span>
+                {(restored || hasContent(f, photoPath)) && (
+                  <button type="button" onClick={discardDraft} style={smallBtn}>最初から書き直す</button>
+                )}
+              </div>
 
               {/* ── 主催団体 ── */}
               <div>

@@ -17,6 +17,8 @@ interface TalkRoom {
   last_message: { body: string; created_at: string } | null;
   // 団体長として管理できるが、自分はまだ参加していないルーム
   managed_only?: boolean;
+  /** 自分の未読メッセージ数 */
+  unread_count?: number;
 }
 
 export default function TalksPage() {
@@ -90,6 +92,7 @@ export default function TalksPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
             {rooms.map(room => {
+              const unread = room.unread_count ?? 0;
               const others = room.members.filter(m => m.profile_id !== member.id);
               const names = others.map(m => m.profile?.display_name ?? '不明').join('、') || 'メンバーなし';
               return (
@@ -113,13 +116,22 @@ export default function TalksPage() {
                         </span>
                       )}
                     </span>
-                    <span style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '0.25rem' }}>
+                    <span style={{ display: 'block', fontSize: '0.8125rem', color: unread > 0 ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)', fontWeight: unread > 0 ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '0.25rem' }}>
                       {room.managed_only ? '参加すると内容が見られます' : (room.last_message?.body ?? 'まだメッセージがありません')}
                     </span>
                   </span>
-                  {room.last_message && (
-                    <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>
-                      {new Date(room.last_message.created_at).toLocaleDateString('ja-JP')}
+                  {(room.last_message || unread > 0) && (
+                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.375rem', flexShrink: 0 }}>
+                      {room.last_message && (
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)' }}>
+                          {new Date(room.last_message.created_at).toLocaleDateString('ja-JP')}
+                        </span>
+                      )}
+                      {unread > 0 && (
+                        <span aria-label={`未読 ${unread}件`} style={{ minWidth: 20, height: 20, padding: '0 6px', borderRadius: 9999, background: '#dc2626', color: '#fff', fontSize: '0.6875rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {unread > 99 ? '99+' : unread}
+                        </span>
+                      )}
                     </span>
                   )}
                 </button>

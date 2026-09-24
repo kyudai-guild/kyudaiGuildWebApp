@@ -2,12 +2,12 @@
 
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search, Plus, X, AlertCircle, CheckCircle2, Send, Calendar, MapPin, Wallet } from 'lucide-react';
+import { Search, Plus, X, AlertCircle, CheckCircle2, Send, Calendar, MapPin, Wallet, Clock } from 'lucide-react';
 import { useGuild, Quest } from '@/contexts/GuildContext';
 import CreateQuestModal from './CreateQuestModal';
 import OrgBadge from './OrgBadge';
 import QuestDetails from './QuestDetails';
-import { fmtSessionsShort } from '@/lib/quest-form';
+import { fmtSessionsShort, daysUntil, fmtDateJa } from '@/lib/quest-form';
 
 const CATEGORIES = ['すべて', '仲間探し', '研究協力', '業務委託', 'ボランティア募集', '雇用契約', 'その他'];
 
@@ -20,9 +20,31 @@ const CATEGORY_STYLE: Record<string, { color: string; bg: string }> = {
   'その他':       { color: '#6b7280', bg: '#f9fafb' },
 };
 
+/** 申込の締切の表示。近いほど目立たせる */
+function deadlineLabel(date: string | null | undefined): { text: string; color: string } | null {
+  const d = daysUntil(date);
+  if (d === null || d < 0 || !date) return null;
+  if (d === 0) return { text: '今日が申込の締切', color: '#dc2626' };
+  if (d <= 3) return { text: `申込の締切まであと${d}日`, color: '#dc2626' };
+  if (d <= 7) return { text: `申込の締切まであと${d}日`, color: '#d97706' };
+  return { text: `申込の締切 ${fmtDateJa(date)}`, color: 'var(--color-text-tertiary)' };
+}
+
+/* クエストの詳細。スマホでは下から出るシートにし、応募の操作を常に画面の下に置く
+   （詳細は長いので、一番下までスクロールしないと応募ボタンが出てこない状態を避ける） */
+const DETAIL_STYLES = `
+  .qd-overlay { align-items: center; padding: 1rem; }
+  .qd-panel { max-height: 88dvh; border-radius: 1.25rem; }
+  @media (max-width: 560px) {
+    .qd-overlay { align-items: flex-end; padding: 0; }
+    .qd-panel { max-height: 92dvh; border-radius: 1.25rem 1.25rem 0 0; }
+  }
+`;
+
 function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => void }) {
   const { isLoggedIn, member } = useGuild();
   const [message, setMessage] = useState('');
+  const [composing, setComposing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -31,6 +53,7 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
   // 定員は「承認した人数」で数える（見送った応募は枠を消費しない）
   const isFull = (quest.accepted_count ?? 0) >= quest.max_applicants;
   const isExpired = quest.effective_end_date && new Date(quest.effective_end_date) < new Date();
+  const canApply = isLoggedIn && !isCreator && !isFull && !isExpired;
   const catStyle = CATEGORY_STYLE[quest.quest_type] || CATEGORY_STYLE['その他'];
 
   const handleApply = async () => {
@@ -47,6 +70,7 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
         throw new Error(data.error || '応募に失敗しました。');
       }
       setSuccess(true);
+      setComposing(false);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -54,24 +78,31 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
     }
   };
 
-  const metaItem: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)' };
+  const primaryBtn: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.9375rem', fontWeight: 700, background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', border: 'none', cursor: 'pointer' };
+  const hasFooter = success || canApply || isFull || isExpired;
 
   return (
-    <div
-      style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(15,10,5,0.4)', backdropFilter: 'blur(4px)' }}
+    <div className="qd-overlay"
+      style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', justifyContent: 'center', background: 'rgba(15,10,5,0.4)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+      <style>{DETAIL_STYLES}</style>
+      <motion.div className="qd-panel"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 24 }}
         transition={{ duration: 0.2 }}
-        style={{ position: 'relative', width: '100%', maxWidth: 600, maxHeight: '88dvh', overflowY: 'auto', overscrollBehavior: 'contain', borderRadius: '1.25rem', padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)' }}
+        style={{ position: 'relative', width: '100%', maxWidth: 600, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)' }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
-          <div style={{ flex: 1, minWidth: 0, paddingRight: '1rem' }}>
+        {/* 閉じるボタンはスクロールしても常に見える位置に置く */}
+        <button onClick={onClose} aria-label="閉じる"
+          style={{ position: 'absolute', top: '0.625rem', right: '0.625rem', zIndex: 2, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9999, cursor: 'pointer', color: 'var(--color-text-secondary)', background: 'rgba(255,255,255,0.92)', border: 'none', boxShadow: 'var(--shadow-sm)' }}
+        ><X size={18} /></button>
+
+        {/* 本文（ここだけスクロールする） */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', padding: '1.5rem' }}>
+          <div style={{ marginBottom: '1.25rem', paddingRight: '2.5rem' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '9999px', color: catStyle.color, background: catStyle.bg }}>
               {quest.quest_type}
             </span>
@@ -86,59 +117,63 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
               </div>
             )}
           </div>
-          <button onClick={onClose} aria-label="閉じる"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, margin: '-0.5rem -0.5rem 0 0', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', flexShrink: 0, transition: 'background 0.2s' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-secondary)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-          ><X size={18} /></button>
-        </div>
 
-        {/* Body */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* 依頼書の内容。報酬は廃止。連絡先は依頼者が書いた「問い合わせ先」だけを出す
               （以前は九大メールを自動で出していたが、掲示者本人には見えず混乱のもとだった） */}
           <QuestDetails quest={quest} contactPreviewForCreator={isCreator} />
-
-          {error && (
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 500, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
-              <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />{error}
-            </div>
-          )}
-
-          {success ? (
-            <div style={{ padding: '1rem', borderRadius: '0.75rem', textAlign: 'center', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-              <CheckCircle2 size={24} style={{ color: '#16a34a', margin: '0 auto 0.5rem' }} />
-              <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#16a34a' }}>応募が完了しました</p>
-              <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>承認されるとトークで連絡が取れるようになります。</p>
-            </div>
-          ) : isLoggedIn && !isCreator && !isFull && !isExpired ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>応募メッセージ（任意）</label>
-              <textarea
-                value={message} onChange={e => setMessage(e.target.value)}
-                style={{ width: '100%', fontSize: '0.875rem', borderRadius: '0.75rem', padding: '0.75rem 1rem', resize: 'none', outline: 'none', background: 'var(--bg-base)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', minHeight: 80, boxSizing: 'border-box', transition: 'border-color 0.2s, box-shadow 0.2s' }}
-                onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,74,58,0.1)'; }}
-                onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
-                placeholder="自己紹介やアピールなど..."
-              />
-              <button onClick={handleApply} disabled={loading}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1, background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', border: 'none', transition: 'background 0.2s' }}
-                onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; }}
-              >
-                <Send size={15} />{loading ? '応募中...' : 'この依頼に応募する'}
-              </button>
-            </div>
-          ) : isFull && !success ? (
-            <div style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 500, borderRadius: '0.75rem', background: 'var(--bg-secondary)', color: 'var(--color-text-tertiary)' }}>
-              定員に達しました
-            </div>
-          ) : isExpired && !success ? (
-            <div style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 500, borderRadius: '0.75rem', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>
-              掲示期間が終了しました
-            </div>
-          ) : null}
         </div>
+
+        {/* 応募の操作（常に下に出す） */}
+        {hasFooter && (
+          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.625rem', padding: '0.875rem 1.25rem 1rem', borderTop: '1px solid var(--color-border)', background: 'var(--bg-card)' }}>
+            {error && (
+              <div role="alert" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.625rem 0.875rem', borderRadius: '0.75rem', fontSize: '0.8125rem', fontWeight: 500, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
+                <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />{error}
+              </div>
+            )}
+
+            {success ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                <CheckCircle2 size={20} style={{ color: '#16a34a', flexShrink: 0 }} />
+                <span>
+                  <span style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#16a34a' }}>応募が完了しました</span>
+                  <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>承認されるとトークで連絡が取れるようになります。</span>
+                </span>
+              </div>
+            ) : canApply && !composing ? (
+              <button onClick={() => setComposing(true)} style={primaryBtn}>
+                <Send size={15} />このクエストに応募する
+              </button>
+            ) : canApply ? (
+              <>
+                <label htmlFor="apply-message" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  応募メッセージ（任意）
+                </label>
+                <textarea id="apply-message" autoFocus
+                  value={message} onChange={e => setMessage(e.target.value)}
+                  style={{ width: '100%', fontSize: '0.875rem', borderRadius: '0.75rem', padding: '0.75rem 1rem', resize: 'none', outline: 'none', background: 'var(--bg-base)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', minHeight: 80, maxHeight: '30dvh', boxSizing: 'border-box', lineHeight: 1.6 }}
+                  placeholder="参加してみたい理由など"
+                />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button onClick={() => { setComposing(false); setError(null); }} disabled={loading}
+                    style={{ flex: '0 0 auto', padding: '0.875rem 1.125rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+                  >やめる</button>
+                  <button onClick={handleApply} disabled={loading}
+                    style={{ ...primaryBtn, flex: 1, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1 }}
+                  ><Send size={15} />{loading ? '応募中...' : '応募を送る'}</button>
+                </div>
+              </>
+            ) : isFull ? (
+              <div style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 500, borderRadius: '0.75rem', background: 'var(--bg-secondary)', color: 'var(--color-text-tertiary)' }}>
+                定員に達しました
+              </div>
+            ) : (
+              <div style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.875rem', fontWeight: 500, borderRadius: '0.75rem', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>
+                掲示期間が終了しました
+              </div>
+            )}
+          </div>
+        )}
       </motion.div>
     </div>
   );
@@ -183,7 +218,7 @@ const QuestBoard: React.FC = () => {
             </button>
           )}
         </div>
-        <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>すべての公開依頼を閲覧できます</p>
+        <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>団体の活動を、一日だけ体験できるクエストです</p>
       </div>
 
       {/* Search + Filters */}
@@ -257,6 +292,7 @@ const QuestBoard: React.FC = () => {
               const catStyle = CATEGORY_STYLE[quest.quest_type] || CATEGORY_STYLE['その他'];
               const isFull = (quest.accepted_count ?? 0) >= quest.max_applicants;
               const when = fmtSessionsShort(quest.sessions);
+              const deadline = deadlineLabel(quest.listing_end_date);
               return (
                 <article
                   key={quest.id}
@@ -319,6 +355,7 @@ const QuestBoard: React.FC = () => {
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Calendar size={12} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />{when}</span>
                       {quest.location && <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}><MapPin size={12} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />{quest.location}</span>}
                       {quest.participation_fee && <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Wallet size={12} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />参加費 {quest.participation_fee}</span>}
+                      {deadline && !isFull && <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontWeight: 600, color: deadline.color }}><Clock size={12} style={{ flexShrink: 0 }} />{deadline.text}</span>}
                     </div>
                   ) : quest.description ? (
                     <p style={{ fontSize: '0.875rem', marginBottom: '1rem', color: 'var(--color-text-secondary)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -355,7 +392,7 @@ const QuestBoard: React.FC = () => {
         </>
       )}
 
-      <CreateQuestModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />
+      {modalOpen && <CreateQuestModal isOpen onClose={() => setModalOpen(false)} />}
 
       <AnimatePresence>
         {selectedQuest && <QuestDetailModal quest={selectedQuest} onClose={() => setSelectedQuest(null)} />}

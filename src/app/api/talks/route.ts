@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { unreadByRoom } from '@/lib/talk-unread';
 
 // トークルームの一覧
 //   - 自分が参加しているルーム
@@ -68,9 +69,12 @@ export async function GET() {
       if (!latestByRoom.has(m.room_id)) latestByRoom.set(m.room_id, m);
     }
 
+    const unread = await unreadByRoom(supabase, user.id).catch(() => new Map<string, number>());
+
     return NextResponse.json((rooms ?? []).map(r => ({
       ...r,
       last_message: latestByRoom.get(r.id) ?? null,
+      unread_count: unread.get(r.id) ?? 0,
       // 団体長として管理できるが、まだ自分は参加していないルーム
       managed_only: !memberRoomIds.has(r.id),
     })));

@@ -21,7 +21,7 @@ const notoSansJP = Noto_Sans_JP({
 export const metadata: Metadata = {
   title: '九大ギルド | 九州大学クエスト掲示板',
   description:
-    '九州大学生のためのクエスト掲示板。研究協力、業務委託、仲間探しなど、多様な依頼が集まります。',
+    '九大生が、サークルや学生団体の活動を一日だけ体験できるクエスト掲示板です。',
 };
 
 export default function RootLayout({

@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { unreadByRoom, totalUnread } from '@/lib/talk-unread';
 
 // ヘッダーのバッジ用: 要対応件数
 //   pending_applications : 自分の依頼に来ている未処理の応募（→ マイクエスト）
 //   pending_quests       : 審査待ちのクエスト（運営のみ。→ 管理）
 //   pending_org_requests : 審査待ちの所属団体申請（運営のみ。→ 管理）
+//   talk_unread          : 参加しているトークの未読メッセージ数（→ トーク）
 //
 // マイクエストのバッジは pending_applications だけを見る。
 // 運営向けの件数を total に混ぜるとマイクエストの数字が実態とズレるため、
@@ -27,6 +29,9 @@ export async function GET() {
       return NextResponse.json({ error: '通知件数の取得に失敗しました。' }, { status: 500 });
     }
     const pendingApplications = count ?? 0;
+
+    // トークの未読。数えられなくてもバッジ全体は落とさない
+    const talkUnread = await unreadByRoom(supabase, user.id).then(totalUnread).catch(() => 0);
 
     // 運営向けの件数は管理者のときだけ数える
     const { data: profile } = await supabase
@@ -57,6 +62,7 @@ export async function GET() {
       pending_quests: pendingQuests,
       pending_org_requests: pendingOrgRequests,
       admin_total: pendingQuests + pendingOrgRequests,
+      talk_unread: talkUnread,
       // 後方互換: 既存の呼び出し元が total を読んでいる
       total: pendingApplications,
     });

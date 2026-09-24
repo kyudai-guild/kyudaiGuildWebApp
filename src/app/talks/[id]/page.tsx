@@ -6,6 +6,10 @@ import { ArrowLeft, Send, ShieldCheck, Users, ChevronDown, ChevronUp, UserPlus, 
 import { useGuild } from '@/contexts/GuildContext';
 import { ChatSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 import { isSubmitEnter } from '@/lib/keyboard';
+import { refreshBadges } from '@/lib/badges';
+
+// 入力欄は内容に合わせて広がる。広がるのはこの高さ（約5行）まで
+const INPUT_MAX_HEIGHT = 132;
 
 interface TalkMessage {
   id: string; body: string; created_at: string; sender_id: string;
@@ -109,6 +113,20 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
   const [loading, setLoading] = useState(true);
   const bodyRef = useRef<HTMLDivElement>(null);
   const lastTsRef = useRef<string | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  // スマホ（指で操作する端末）では Enter を改行にし、送信は送信ボタンで行う。
+  // パソコンでは Enter で送信、Shift+Enter で改行。
+  const touchRef = useRef(false);
+  useEffect(() => {
+    touchRef.current = window.matchMedia('(pointer: coarse)').matches;
+  }, []);
+
+  const autoSize = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, INPUT_MAX_HEIGHT)}px`;
+  };
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
@@ -143,6 +161,9 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
           ? data.messages[data.messages.length - 1].created_at
           : new Date(0).toISOString();
         scrollToBottom();
+        // 開いたことで既読になるので、トークの未読の数字を取り直す。
+        // 既読の記録はサーバーが応答の後に書くため、少し待ってから
+        setTimeout(refreshBadges, 1500);
       })
       .catch(() => setError('トークルームを開けませんでした。'))
       .finally(() => setLoading(false));
@@ -182,6 +203,7 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
       const msg = await res.json();
       appendMessages([msg]);
       setInput('');
+      if (inputRef.current) inputRef.current.style.height = 'auto';
     } catch (e: any) {
       setError(e.message || '送信に失敗しました。');
     } finally {
@@ -269,11 +291,12 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
         {error && (
           <p style={{ fontSize: '0.75rem', color: '#dc2626', padding: '0.5rem 1rem 0', background: 'var(--bg-card)' }}>{error}</p>
         )}
-        {!notMember && <div style={{ display: 'flex', gap: '0.625rem', padding: '0.875rem 1rem', background: 'var(--bg-card)', borderTop: '1px solid var(--color-border)' }}>
-          <input value={input} onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (isSubmitEnter(e)) { e.preventDefault(); send(); } }}
-            placeholder="メッセージを入力" autoComplete="off"
-            style={{ flex: 1, background: 'var(--bg-base)', border: '1px solid var(--color-border)', borderRadius: '9999px', padding: '0.625rem 1.125rem', fontSize: '0.875rem', outline: 'none', color: 'var(--color-text-primary)' }} />
+        {!notMember && <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.625rem', padding: '0.75rem 1rem', background: 'var(--bg-card)', borderTop: '1px solid var(--color-border)' }}>
+          <textarea ref={inputRef} rows={1} value={input}
+            onChange={e => { setInput(e.target.value); autoSize(); }}
+            onKeyDown={e => { if (!touchRef.current && !e.shiftKey && isSubmitEnter(e)) { e.preventDefault(); send(); } }}
+            placeholder="メッセージを入力" autoComplete="off" maxLength={2000}
+            style={{ flex: 1, resize: 'none', maxHeight: INPUT_MAX_HEIGHT, overflowY: 'auto', lineHeight: 1.5, background: 'var(--bg-base)', border: '1px solid var(--color-border)', borderRadius: '1.25rem', padding: '0.625rem 1.125rem', fontSize: '0.875rem', outline: 'none', color: 'var(--color-text-primary)', fontFamily: 'inherit' }} />
           <button onClick={send} disabled={sending} aria-label="送信"
             style={{ width: 42, height: 42, borderRadius: '9999px', flexShrink: 0, background: 'var(--bg-dark)', color: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: 'none', opacity: sending ? 0.6 : 1 }}
           ><Send size={16} /></button>
