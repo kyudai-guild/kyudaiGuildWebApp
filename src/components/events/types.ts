@@ -21,7 +21,6 @@ export interface GuildEvent {
   reviewed_by: string | null;
   reviewed_at: string | null;
   created_at: string;
-  organizer: { display_name: string } | null;
 }
 
 /** イベント登録時に選べる色（識別しやすい8色） */

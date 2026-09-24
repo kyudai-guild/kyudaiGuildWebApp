@@ -10,54 +10,28 @@
 
 ---
 
-## 🔴 いますぐ必要な作業（2026-09 会議の反映）— **順番を守ってください**
+## 🔴 いますぐ必要な作業
 
-今回の変更はまだ**本番に出していません**（コミットだけして push を止めています）。
-新しいアプリは新しい列を読むため、**SQL より先に本番に出すと掲示板が壊れます**。
-逆に v22 は、**本番に出した後**でないとログインが壊れます。
+### 手順1. v23 を実行する（**今すぐ**）
 
-### 手順1. SQL を3本実行する（push の前）
+- ☐ `supabase/supabase_migration_v23_post_release_fixes.sql` を実行
 
-Supabase → **SQL Editor** で、この順に実行します。
+リリース後のセキュリティチェックで見つかった修正です。
 
-- ☐ `supabase/supabase_migration_v19_quest_request_form.sql` — クエスト依頼書の項目・非公開の担当者情報・写真の置き場所
-- ☐ `supabase/supabase_migration_v20_org_managers.sql` — 団体長・メールで追加・トークの人員
-- ☐ `supabase/supabase_migration_v21_event_cohost_delete.sql` — イベントの共催・編集・削除
-
-**確認**（すべて 1 以上が返れば成功）:
+- **v22 の副作用で、未ログインの人がイベントカレンダーを見られなくなっている**のを直します
+  （アプリ側の修正も push 済み。Vercel が Ready になった後、この SQL を実行すれば直ります）
+- 団体長が画面を通らずに所属を追加・削除しても、**記録と回数の上限が効く**ようにします
+- クエストの写真に、他人のフォルダの画像を指定できないようにします
 
 ```sql
-select
-  (select count(*) from information_schema.columns where table_name = 'quests' and column_name = 'sessions')                  as v19_quest_cols,
-  (select count(*) from information_schema.tables  where table_name = 'quest_private_details')                               as v19_private,
-  (select count(*) from storage.buckets where id = 'quest-photos')                                                           as v19_photo_bucket,
-  (select count(*) from information_schema.columns where table_name = 'profile_organizations' and column_name = 'role')     as v20_role,
-  (select count(*) from information_schema.tables  where table_name = 'org_manager_actions')                                 as v20_log,
-  (select count(*) from information_schema.columns where table_name = 'events' and column_name = 'co_organizer_names')       as v21_cohost,
-  (select count(*) from pg_policies where tablename = 'events' and policyname = 'events_delete')                             as v21_delete;
+-- 3行返れば成功
+select tgname from pg_trigger
+where tgname in ('log_manager_membership_change', 'limit_manager_membership_adds', 'check_quest_photo_path');
 ```
 
-### 手順2. 本番に出す（push）
+確認: **ログアウトした状態で** `/events` を開き、イベントが表示されること。
 
-- ☐ SQL の実行が終わったら、**Claude に「push して」と伝える**（または自分で `git push`）
-- ☐ Vercel → Deployments の最新が **Production / Ready** になるのを待つ
-
-### 手順3. v22 を実行する（**本番反映の後**、なるべくすぐ）
-
-- ☐ `supabase/supabase_migration_v22_lock_profile_emails.sql` を実行
-
-これで、ログイン中の人が**他人のメールアドレスや LINE ID を読めなくなります**
-（これまでは読めてしまう状態でした。団体長の「メールで追加」を安全にするための前提です）。
-
-```sql
--- false が返れば成功（一般ユーザーが他人のメールを読めない）
-select has_column_privilege('authenticated', 'public.profiles', 'email', 'select');
-```
-
-> ⚠️ v22 を push の前に実行すると、古いアプリのままではログイン処理が権限エラーになります。
-> 万一そうなったら、v22 の末尾にある「元に戻す場合」の1行を実行してください。
-
-### 手順4. 旧形式のテストクエストを片付ける（任意）
+### 手順2. 旧形式のテストクエストを片付ける（任意）
 
 報酬あり・日程なしの旧形式のクエストは、新しい表示で項目が欠けて見えます。
 
@@ -68,7 +42,7 @@ select id, title, status, created_at from quests where sessions = '[]'::jsonb or
 delete from quests where sessions = '[]'::jsonb;
 ```
 
-### 手順5. 団体長を指名する
+### 手順3. 団体長を指名する
 
 - ☐ `/admin` → **団体管理** → 団体の行を開く → メンバーの **団体長にする**
 
@@ -166,6 +140,7 @@ delete from quests where sessions = '[]'::jsonb;
 
 ## ✅ 実施済み
 
+- [x] **2026-09 会議の反映**: v19〜v21 実行 → push → v22 実行（メールアドレス・LINE ID の保護）
 - [x] **SQLマイグレーション v15〜v18 を実行**（トークの既読 / 未読集計 / リジェクト確認 / Slack ON/OFF）
 - [x] **SQLマイグレーション v13・v14 を実行**（所属団体タグ / RLSのセキュリティ修正）
 - [x] **Slack の専用チャンネル作成**と **Incoming Webhook 発行**、`SLACK_WEBHOOK_URL` を設定

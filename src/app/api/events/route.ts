@@ -17,9 +17,11 @@ export async function GET(request: Request) {
     // しているため往復2回ぶんまるごと無駄だった。
     // イベントを登録できるのは管理者だけなので、一般ユーザーに
     // 「自分が登録した未承認イベント」は存在せず、挙動は変わらない。
+    // profiles は埋め込まない。未ログインの人は profiles を読む権限が無く（v22）、
+    // 埋め込むとイベントの取得ごと権限エラーになる。表示は organizer_name を使う。
     let query = supabase
       .from('events')
-      .select('*, organizer:organizer_id(display_name)')
+      .select('*')
       .order('event_date', { ascending: true });
 
     // 月絞り込み
