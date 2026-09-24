@@ -17,13 +17,14 @@ export async function GET() {
         *,
         reviewer:reviewed_by (display_name),
         organization:organization_id (id, name, is_active),
+        private_details:quest_private_details (receiver_name, receiver_contact),
         applications:quest_applications (
           id,
           message,
           status,
           applied_at,
           applicant_id,
-          applicant:applicant_id (display_name, email)
+          applicant:applicant_id (display_name)
         )
       `)
       .eq('creator_id', user.id)

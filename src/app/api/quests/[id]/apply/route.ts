@@ -1,6 +1,7 @@
 import { NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { sendApplicationMail } from '@/lib/quest-mail';
+import { createAdminClient } from '@/lib/supabase-admin';
 
 export async function POST(
   request: Request,
@@ -21,7 +22,7 @@ export async function POST(
     // クエストの存在確認と承認済みチェック
     const { data: quest, error: fetchError } = await supabase
       .from('quests')
-      .select('*, applications:quest_applications (id)')
+      .select('id, title, status, creator_id, max_applicants, effective_end_date')
       .eq('id', questId)
       .single();
 
@@ -38,9 +39,17 @@ export async function POST(
       return NextResponse.json({ error: '自分が作成したクエストには応募できません。' }, { status: 400 });
     }
 
-    // 定員チェック
-    const currentApplicants = quest.applications?.length || 0;
-    if (currentApplicants >= quest.max_applicants) {
+    // 定員チェック。定員は「承認した人数」で数える。
+    // 以前は応募件数で数えていたため、見送った応募が枠を消費し続け、
+    // 定員に達していないのに応募できない状態になっていた。
+    // 本人のセッションでは他人の応募は見えない（RLS）ので、サーバー権限で数える。
+    const adminForCount = createAdminClient();
+    const { count: acceptedCount } = await (adminForCount ?? supabase)
+      .from('quest_applications')
+      .select('id', { count: 'exact', head: true })
+      .eq('quest_id', questId)
+      .eq('status', 'accepted');
+    if ((acceptedCount ?? 0) >= quest.max_applicants) {
       return NextResponse.json({ error: '定員に達しているため応募できません。' }, { status: 400 });
     }
 

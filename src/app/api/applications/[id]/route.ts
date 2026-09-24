@@ -51,7 +51,7 @@ export async function PATCH(
       .from('quest_applications')
       .update({ status: action === 'accept' ? 'accepted' : 'rejected' })
       .eq('id', id)
-      .select('id, status, applicant_id, applicant:applicant_id (display_name, email)')
+      .select('id, status, applicant_id, applicant:applicant_id (display_name)')
       .single();
     if (updateError) {
       console.error('Error updating application:', updateError);

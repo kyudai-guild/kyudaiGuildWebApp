@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 運営内部の資料（仕様書・運営マニュアルの下書きなど）
+# このリポジトリは公開されているため、ここに置いたものは push されないようにする
+docs/private/

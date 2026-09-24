@@ -33,7 +33,8 @@ export async function PATCH(
       if (!name) return NextResponse.json({ error: '団体名は必須です。' }, { status: 400 });
       patch.name = name;
     }
-    if (typeof body.description === 'string') patch.description = body.description.trim() || null;
+    if (typeof body.description === 'string') patch.description = body.description.trim().slice(0, 500) || null;
+    if (typeof body.public_contact === 'string') patch.public_contact = body.public_contact.trim().slice(0, 300) || null;
     if (typeof body.sort_order === 'number' && Number.isFinite(body.sort_order)) patch.sort_order = body.sort_order;
     if (typeof body.is_active === 'boolean') patch.is_active = body.is_active;
 
@@ -45,7 +46,7 @@ export async function PATCH(
       .from('organizations')
       .update(patch)
       .eq('id', id)
-      .select('id, name, description, sort_order, is_active')
+      .select('id, name, description, public_contact, sort_order, is_active')
       .single();
 
     if (error) {

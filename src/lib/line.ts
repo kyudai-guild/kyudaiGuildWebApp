@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { fmtSessionsShort, type QuestSession } from '@/lib/quest-form';
 
 /**
  * LINE Login (OAuth 2.1 / OIDC) と Messaging API の薄いラッパー。
@@ -226,7 +227,9 @@ const CATEGORY_BADGE: Record<string, { color: string; bg: string }> = {
 export type NotifiableQuestSummary = {
   title: string;
   quest_type: string;
-  reward?: string | null;
+  // 報酬は廃止（2026-09）。代わりに一日体験の判断材料になる日程・場所を出す
+  sessions?: QuestSession[] | null;
+  location?: string | null;
   max_applicants?: number | null;
   effective_end_date?: string | null;
 };
@@ -246,8 +249,10 @@ export function buildQuestMatchMessage(
       { type: 'text', text: v, size: 'sm', color: '#1f140f', weight: 'bold', flex: 5, wrap: true },
     ],
   });
-  if (quest.reward) rows.push(row('報酬', quest.reward));
-  if (quest.max_applicants) rows.push(row('募集', `${quest.max_applicants}名`));
+  const when = fmtSessionsShort(quest.sessions);
+  if (when) rows.push(row('日程', when));
+  if (quest.location) rows.push(row('場所', quest.location));
+  if (quest.max_applicants) rows.push(row('定員', `${quest.max_applicants}名`));
   if (quest.effective_end_date) {
     const d = new Date(quest.effective_end_date);
     rows.push(row('掲載期限', `${d.getMonth() + 1}月${d.getDate()}日まで`));
@@ -315,10 +320,11 @@ function digestBubble(
       { type: 'text', text: v, size: 'xs', color: '#1f140f', weight: 'bold', flex: 5, wrap: true },
     ],
   });
-  if (quest.reward) rows.push(row('報酬', quest.reward));
+  const when = fmtSessionsShort(quest.sessions);
+  if (when) rows.push(row('日程', when));
   if (quest.effective_end_date) {
     const d = new Date(quest.effective_end_date);
-    rows.push(row('期限', `${d.getMonth() + 1}月${d.getDate()}日まで`));
+    rows.push(row('締切', `${d.getMonth() + 1}月${d.getDate()}日まで`));
   }
 
   return {

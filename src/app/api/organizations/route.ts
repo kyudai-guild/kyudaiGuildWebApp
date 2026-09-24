@@ -23,7 +23,7 @@ export async function GET() {
     // 管理者は無効化済みも含めて全件見る（再有効化できるようにするため）
     let orgQuery = supabase
       .from('organizations')
-      .select('id, name, description, sort_order, is_active')
+      .select('id, name, description, public_contact, sort_order, is_active')
       .order('sort_order')
       .order('name');
     if (!isAdmin) orgQuery = orgQuery.eq('is_active', true);
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     const { data: org, error } = await supabase
       .from('organizations')
       .insert({ name, description, sort_order: sortOrder })
-      .select('id, name, description, sort_order, is_active')
+      .select('id, name, description, public_contact, sort_order, is_active')
       .single();
 
     if (error) {

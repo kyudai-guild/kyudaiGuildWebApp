@@ -8,8 +8,8 @@ import { RowListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 
 interface Option { id: string; label: string; description?: string }
 interface Stats { posted_total: number; posted_completed: number; accepted_completed: number; thanks_received: number; member_since: string | null }
-interface PostedItem { id: string; title: string; quest_type: string; status: string; reward: string; created_at: string; completed_at: string | null }
-interface AppliedItem { id: string; status: string; applied_at: string; quest: { id: string; title: string; quest_type: string; status: string; reward: string; completed_at: string | null } | null }
+interface PostedItem { id: string; title: string; quest_type: string; status: string; organization_name: string | null; created_at: string; completed_at: string | null }
+interface AppliedItem { id: string; status: string; applied_at: string; quest: { id: string; title: string; quest_type: string; status: string; organization_name: string | null; completed_at: string | null } | null }
 interface Org { id: string; name: string; description: string | null; is_active: boolean }
 interface MyOrgRequest {
   id: string; organization_id: string | null; requested_name: string | null;
@@ -230,10 +230,10 @@ export default function ProfilePage() {
     return { label: '審査中', color: '#d97706', bg: '#fffbeb' };
   };
 
-  type Row = { key: string; date: string; title: string; type: string; role: '受注' | '発注'; st: { label: string; color: string; bg: string }; reward: string };
+  type Row = { key: string; date: string; title: string; type: string; role: '受注' | '発注'; st: { label: string; color: string; bg: string }; org: string | null };
   const rows: Row[] = [
-    ...(filter !== 'applied' ? posted.map(p => ({ key: 'p' + p.id, date: p.created_at, title: p.title, type: p.quest_type, role: '発注' as const, st: postedStatus(p), reward: p.reward })) : []),
-    ...(filter !== 'posted' ? applied.filter(a => a.quest).map(a => ({ key: 'a' + a.id, date: a.applied_at, title: a.quest!.title, type: a.quest!.quest_type, role: '受注' as const, st: appliedStatus(a), reward: a.quest!.reward })) : []),
+    ...(filter !== 'applied' ? posted.map(p => ({ key: 'p' + p.id, date: p.created_at, title: p.title, type: p.quest_type, role: '発注' as const, st: postedStatus(p), org: p.organization_name })) : []),
+    ...(filter !== 'posted' ? applied.filter(a => a.quest).map(a => ({ key: 'a' + a.id, date: a.applied_at, title: a.quest!.title, type: a.quest!.quest_type, role: '受注' as const, st: appliedStatus(a), org: a.quest!.organization_name })) : []),
   ].sort((x, y) => new Date(y.date).getTime() - new Date(x.date).getTime());
 
   const chip = (opt: Option, selected: boolean, onClick: () => void) => (
@@ -548,7 +548,7 @@ export default function ProfilePage() {
                 <div style={{ flex: 1, minWidth: 200 }}>
                   <div style={{ fontSize: '0.9375rem', fontWeight: 600 }}>{r.title}</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
-                    {new Date(r.date).toLocaleDateString('ja-JP')}{r.reward ? ` ・ ${r.reward}` : ''}
+                    {new Date(r.date).toLocaleDateString('ja-JP')}{r.org ? ` ・ ${r.org}` : ''}
                   </div>
                 </div>
                 <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '0.1875rem 0.625rem', borderRadius: '9999px', color: r.st.color, background: r.st.bg }}>{r.st.label}</span>

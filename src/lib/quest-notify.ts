@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase-admin';
+import type { QuestSession } from '@/lib/quest-form';
 import {
   buildQuestDigestMessage, isLineMessagingConfigured, push, DIGEST_MAX_BUBBLES,
 } from '@/lib/line';
@@ -15,7 +16,8 @@ type NotifiableQuest = {
   title: string;
   quest_type: string;
   tags?: string[] | null;
-  reward?: string | null;
+  sessions?: QuestSession[] | null;
+  location?: string | null;
   max_applicants?: number | null;
   effective_end_date?: string | null;
   creator_id?: string | null;
@@ -95,7 +97,7 @@ async function runDigest(siteUrl: string): Promise<DigestResult> {
   const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const { data: quests, error: questError } = await admin
     .from('quests')
-    .select('id, title, quest_type, tags, reward, max_applicants, effective_end_date, creator_id')
+    .select('id, title, quest_type, tags, sessions, location, max_applicants, effective_end_date, creator_id')
     .eq('status', 'approved')
     .is('line_notified_at', null)
     .gte('reviewed_at', since)

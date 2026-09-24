@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase-admin';
 import { isSlackNotificationEnabled } from '@/lib/app-settings';
+import { fmtSessionsShort, type QuestSession } from '@/lib/quest-form';
 
 /**
  * 運営Slackへの即時通知（Incoming Webhook）。
@@ -97,9 +98,11 @@ export async function notifyQuestSubmitted(params: {
   title: string;
   description: string | null;
   questType: string;
-  reward: string | null;
   maxApplicants: number;
   organizationName: string | null;
+  sessions: QuestSession[] | null;
+  location: string | null;
+  participationFee: string | null;
   creatorId: string;
   creatorEmail: string | null;
   siteUrl: string;
@@ -111,10 +114,14 @@ export async function notifyQuestSubmitted(params: {
     ? `:office: ${esc(params.organizationName)}`
     : ':bust_in_silhouette: *個人申請*';
 
+  // 報酬は廃止。代わりに一日体験の判断材料になる日程・場所・参加費を出す
+  const when = fmtSessionsShort(params.sessions);
   const meta = [
     `種別: ${esc(params.questType)}`,
-    params.reward ? `報酬: ${esc(params.reward)}` : null,
-    `募集: ${params.maxApplicants}人`,
+    when ? `日程: ${esc(when)}` : null,
+    params.location ? `場所: ${esc(params.location)}` : null,
+    params.participationFee ? `参加費: ${esc(params.participationFee)}` : null,
+    `定員: ${params.maxApplicants}人`,
   ].filter(Boolean).join('  ・  ');
 
   const blocks: Record<string, unknown>[] = [

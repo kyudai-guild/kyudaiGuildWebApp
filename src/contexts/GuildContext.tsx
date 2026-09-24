@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import { readCache, writeCache, clearCache } from '@/lib/client-cache';
+import type { QuestInput, QuestSession, ScheduleRow } from '@/lib/quest-form';
 import { useRouter, usePathname } from 'next/navigation';
 
 // 掲示板のキャッシュ。取得が終われば必ず上書きされるので、
@@ -27,47 +28,42 @@ export interface Member {
 export interface Quest {
   id: string;
   title: string;
-  description: string;
+  description: string | null;   // 補足の自由記述（任意）
   quest_type: string;
-  max_applicants: number;
-  reward: string;
+  max_applicants: number;       // 定員（承認した人数で数える）
   tags: string[];
   listing_duration_type: string;
-  listing_duration_weeks: number | null;
-  listing_end_date: string | null;
+  listing_end_date: string | null;   // 申込の締切（この日まで掲示）
   effective_end_date: string | null;
   status: string;
   creator_id: string;
-  creator?: { display_name: string; email?: string };
-  contact_email_public?: boolean;
-  preferred_contact?: string | null;
+  creator?: { display_name: string };
+  preferred_contact?: string | null; // 九大生からの問い合わせ先（掲示する）
   // どの団体としての依頼か。organization_name は申請時点のスナップショット
   // （団体が改名・無効化されても当時の名乗りが残る）。
   organization_id?: string | null;
   organization_name?: string | null;
   organization?: { id: string; name: string; is_active: boolean } | null;
+  // クエスト依頼書の項目（v19）
+  sessions?: QuestSession[];
+  location?: string | null;
+  participation_fee?: string | null;
+  belongings?: string | null;
+  schedule?: ScheduleRow[];
+  requirements?: string | null;
+  org_intro?: string | null;
+  appeal?: string | null;
+  photo_path?: string | null;
   reviewer?: { display_name: string };
   reviewed_at: string | null;
   rejection_reason: string | null;
   application_count: number;
+  accepted_count?: number;
   created_at: string;
 }
 
-// CreateQuestModal が送信し POST /api/quests が受け取る形
-export interface CreateQuestInput {
-  title: string;
-  description: string;
-  quest_type: string;
-  max_applicants: number;
-  reward: string;
-  tags: string[];
-  listing_duration_type: 'weeks' | 'date';
-  listing_duration_weeks: number | null;
-  listing_end_date: string | null;
-  contact_email_public?: boolean;
-  preferred_contact?: string | null;
-  organization_id?: string | null;
-}
+// CreateQuestModal が送信し POST /api/quests が受け取る形（検証は lib/quest-form.ts）
+export type CreateQuestInput = QuestInput;
 
 export interface GuildState {
   member: Member;
@@ -155,9 +151,11 @@ export function GuildProvider({ children }: { children: React.ReactNode }) {
         const user = session.user;
 
         try {
+          // select('*') にしないこと。v22 でメールアドレス・LINE関連の列は
+          // ブラウザから読めなくなるため、'*' だと権限エラーでログイン処理ごと失敗する。
           const { data: profile } = await supabase
             .from('profiles')
-            .select('*')
+            .select('id, display_name, role, tags, created_at, onboarded_at')
             .eq('id', user.id)
             .single();
 

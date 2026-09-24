@@ -9,6 +9,8 @@ import { MY_QUEST_STATUS as STATUS } from '@/components/quest/status';
 import UserProfileModal from '@/components/member/UserProfileModal';
 import ThanksModal from '@/components/quest/ThanksModal';
 import OrgBadge from '@/components/quest/OrgBadge';
+import QuestDetails from '@/components/quest/QuestDetails';
+import type { QuestSession, ScheduleRow } from '@/lib/quest-form';
 import { CardListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 import { readCache, writeCache } from '@/lib/client-cache';
 
@@ -18,24 +20,31 @@ const CACHE_MAX_AGE = 3 * 60 * 1000;
 interface Application {
   id: string; message: string | null; status: string; applied_at: string;
   applicant_id: string;
-  applicant: { display_name: string; email: string };
+  applicant: { display_name: string };
 }
 interface MyQuest {
   id: string; title: string; description: string; quest_type: string;
-  max_applicants: number; reward: string; tags: string[]; status: string;
+  max_applicants: number; tags: string[]; status: string;
   rejection_reason: string | null; reviewed_at: string | null;
   reviewer: { display_name: string } | null;
   effective_end_date: string | null; created_at: string;
   organization_name: string | null;
   organization: { id: string; name: string; is_active: boolean } | null;
+  // 依頼書の項目（v19）
+  sessions?: QuestSession[]; location?: string | null; participation_fee?: string | null;
+  belongings?: string | null; schedule?: ScheduleRow[]; requirements?: string | null;
+  org_intro?: string | null; appeal?: string | null; photo_path?: string | null;
+  preferred_contact?: string | null; listing_end_date?: string | null;
+  // 掲示しない担当者情報。掲示した本人にだけ返る（RLS）。1対1の埋め込みなので配列で来ることもある
+  private_details?: { receiver_name: string; receiver_contact: string } | { receiver_name: string; receiver_contact: string }[] | null;
   applications: Application[];
 }
 interface AppliedItem {
   id: string; status: string; applied_at: string;
   quest: {
-    id: string; title: string; quest_type: string; status: string; reward: string;
-    completed_at: string | null; contact_email_public: boolean; preferred_contact: string | null;
-    creator: { display_name: string; email: string } | null;
+    id: string; title: string; quest_type: string; status: string; organization_name: string | null;
+    completed_at: string | null; preferred_contact: string | null;
+    creator: { display_name: string } | null;
   } | null;
 }
 
@@ -314,19 +323,14 @@ export default function MyQuestsPage() {
                         {isExpanded && (
                           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden' }}>
                             <div style={S.cardExpanded}>
-                              <p style={{ fontSize: '0.875rem', lineHeight: 1.7, color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>{quest.description}</p>
-                              <div style={S.metaRow}>
-                                <span style={S.metaItem}><Users size={13} style={{ color: 'var(--color-primary)' }} />応募: {appCount}/{quest.max_applicants}人</span>
-                                {quest.reward && <span style={S.metaItem}><Tag size={13} style={{ color: 'var(--color-accent)' }} />{quest.reward}</span>}
-                                {quest.effective_end_date && <span style={S.metaItem}><Calendar size={13} style={{ color: 'var(--color-text-tertiary)' }} />期限: {new Date(quest.effective_end_date).toLocaleDateString('ja-JP')}</span>}
-                              </div>
-                              {quest.tags && quest.tags.length > 0 && (
-                                <div style={{ ...S.tagRow, marginTop: '0.75rem' }}>
-                                  {quest.tags.map(tag => (
-                                    <span key={tag} style={{ fontSize: '0.75rem', padding: '0.25rem 0.625rem', borderRadius: '9999px', color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>#{tag}</span>
-                                  ))}
-                                </div>
-                              )}
+                              <QuestDetails
+                                quest={{ ...quest, accepted_count: quest.applications.filter(a => a.status === 'accepted').length }}
+                                privateDetails={Array.isArray(quest.private_details) ? quest.private_details[0] ?? null : quest.private_details ?? null}
+                                contactPreviewForCreator
+                              />
+                              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', margin: '0.75rem 0 0' }}>
+                                応募 {appCount}件{quest.effective_end_date ? ` ・ 掲示は${new Date(quest.effective_end_date).toLocaleDateString('ja-JP')}まで` : ''}
+                              </p>
                               {quest.status === 'rejected' && quest.rejection_reason && (
                                 <div style={S.rejectionBox}>
                                   <p style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem', color: '#dc2626' }}><XCircle size={13} />リジェクト理由</p>
@@ -433,7 +437,7 @@ export default function MyQuestsPage() {
                   </div>
                   <h3 style={{ fontSize: '0.9375rem', fontWeight: 700 }}>{item.quest!.title}</h3>
                   <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.25rem' }}>
-                    依頼者: {item.quest!.creator?.display_name ?? '不明'}{item.quest!.reward ? ` ・ ${item.quest!.reward}` : ''}
+                    主催: {item.quest!.organization_name ?? item.quest!.creator?.display_name ?? '不明'}
                   </p>
                   {item.status === 'accepted' && (
                     <div style={{ marginTop: '0.75rem', padding: '0.875rem 1rem', borderRadius: '0.75rem', background: '#f2f7f4', border: '1px solid #cfe3d8' }}>

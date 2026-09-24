@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     if (role === 'posted') {
       const { data, error } = await supabase
         .from('quests')
-        .select('id, title, quest_type, status, reward, created_at, completed_at')
+        .select('id, title, quest_type, status, organization_name, created_at, completed_at')
         .eq('creator_id', user.id)
         .order('created_at', { ascending: false })
         .range(offset, offset + PAGE_SIZE);
@@ -33,9 +33,9 @@ export async function GET(request: Request) {
       .select(`
         id, status, applied_at,
         quest:quest_id (
-          id, title, quest_type, status, reward, completed_at,
-          contact_email_public, preferred_contact,
-          creator:creator_id (display_name, email)
+          id, title, quest_type, status, organization_name, completed_at,
+          preferred_contact,
+          creator:creator_id (display_name)
         )
       `)
       .eq('applicant_id', user.id)

@@ -9,11 +9,13 @@ import { GuildEvent, eventStyle, fmtDateLong, fmtTimeRange } from '@/components/
 import EventDetailModal from '@/components/events/EventDetailModal';
 import { ADMIN_QUEST_STATUS as STATUS } from '@/components/quest/status';
 import OrgBadge from '@/components/quest/OrgBadge';
+import QuestDetails from '@/components/quest/QuestDetails';
+import type { QuestSession, ScheduleRow } from '@/lib/quest-form';
 import { CardListSkeleton, RowListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 
 interface AdminQuest {
-  id: string; title: string; description: string; quest_type: string;
-  max_applicants: number; reward: string; tags: string[]; status: string;
+  id: string; title: string; description: string | null; quest_type: string;
+  max_applicants: number; tags: string[]; status: string;
   listing_duration_type: string; listing_duration_weeks: number | null;
   listing_end_date: string | null; effective_end_date: string | null;
   rejection_reason: string | null; reviewed_at: string | null;
@@ -21,6 +23,13 @@ interface AdminQuest {
   application_count: number;
   organization_id: string | null; organization_name: string | null;
   organization: { id: string; name: string; is_active: boolean } | null;
+  // 依頼書の項目（v19）
+  sessions?: QuestSession[]; location?: string | null; participation_fee?: string | null;
+  belongings?: string | null; schedule?: ScheduleRow[]; requirements?: string | null;
+  org_intro?: string | null; appeal?: string | null; photo_path?: string | null;
+  preferred_contact?: string | null; accepted_count?: number;
+  // 掲示しない受け入れ担当者（運営の取得時だけ付く）
+  private_details?: { receiver_name: string; receiver_contact: string } | null;
 }
 
 interface Organization { id: string; name: string; description: string | null; sort_order: number; is_active: boolean; member_count: number; }
@@ -423,20 +432,14 @@ export default function AdminPage() {
                         {isExpanded && (
                           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden' }}>
                             <div style={S.cardExpanded}>
-                              <div style={{ padding: '1rem', borderRadius: '0.75rem', background: 'var(--bg-base)', fontSize: '0.875rem', lineHeight: 1.7, color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
-                                {quest.description}
+                              {/* 依頼書の内容と、掲示しない受け入れ担当者（審査に必要なので運営には見せる） */}
+                              <div style={{ marginBottom: '1rem' }}>
+                                <QuestDetails quest={quest} privateDetails={quest.private_details ?? null} />
                               </div>
-                              <div style={S.metaRow}>
-                                <span style={S.metaItem}><Users size={13} style={{ color: 'var(--color-primary)' }} />募集: {quest.max_applicants}人</span>
-                                {quest.reward && <span style={S.metaItem}><Tag size={13} style={{ color: 'var(--color-accent)' }} />{quest.reward}</span>}
-                                <span style={S.metaItem}><Calendar size={13} style={{ color: 'var(--color-text-tertiary)' }} />
-                                  {quest.listing_duration_type === 'weeks' ? `${quest.listing_duration_weeks}週間` : quest.listing_end_date ? `${new Date(quest.listing_end_date).toLocaleDateString('ja-JP')}まで` : '未設定'}
-                                </span>
-                              </div>
-                              {quest.tags && quest.tags.length > 0 && (
-                                <div style={{ ...S.tagRow, marginBottom: '0.75rem' }}>
-                                  {quest.tags.map(tag => <span key={tag} style={{ fontSize: '0.75rem', padding: '0.25rem 0.625rem', borderRadius: '9999px', color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>#{tag}</span>)}
-                                </div>
+                              {!quest.private_details && quest.status === 'pending' && (
+                                <p style={{ fontSize: '0.75rem', color: '#d97706', marginBottom: '0.75rem' }}>
+                                  ※ 当日の受け入れ担当者が登録されていません（旧形式の申請）。
+                                </p>
                               )}
                               {quest.status === 'rejected' && quest.rejection_reason && (
                                 <div style={{ padding: '1rem', borderRadius: '0.75rem', background: '#fef2f2', border: '1px solid #fecaca', marginBottom: '0.75rem' }}>

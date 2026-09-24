@@ -2,10 +2,12 @@
 
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search, Plus, Users, Tag, Calendar, X, AlertCircle, CheckCircle2, Send, Mail } from 'lucide-react';
+import { Search, Plus, X, AlertCircle, CheckCircle2, Send, Calendar, MapPin, Wallet } from 'lucide-react';
 import { useGuild, Quest } from '@/contexts/GuildContext';
 import CreateQuestModal from './CreateQuestModal';
 import OrgBadge from './OrgBadge';
+import QuestDetails from './QuestDetails';
+import { fmtSessionsShort } from '@/lib/quest-form';
 
 const CATEGORIES = ['すべて', '仲間探し', '研究協力', '業務委託', 'ボランティア募集', '雇用契約', 'その他'];
 
@@ -26,7 +28,8 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
   const [success, setSuccess] = useState(false);
 
   const isCreator = member.id === quest.creator_id;
-  const isFull = quest.application_count >= quest.max_applicants;
+  // 定員は「承認した人数」で数える（見送った応募は枠を消費しない）
+  const isFull = (quest.accepted_count ?? 0) >= quest.max_applicants;
   const isExpired = quest.effective_end_date && new Date(quest.effective_end_date) < new Date();
   const catStyle = CATEGORY_STYLE[quest.quest_type] || CATEGORY_STYLE['その他'];
 
@@ -63,7 +66,7 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
         transition={{ duration: 0.2 }}
-        style={{ position: 'relative', width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', borderRadius: '1.25rem', padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)' }}
+        style={{ position: 'relative', width: '100%', maxWidth: 600, maxHeight: '88vh', overflowY: 'auto', borderRadius: '1.25rem', padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -92,34 +95,9 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
 
         {/* Body */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ padding: '1rem', borderRadius: '0.75rem', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
-            <p style={{ fontSize: '0.875rem', lineHeight: 1.7, whiteSpace: 'pre-wrap', color: 'var(--color-text-secondary)' }}>{quest.description}</p>
-          </div>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-            <span style={metaItem}><Users size={14} style={{ color: 'var(--color-primary)' }} />{quest.application_count}/{quest.max_applicants}人</span>
-            {quest.reward && <span style={metaItem}><Tag size={14} style={{ color: 'var(--color-accent)' }} />{quest.reward}</span>}
-            {quest.effective_end_date && <span style={metaItem}><Calendar size={14} style={{ color: 'var(--color-text-tertiary)' }} />期限: {new Date(quest.effective_end_date).toLocaleDateString('ja-JP')}</span>}
-          </div>
-
-          {quest.tags && quest.tags.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
-              {quest.tags.map(tag => (
-                <span key={tag} style={{ fontSize: '0.75rem', padding: '0.25rem 0.625rem', borderRadius: '9999px', fontWeight: 500, color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>#{tag}</span>
-              ))}
-            </div>
-          )}
-
-          {isLoggedIn && !isCreator && quest.contact_email_public !== false && quest.creator?.email && (
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', background: '#f2f7f4', border: '1px solid #cfe3d8' }}>
-              <Mail size={14} style={{ color: 'var(--color-primary)', marginTop: 2, flexShrink: 0 }} />
-              <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-                <b style={{ color: 'var(--color-text-primary)' }}>依頼者の連絡先: </b>
-                <a href={`mailto:${quest.creator.email}`} style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>{quest.creator.email}</a><br />
-                応募前の質問はこちらへどうぞ。
-              </p>
-            </div>
-          )}
+          {/* 依頼書の内容。報酬は廃止。連絡先は依頼者が書いた「問い合わせ先」だけを出す
+              （以前は九大メールを自動で出していたが、掲示者本人には見えず混乱のもとだった） */}
+          <QuestDetails quest={quest} contactPreviewForCreator={isCreator} />
 
           {error && (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 500, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
@@ -131,7 +109,7 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
             <div style={{ padding: '1rem', borderRadius: '0.75rem', textAlign: 'center', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
               <CheckCircle2 size={24} style={{ color: '#16a34a', margin: '0 auto 0.5rem' }} />
               <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#16a34a' }}>応募が完了しました</p>
-              <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>掲示者からの連絡をお待ちください。</p>
+              <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>承認されるとトークで連絡が取れるようになります。</p>
             </div>
           ) : isLoggedIn && !isCreator && !isFull && !isExpired ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
@@ -274,7 +252,8 @@ const QuestBoard: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
             {filtered.map((quest, i) => {
               const catStyle = CATEGORY_STYLE[quest.quest_type] || CATEGORY_STYLE['その他'];
-              const isFull = quest.application_count >= quest.max_applicants;
+              const isFull = (quest.accepted_count ?? 0) >= quest.max_applicants;
+              const when = fmtSessionsShort(quest.sessions);
               return (
                 <article
                   key={quest.id}
@@ -318,7 +297,7 @@ const QuestBoard: React.FC = () => {
                       {quest.quest_type}
                     </span>
                     <span style={{ fontSize: '0.75rem', fontWeight: 500, color: isFull ? 'var(--color-text-tertiary)' : catStyle.color }}>
-                      {quest.application_count}/{quest.max_applicants}人
+                      定員 {quest.accepted_count ?? 0}/{quest.max_applicants}人
                     </span>
                   </div>
 
@@ -326,23 +305,32 @@ const QuestBoard: React.FC = () => {
                     {quest.title}
                   </h3>
 
-                  <p style={{ fontSize: '0.875rem', marginBottom: '1rem', color: 'var(--color-text-secondary)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {quest.description}
-                  </p>
+                  {/* 一日体験の判断材料になる日時・場所・参加費を先に出す。
+                      旧形式（日程の無い）クエストは従来どおり説明文を出す */}
+                  {when ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Calendar size={12} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />{when}</span>
+                      {quest.location && <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}><MapPin size={12} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />{quest.location}</span>}
+                      {quest.participation_fee && <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Wallet size={12} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />参加費 {quest.participation_fee}</span>}
+                    </div>
+                  ) : quest.description ? (
+                    <p style={{ fontSize: '0.875rem', marginBottom: '1rem', color: 'var(--color-text-secondary)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {quest.description}
+                    </p>
+                  ) : null}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
                     <div style={{ minWidth: 0 }}>
-                      <p style={{ fontSize: '0.625rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.125rem', color: 'var(--color-text-tertiary)' }}>依頼者</p>
-                      <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-secondary)' }}>{quest.creator?.display_name || '不明'}</p>
-                      {(quest.organization_name || quest.organization?.name) && (
+                      <p style={{ fontSize: '0.625rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.125rem', color: 'var(--color-text-tertiary)' }}>主催</p>
+                      {(quest.organization_name || quest.organization?.name) ? (
                         <div style={{ marginTop: '0.25rem' }}>
                           <OrgBadge name={quest.organization_name ?? quest.organization?.name} />
                         </div>
+                      ) : (
+                        // 団体必須化より前の旧形式のクエストは掲示者名を出す
+                        <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-secondary)' }}>{quest.creator?.display_name || '不明'}</p>
                       )}
                     </div>
-                    {quest.reward && (
-                      <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-accent)' }}>{quest.reward}</span>
-                    )}
                   </div>
 
                   {isFull && (
