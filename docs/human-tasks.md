@@ -6,195 +6,148 @@
 > **新しい機能を実装するたびに、このファイルの「未実施」に追記されます。**
 > 終わったら `[x]` にして「実施済み」へ移してください。
 >
-> 最終更新: 2026-09-17
+> 最終更新: 2026-09-25
 
 ---
 
-## 🔴 いますぐ必要な作業
+## 🔴 いますぐ必要な作業（2026-09 会議の反映）— **順番を守ってください**
 
-### 0-d. SQLマイグレーション v18 を実行する
+今回の変更はまだ**本番に出していません**（コミットだけして push を止めています）。
+新しいアプリは新しい列を読むため、**SQL より先に本番に出すと掲示板が壊れます**。
+逆に v22 は、**本番に出した後**でないとログインが壊れます。
 
-**Slack通知を管理画面からON/OFFできるようにするためのものです。**
-未実行だとスイッチが押せない状態（グレーアウト）になり、通知は今までどおり常にONです。
+### 手順1. SQL を3本実行する（push の前）
 
-- ☐ Supabase → **SQL Editor** で `supabase/supabase_migration_v18_app_settings.sql` を実行
+Supabase → **SQL Editor** で、この順に実行します。
 
-```sql
--- 設定が入っているか（1行返る）
-select key, value from app_settings where key = 'slack_notifications';
-```
+- ☐ `supabase/supabase_migration_v19_quest_request_form.sql` — クエスト依頼書の項目・非公開の担当者情報・写真の置き場所
+- ☐ `supabase/supabase_migration_v20_org_managers.sql` — 団体長・メールで追加・トークの人員
+- ☐ `supabase/supabase_migration_v21_event_cohost_delete.sql` — イベントの共催・編集・削除
 
-> 実行後、`/admin` の一番上に「Slackへの通知」のスイッチが出ます。
-> 動作確認の前にOFF、終わったらONに戻してください。
-> **OFFにしてもメール通知と管理画面のバッジは止まりません**（見落とし防止）。
-
----
-
-### 0-c. SQLマイグレーション v17 を実行する
-//実行済み
-
-**ホーム画面のバナーが、確認済みのリジェクトでも再表示される件の修正です。**
-未実行だと、バナーを閉じても再読み込みで出てきます（今までと同じ挙動）。
-
-- ☐ Supabase → **SQL Editor** で `supabase/supabase_migration_v17_rejection_seen.sql` を実行
-
-```sql
--- 列ができているか（1が返る）
-select count(*) from information_schema.columns
-where table_name = 'quests' and column_name = 'rejection_seen_at';
-```
-
-> すでにリジェクト済みの依頼は「未確認」の状態から始まるので、
-> 実行直後は一度だけバナーが出ます。マイクエストを開くか
-> バナーを閉じれば以降は出ません。
-> 最初から出したくない場合は、v17 の末尾にある
-> 「既存のリジェクトを確認済みにする」SQL を実行してください。
-
----
-
-### 0-b. SQLマイグレーション v16 を実行する
-
-**トークの未読メールの集計をDB側に移しました。** 未実行だと未読メールが
-まったく飛ばなくなります（管理画面から手動実行すると `talk_mail` に
-「v16 未実行の可能性」と出ます）。
-
-- ☐ Supabase → **SQL Editor** で `supabase/supabase_migration_v16_unread_digest_fn.sql` を実行
-
-**実行後の確認**:
-
-```sql
--- 関数ができているか（1が返る）
-select count(*) from pg_proc where proname = 'talk_unread_digest';
-
--- 一般ユーザーから呼べないこと（false が返れば正しい）
-select has_function_privilege('authenticated', 'public.talk_unread_digest(int)', 'execute');
-```
-
-
-### 0. SQLマイグレーション v15 を実行する
-//実行済み
-
-**トークの未読メール通知に必要です。** 未実行だと、トーク画面を開いたときに
-既読の記録でエラーになり、未読メールも飛びません。
-
-- ☐ Supabase → **SQL Editor** で `supabase/supabase_migration_v15_talk_read_state.sql` を実行
-
-**実行後の確認** — すべて 1 が返れば成功:
+**確認**（すべて 1 以上が返れば成功）:
 
 ```sql
 select
-  (select count(*) from information_schema.columns where table_name='talk_members' and column_name='last_read_at')     as last_read_at,
-  (select count(*) from information_schema.columns where table_name='talk_members' and column_name='last_notified_at') as last_notified_at,
-  (select count(*) from information_schema.columns where table_name='profiles'     and column_name='talk_mail_notify') as talk_mail_notify,
-  (select count(*) from pg_policies where tablename='talk_members' and policyname='talk_members_update')               as update_policy,
-  (select count(*) from pg_trigger  where tgname='protect_talk_membership')                                            as membership_guard;
+  (select count(*) from information_schema.columns where table_name = 'quests' and column_name = 'sessions')                  as v19_quest_cols,
+  (select count(*) from information_schema.tables  where table_name = 'quest_private_details')                               as v19_private,
+  (select count(*) from storage.buckets where id = 'quest-photos')                                                           as v19_photo_bucket,
+  (select count(*) from information_schema.columns where table_name = 'profile_organizations' and column_name = 'role')     as v20_role,
+  (select count(*) from information_schema.tables  where table_name = 'org_manager_actions')                                 as v20_log,
+  (select count(*) from information_schema.columns where table_name = 'events' and column_name = 'co_organizer_names')       as v21_cohost,
+  (select count(*) from pg_policies where tablename = 'events' and policyname = 'events_delete')                             as v21_delete;
 ```
 
-> このマイグレーションは、実行時点の未読を「通知済み」に倒します。
-> 運用開始前の古いメッセージで、翌朝いきなりメールが飛ぶのを防ぐためです。
+### 手順2. 本番に出す（push）
+
+- ☐ SQL の実行が終わったら、**Claude に「push して」と伝える**（または自分で `git push`）
+- ☐ Vercel → Deployments の最新が **Production / Ready** になるのを待つ
+
+### 手順3. v22 を実行する（**本番反映の後**、なるべくすぐ）
+
+- ☐ `supabase/supabase_migration_v22_lock_profile_emails.sql` を実行
+
+これで、ログイン中の人が**他人のメールアドレスや LINE ID を読めなくなります**
+（これまでは読めてしまう状態でした。団体長の「メールで追加」を安全にするための前提です）。
+
+```sql
+-- false が返れば成功（一般ユーザーが他人のメールを読めない）
+select has_column_privilege('authenticated', 'public.profiles', 'email', 'select');
+```
+
+> ⚠️ v22 を push の前に実行すると、古いアプリのままではログイン処理が権限エラーになります。
+> 万一そうなったら、v22 の末尾にある「元に戻す場合」の1行を実行してください。
+
+### 手順4. 旧形式のテストクエストを片付ける（任意）
+
+報酬あり・日程なしの旧形式のクエストは、新しい表示で項目が欠けて見えます。
+
+```sql
+-- 確認
+select id, title, status, created_at from quests where sessions = '[]'::jsonb order by created_at;
+-- 削除（応募・トークも連鎖して消えます）
+delete from quests where sessions = '[]'::jsonb;
+```
+
+### 手順5. 団体長を指名する
+
+- ☐ `/admin` → **団体管理** → 団体の行を開く → メンバーの **団体長にする**
+
+> 団体長に指名された人のプロフィールに「団体の管理」が出ます。
+> メールで追加・メンバーを外す・団体情報の編集・トークの人員の管理ができます。
 
 ---
 
-## 🔴 本番デプロイ後に確認すること
+## 🔴 本番反映後に確認すること（今回分）
 
-SlackとメールはPreview環境では試しにくいので、**本番デプロイが終わってから**上から順に確認してください。
 うまくいかない項目があれば、そのまま伝えてもらえれば調べます。
+動作確認の前に、`/admin` の一番上のスイッチで **Slack通知をOFF** にしておくと楽です。
 
-### 1. デプロイが本番に反映されたか
+### A. クエスト依頼書（項目1・5・7・9）
 
-- ☐ Vercel → Deployments の最新が **Production** で **Ready** になっている
-- ☐ Settings → Environment Variables に以下が **Production** スコープで入っている
-  - `RESEND_API_KEY` / `MAIL_FROM` / `SLACK_WEBHOOK_URL`
+- ☐ 所属のない人は「依頼を出す」で**出せない**旨が表示される
+- ☐ 団体を選ぶと、団体の紹介・問い合わせ先に**団体情報が初期値で入る**
+- ☐ 「この団体の未完了のクエスト: n / 10件」が表示される
+- ☐ 日程を複数追加できる／当日の流れの行を追加できる
+- ☐ 写真を選ぶとプレビューが出る（縮小されて送られる）
+- ☐ 確認3項目にチェックしないと申請できない
+- ☐ 掲示板のカードに**日程・場所・参加費**が出て、**報酬は出ない**
+- ☐ 詳細に「**主催団体について**」（紹介・問い合わせ先）が出る。**掲示者本人のアカウントでも見える**
+- ☐ 詳細に**当日の受け入れ担当者が出ない**（別アカウントで確認）
+- ☐ 運営の審査画面とマイクエストには担当者が**出る**
+- ☐ 定員まで承認でき、見送った応募は枠を使わない
 
-> 環境変数は**登録しただけでは反映されません**。登録後にデプロイが1回必要です。
-> 今回の push でそのデプロイが走ります。
+### B. 団体長（項目3）
 
-### 2. クエストの審査メール
+- ☐ 団体長のプロフィールに「団体の管理」が出る。一般メンバーには出ない
+- ☐ 登録済みのメールで追加 → 「追加しました」。存在しないメール → 「見つかりませんでした」
+- ☐ **どちらの場合も表示名などは表示されない**
+- ☐ メンバー一覧はメールアドレスだけ
+- ☐ 追加・削除で運営Slackに通知が届く（Slack通知ONのとき）
+- ☐ 団体情報を保存すると、次の依頼書の初期値に反映される
 
-- ☐ テストアカウントでクエストを申請する
-- ☐ `/admin` で**承認** → 掲示者の受信箱に承認メールが届いた
-- ☐ 別のクエストを**リジェクト** → メールが届き、**入力した理由が本文に入っている**
-- ☐ Resend → **Emails** で `delivered` になっている
-- ☐ 審査後に管理画面へ黄色の「メール通知に失敗しました」が**出ていない**
+### C. トークの人員（追加分）
 
-> 黄色い警告が出たら `MAIL_FROM` が Resend で**認証済みのドメイン**か確認してください。
-> 未認証ドメインだと Resend が 403 を返します。
+- ☐ 団体長のトーク一覧に、自分の団体のクエストのトークが「団体長として管理（未参加）」で出る
+- ☐ トーク画面の「トークの人員」から、団体のメンバーを追加・削除できる
+- ☐ 掲示した本人と応募した学生は「外せません」になっている
+- ☐ 空のトークで、相手の最初のメッセージが**再読み込みなしで**表示される（5秒以内）
 
-### 2b. 応募のお知らせメール
+### D. イベント・管理画面（項目4・6・8）
 
-- ☐ 別アカウントから掲示中のクエストに応募する
-- ☐ **掲示者**の受信箱に「応募がありました」が届き、応募メッセージが本文に入っている
+- ☐ 管理画面が暗い配色で、上部に「管理者モード」の帯が出る
+- ☐ カレンダー画面に「イベントを登録」が**出ない**
+- ☐ 管理画面のイベント管理タブで、登録・**編集**・**削除**ができる（削除は確認ダイアログ）
+- ☐ 共催団体を入力でき、登録済みの団体が候補に出る。詳細に「共催: …」と出る
 
-### 2c. トークの未読メール（1日1回）
+### E. デモ・チュートリアル（項目2）
 
-cron は既存の `/api/cron/line-digest` に相乗りしています（Hobbyプランは cron が1日1本まで）。
-**運営アカウントでそのURLをブラウザで開くと手動実行できます。**
+- ☐ `/demo` と `/tutorial` に、報酬や旧ルールの記述が残っていない
+- ☐ 文面が運営の方針と合っているか（直したい箇所は文面ごと伝えてください）
 
-- ☐ AさんからBさんへトークを送る（Bさんはトーク画面を開かない）
-- ☐ `https://（ドメイン）/api/cron/line-digest` を運営アカウントで開く
-- ☐ 返ってきた JSON の `talk_mail` が `{"ok":true, "sent":1, ...}` になっている
-- ☐ Bさんの受信箱に「未読のメッセージがあります」が届いた（**本文に中身は入りません**）
-- ☐ Bさんがトーク画面を開いてから、もう一度実行 → `sent":0`（既読なので送られない）
-- ☐ プロフィール画面の「トークの未読をメールで知らせる」をOFFにすると届かなくなる
+### F. How to（配布用の下書き）
 
-### 3. Slack通知
+`docs/private/` に置いてあります（git に入らない場所）。清書して配布してください。
 
-- ☐ クエストを申請 → 専用チャンネルに通知が届いた
-- ☐ 通知の「クエストを審査する」ボタンで `/admin` が開く
-- ☐ プロフィールから所属団体を申請 → 通知が届いた
+- ☐ `docs/private/howto-requester.md` — 団体の方へ
+- ☐ `docs/private/howto-student.md` — 九大生へ
+- ☐ `docs/private/howto-ops.md` — 運営向け（**外部に配布しないこと**）
 
-> 未設定でも申請そのものは普通に通ります（Slack通知だけスキップされます）。
+---
 
-### 4. 所属団体まわり
+## 🔴 前回分の確認（未チェックのもの）
 
-- ☐ `/admin` → **団体管理** タブで団体を追加できる
-- ☐ 団体の行を開いてユーザーを検索し、所属を付与できる
-- ☐ 所属を付与された人が、クエスト申請フォームで**団体名を選べる**
-- ☐ 掲示板と審査画面に**団体バッジ**が出る
-- ☐ 所属のない人の申請に「**個人申請**」と表示される
-- ☐ ヘッダーの「管理」に**審査待ちの件数バッジ**が出る
-
-### 5. セキュリティ修正（v14）が効いているか
-
-v13・v14 の実行は完了済みなので、**効いているかの確認**だけお願いします。
-
-```sql
-select
-  (select count(*) from pg_trigger where tgname = 'protect_profile_role')       as role_guard,
-  (select count(*) from pg_trigger where tgname = 'protect_quest_review')       as review_guard,
-  (select count(*) from pg_trigger where tgname = 'enforce_quest_organization') as org_guard;
-```
-
-- ☐ **3つとも 1 が返る**
-
-> 0 が混ざっていたら v14 が途中でエラーになっています。
-> その場合は `supabase/supabase_migration_v14_rls_hardening.sql` を貼り直してください。
-> 何度実行しても壊れない書き方にしてあります。
-
-### 6. チュートリアルの文面
-
-`/tutorial`（ログイン後、ヘッダーの「チュートリアル」）を開いて、
-**運営の方針と食い違っていないか**を見てください。実装者が決め打ちで書いた箇所があります。
-
-- ☐ 「依頼を出す」タブ — ガイドラインの要約が実際の運用と合っているか
-- ☐ 「審査する（運営）」タブ **← 運営アカウントでしか見えません**
-  - ☐ 「確認すること」のチェックリストが実際の審査基準と合っているか
-  - ☐ 「**個人申請のものは原則リジェクトするか、所属を申請してもらう**」と書いています。
-    この運用でよいか（試行段階の方針をそのまま文章にしたものです）
-- ☐ 「依頼に応募する」タブ — トーク内容を運営が確認しうる旨の記載でよいか
-
-> 直したい箇所があれば、文面をそのまま伝えてください。反映します。
+- ☐ 審査結果メール: 承認・リジェクトで届き、リジェクト理由が本文に入る（項目7の「メール」がこちらの件なら教えてください）
+- ☐ 応募のお知らせメールが掲示者に届く
+- ☐ トークの未読メール: 運営アカウントで `/api/cron/line-digest` を開くと手動実行でき、`talk_mail` の `sent` が増える
+- ☐ Slack: クエスト申請・所属申請で通知が届く
 
 ---
 
 ## 🟡 継続中 / 期限なし
 
-- ☐ **受注対象の団体を登録し、所属を付与していく** — 運用として続く作業。
-  手順は `docs/admin-operations.md`「4. 所属団体を運用する」。
-  これをやらないと全員が「個人申請」扱いになり、
-  「関連団体に所属するユーザーからのクエストのみ受注」の運用ができません
+- ☐ **受注対象の団体を登録し、団体長を指名していく** — 運用として続く作業
 - ☐ **通知先のSlackチャンネルがプライベートか**を確認する —
-  氏名・メールアドレス・申請メッセージ（学部・学年・役職など）が流れます
+  氏名・メールアドレス・申請メッセージ・団体長の操作が流れます
 - ☐ **LINEログインチャネルを「公開済み」にする** — 「開発中」のままだと
   Tester 権限を持つ人しかLINEログインできません（`docs/pilot-checklist.md` A-1）
 - ☐ **大学の許可リスト登録を依頼する** — `@s.kyushu-u.ac.jp` 宛のメールが
@@ -202,10 +155,10 @@ select
 - ☐ **運営アカウントの共用化** — まだ個人アカウントのものが残っている場合
   （`docs/pilot-checklist.md` D）
 - ☐ **管理者を2人以上にする** — 1人だと審査が止まります
+- ☐ **公開リポジトリに置いてよい資料かの見直し** — `docs/` 配下はすべて公開されています。
+  運営内部に留めたいものは `docs/private/`（git に入らない）へ移してください
 - ☐ **デスクトップの空リポジトリを片付ける** — `Desktop/ギルド git` 自体が
   古い個人リモート（`sorairo-dev/----git`）を指す**空のgitリポジトリ**になっています。
-  0ファイルなので実害はありませんが、そこで `git add -A` すると
-  アプリ全体を古い個人リポジトリに載せてしまう事故が起こりえます。
   消してよければ `Desktop/ギルド git/.git` フォルダを削除してください
   （**`kyudaiGuildWebApp/.git` の方は絶対に消さないこと**）
 
@@ -213,6 +166,7 @@ select
 
 ## ✅ 実施済み
 
+- [x] **SQLマイグレーション v15〜v18 を実行**（トークの既読 / 未読集計 / リジェクト確認 / Slack ON/OFF）
 - [x] **SQLマイグレーション v13・v14 を実行**（所属団体タグ / RLSのセキュリティ修正）
 - [x] **Slack の専用チャンネル作成**と **Incoming Webhook 発行**、`SLACK_WEBHOOK_URL` を設定
 - [x] **メール通知の環境変数**（`RESEND_API_KEY` / `MAIL_FROM`）を Vercel に設定
