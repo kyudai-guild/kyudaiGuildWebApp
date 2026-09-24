@@ -98,126 +98,102 @@ const fakeBtn = (text: string, variant: 'dark' | 'ok' | 'ng' | 'ghost', Icon?: R
 
 /* ── 各タブの中身 ─────────────────────────────── */
 
+/* 例として使う架空のクエスト（2026-09 の方針: 九大生が一日だけ参加できる体験。報酬なし） */
+const EX_ORG = '〇〇和太鼓サークル';
+const EX_TITLE = '和太鼓を1日だけ叩いてみよう';
+
+const orgChip = (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)', borderRadius: '9999px', padding: '0.1875rem 0.625rem' }}>
+    <Building2 size={11} />{EX_ORG}
+  </span>
+);
+
 function PostTutorial() {
   return (
     <>
-      <Step n={1} title="所属団体を登録しておく">
-        プロフィール画面の「所属団体」から、所属している団体を申請します。
-        メッセージ欄には<b>運営が本人確認できる情報</b>（学部・学年・団体での役職など）を書いてください。
-        運営が承認すると、依頼を出すときに団体名を選べるようになります。
+      <Step n={1} title="団体に所属を追加してもらう">
+        クエストは<b>団体として</b>出すものです。まず、あなたのアカウントを団体に紐付けてもらいます。
+        ログインに使っているメールアドレスを、<b>団体の団体長か運営</b>に伝えてください。
+        追加されると、プロフィールの「所属団体」に団体名のタグが付きます。
         <Mock>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <p style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 700 }}>
               <Building2 size={14} style={{ color: 'var(--color-accent)' }} />所属団体
             </p>
-            {fakeBtn('所属を申請する', 'ghost')}
+            {orgChip}
           </div>
-          {fakeInput('団体', '九州大学◯◯サークル')}
-          {fakeInput('運営へのメッセージ ※必須', '工学部3年、◯◯サークルで会計を担当しています。')}
         </Mock>
         <Note kind="warn">
-          試行段階のため、<b>関連団体に所属する方からの依頼のみ</b>を受け付けています。
-          所属がなくても申請自体はできますが、「個人申請」として審査されます。
+          <b>所属のタグが付くまで、クエストは出せません。</b>自分でタグを付けることはできません。
+          プロフィールの「所属を申請する」から、運営に申請することもできます。
         </Note>
       </Step>
 
-      <Step n={2} title="掲示板から「クエストを掲示する」を押す">
-        トップページの掲示板にあるボタンです。ログインしていないと表示されません。
-      </Step>
-
-      <Step n={3} title="ガイドラインを読んで同意する">
-        学業不正の助長、マルチ商法や宗教勧誘、出会い目的、おとり募集などは禁止です。
-        雇用契約なら最低賃金の遵守、業務委託なら偽装請負の禁止など、契約形態ごとの注意もあります。
-        <Note>
-          ここに反する依頼は、事前通知なく削除されることがあります。必ず目を通してください。
+      <Step n={2} title="掲示板の「依頼を出す」を押し、注意事項を読む">
+        クエストは<b>九大生が一日だけ参加できる体験</b>です。手や体を動かす体験があること、
+        入部・入会の条件になっていないこと、やった後に「どう感じたか」が言えることが条件です。
+        <Note kind="warn">
+          <b>参加者に報酬が出るものは、当面お受けしていません。</b>
+          参加費は必要経費の範囲で、必ずフォームに書いてください（当日その場で現金を求めることはできません）。
         </Note>
       </Step>
 
-      <Step n={4} title="内容を入力する">
+      <Step n={3} title="クエスト依頼書を書く">
+        「掲示するもの」と「掲示しないもの」が分かれています。
         <Mock>
-          {fakeInput('申請元（所属団体）', '九州大学◯◯サークル', '選んだ団体名が掲示板と審査画面に表示されます')}
-          {fakeInput('クエスト名 ※必須', 'イベント告知用チラシのデザイン')}
-          {fakeInput('クエスト内容 ※必須', '11月の学園祭で配るA4チラシのデザインをお願いしたいです。素材と文面はこちらで用意します。')}
+          {fakeInput('主催団体 ※必須', EX_ORG, '所属している団体だけが選べます')}
+          {fakeInput('クエスト名 ※必須', EX_TITLE)}
+          {fakeInput('日程 ※必須（複数回も可）', '10月20日(火) 10:00〜12:00')}
+          {fakeInput('場所・集合場所 ※必須', '伊都キャンパス センター2号館前に集合')}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }} className="tut-grid-2">
-            {fakeInput('募集人数 ※必須', '1')}
-            {fakeInput('クエスト種別 ※必須', '業務委託')}
+            {fakeInput('定員 ※必須', '10人')}
+            {fakeInput('参加費 ※必須', '無料')}
           </div>
-          {fakeInput('報酬', '5,000円')}
-          {fakeInput('掲示期間 ※必須', '2週間', '掲示許可が出てから2週間掲示されます')}
-          <div style={{ marginTop: '0.5rem' }}>
-            <p style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.25rem' }}>連絡先の公開</p>
-            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>
-              ☑ 九大メールアドレスを応募者に公開する（推奨）
-            </p>
-          </div>
+          {fakeInput('当日の流れ ※必須', '10:00 集合・説明 ／ 10:20 基本の叩き方 ／ 11:30 合奏')}
+          {fakeInput('団体の紹介・問い合わせ先 ※必須', '団体長が登録した内容が最初から入っています')}
+          {fakeInput('当日の受け入れ担当者 ※必須（掲示しません）', 'お名前・当日つながる連絡先')}
         </Mock>
         <Note>
-          <b>報酬</b>は「5,000円」「昼食おごり」「経験値のみ」など、実態をそのまま書いてください。
-          実際の条件と著しく違う掲示（おとり募集）は禁止です。
+          問い合わせ先には、確実に連絡がつく<b>九大メールアドレス</b>もあわせて載せるのがおすすめです（ボタン1つで入れられます）。
+          最後に「確認」の3項目にチェックして申請します。
+        </Note>
+        <Note kind="warn">
+          <b>1団体あたり、未完了（審査中・掲示中）のクエストは10件まで</b>です。
+          同じ団体から似たクエストが重ならないよう、出す前に団体内で相談してください。
         </Note>
       </Step>
 
-      <Step n={5} title="申請する">
-        {fakeBtn('クエストを申請する', 'dark', Send)}
-        <p style={{ marginTop: '0.625rem' }}>
-          申請した時点では掲示板に出ません。<b>運営の審査を通ってから</b>掲示されます。
-          状態はマイクエストで確認できます。
-        </p>
-        <Mock>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {pill('審査中', '#d97706', '#fffbeb')}
-            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>業務委託</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)', borderRadius: '9999px', padding: '0.1875rem 0.625rem' }}>
-              <Building2 size={11} />九州大学◯◯サークル
-            </span>
-          </div>
-          <p style={{ fontSize: '0.875rem', fontWeight: 700, marginTop: '0.5rem' }}>イベント告知用チラシのデザイン</p>
-        </Mock>
-      </Step>
-
-      <Step n={6} title="審査結果がメールで届く">
-        承認・リジェクトのどちらでも、登録しているメールアドレスにお知らせが届きます。
-        <b>リジェクトの場合は理由が本文に書かれています</b>ので、内容を直してから再度申請してください。
+      <Step n={4} title="審査結果がメールで届く">
+        申請した時点では掲示板に出ません。<b>運営が内容を確認してから</b>掲示されます。
+        結果はメールで届き、<b>掲載できない場合は理由が書かれています</b>。直して再度申請できます。
         <Mock label="メールのイメージ">
           <p style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-            <Mail size={13} style={{ color: 'var(--color-accent)' }} />【九大ギルド】クエスト「イベント告知用チラシのデザイン」の掲示を承認しました
-          </p>
-          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.375rem', lineHeight: 1.8 }}>
-            掲示板に掲載されましたので、応募をお待ちください。掲示期限は◯月◯日までです。
+            <Mail size={13} style={{ color: 'var(--color-accent)' }} />【九大ギルド】クエスト「{EX_TITLE}」の掲示を承認しました
           </p>
         </Mock>
       </Step>
 
-      <Step n={7} title="応募が来たら承認する">
-        応募があると、ヘッダーの「マイクエスト」に赤いバッジが出ます。
-        応募者のプロフィール（資格・自己PR・興味分野・所属団体）を見てから判断できます。
-        <Mock>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Scroll size={14} style={{ color: 'var(--color-text-secondary)' }} />
-            <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>マイクエスト</span>
-            <span style={{ minWidth: 16, height: 16, padding: '0 4px', borderRadius: 9999, background: '#dc2626', color: '#fff', fontSize: '0.625rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>1</span>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-            {fakeBtn('プロフィールを見る', 'ghost', Users)}
-            {fakeBtn('承認する', 'ok', CheckCircle2)}
-          </div>
-        </Mock>
-        <p style={{ marginTop: '0.625rem' }}>
-          承認するとマッチ成立です。以降は<b>トーク画面</b>で直接やり取りできます。
-        </p>
+      <Step n={5} title="応募が来たら、参加する人を承認する">
+        応募があるとメールが届き、ヘッダーの「マイクエスト」に赤いバッジが出ます。
+        応募者のプロフィールを見てから承認します。<b>定員は承認した人数で数えます</b>（見送った応募は枠を使いません）。
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+          {fakeBtn('プロフィールを見る', 'ghost', Users)}
+          {fakeBtn('承認する', 'ok', CheckCircle2)}
+        </div>
       </Step>
 
-      <Step n={8} title="終わったら「完了報告」をする" last>
-        依頼が完了したら、マイクエストから完了報告をします。
-        完了すると、お互いに<b>感謝の言葉</b>を送れるようになります。
+      <Step n={6} title="トークで連絡する">
+        承認するとトークで連絡できます。<b>団体長</b>は、同じ団体のメンバーをこのトークに追加できます
+        （当日の担当者などを入れておくと、連絡がスムーズです）。
+        <div style={{ marginTop: '0.75rem' }}>{fakeBtn('トークを開く', 'ghost', MessageCircle)}</div>
+      </Step>
+
+      <Step n={7} title="終わったら「完了報告」をする" last>
+        クエストが終わったら、マイクエストから完了報告をします。お互いに<b>感謝の言葉</b>を送れるようになります。
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
           {fakeBtn('完了報告する', 'dark', CheckCircle2)}
           {fakeBtn('感謝をおくる', 'ghost', Heart)}
         </div>
-        <Note kind="warn">
-          未完了の依頼は<b>10件まで</b>同時に持てます。
-          上限に達すると新しい依頼を出せなくなるので、終わった依頼は忘れずに完了報告してください。
-        </Note>
       </Step>
     </>
   );
@@ -227,43 +203,32 @@ function ApplyTutorial() {
   return (
     <>
       <Step n={1} title="掲示板でクエストを探す">
-        トップページの掲示板から、種別（仲間探し・研究協力・業務委託など）やキーワードで絞り込めます。
-        カードには依頼者名と、団体からの依頼であれば団体名が表示されます。
+        クエストは、団体の活動に<b>一日だけ参加してみる体験</b>です。種別やキーワードで絞り込めます。
+        カードには主催団体・日程・場所・参加費が出ます。
         <Mock>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.625rem' }}>
-            {pill('業務委託', '#d97706', '#fffbeb')}
-            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>0/1人</span>
+            {pill('仲間探し', '#2563eb', '#eff6ff')}
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>定員 0/10人</span>
           </div>
-          <p style={{ fontSize: '0.9375rem', fontWeight: 700, marginBottom: '0.375rem' }}>イベント告知用チラシのデザイン</p>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', lineHeight: 1.7 }}>11月の学園祭で配るA4チラシのデザインを…</p>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '0.75rem', marginTop: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
-            <div>
-              <p style={{ fontSize: '0.625rem', fontWeight: 500, letterSpacing: '0.05em', color: 'var(--color-text-tertiary)' }}>依頼者</p>
-              <p style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-text-secondary)' }}>山田太郎</p>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)', borderRadius: '9999px', padding: '0.1875rem 0.625rem', marginTop: '0.25rem' }}>
-                <Building2 size={11} />九州大学◯◯サークル
-              </span>
-            </div>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-accent)' }}>5,000円</span>
+          <p style={{ fontSize: '0.9375rem', fontWeight: 700, marginBottom: '0.5rem' }}>{EX_TITLE}</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Calendar size={12} />10月20日(火) 10:00〜12:00</span>
+            <span>伊都キャンパス センター2号館前</span>
+            <span>参加費 無料</span>
           </div>
+          <div style={{ paddingTop: '0.75rem', marginTop: '0.75rem', borderTop: '1px solid var(--color-border)' }}>{orgChip}</div>
         </Mock>
       </Step>
 
-      <Step n={2} title="詳細を開いて条件を確かめる">
-        募集人数、報酬、掲示期限、タグが表示されます。
-        依頼者が連絡先を公開している場合は、応募前に質問することもできます。
-        <Note>
-          報酬・作業内容・期限に納得できない場合は、応募前に依頼者へ確認してください。
-          条件の交渉や金銭のやり取りは<b>当事者間で直接</b>行っていただきます。
-        </Note>
+      <Step n={2} title="詳細を開いて確かめる">
+        日程・場所・参加費に加えて、<b>持ち物・服装、当日の流れ、参加条件</b>が書かれています。
+        「主催団体について」には団体の紹介と問い合わせ先があるので、応募前に質問することもできます。
       </Step>
 
       <Step n={3} title="メッセージを添えて応募する">
-        なぜ応募したのか、何ができるのかを一言添えると採用されやすくなります。
-        プロフィールの<b>資格・スキル</b>と<b>できること・自己PR</b>は依頼者から見えるので、
-        先に埋めておくのがおすすめです。
+        なぜ参加してみたいのかを一言添えてください。プロフィールの自己紹介も団体から見えます。
         <Mock>
-          {fakeInput('応募メッセージ', 'デザインサークルで2年間チラシを作っています。ポートフォリオをお送りできます。')}
+          {fakeInput('応募メッセージ', '楽器は初めてですが、和太鼓に前から興味がありました。')}
           <div style={{ marginTop: '0.25rem' }}>{fakeBtn('応募する', 'dark', Send)}</div>
         </Mock>
       </Step>
@@ -277,17 +242,18 @@ function ApplyTutorial() {
         </div>
       </Step>
 
-      <Step n={5} title="マッチしたら連絡を取る">
-        依頼者が承認するとマッチ成立です。トーク画面でやり取りを始めてください。
+      <Step n={5} title="マッチしたらトークで連絡を取る">
+        承認されるとトークでやり取りできます。団体の担当者が入ってくることもあります。
         <div style={{ marginTop: '0.75rem' }}>{fakeBtn('トークを開く', 'ghost', MessageCircle)}</div>
         <Note kind="warn">
           トークの内容は、トラブル対応のために運営が確認する場合があります。
+          参加の後も勧誘が続くなど困ったことがあれば、運営に連絡してください。
         </Note>
       </Step>
 
-      <Step n={6} title="終わったら感謝を送る" last>
-        依頼者が完了報告をすると、お互いに感謝の言葉を送れるようになります。
-        受け取った言葉はプロフィールに残り、次の依頼で信頼の材料になります。
+      <Step n={6} title="参加したら感謝を送る" last>
+        団体が完了報告をすると、お互いに感謝の言葉を送れるようになります。
+        受け取った言葉はプロフィールに残ります。
       </Step>
     </>
   );
@@ -298,70 +264,49 @@ function ReviewTutorial() {
     <>
       <Step n={1} title="バッジで気づく">
         審査待ちのものがあると、ヘッダーの「管理」に赤いバッジが出ます。
-        件数は<b>クエストの審査待ち＋所属団体の申請</b>の合計です。
-        <Mock>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Shield size={14} style={{ color: 'var(--color-primary)' }} />
-            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-primary)' }}>管理</span>
-            <span style={{ minWidth: 16, height: 16, padding: '0 4px', borderRadius: 9999, background: '#dc2626', color: '#fff', fontSize: '0.625rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>2</span>
-          </div>
-        </Mock>
+        件数は<b>クエストの審査待ち＋所属団体の申請</b>の合計です。管理画面は暗い配色で、上部に「管理者モード」と出ます。
         <Note kind="warn">
-          <b>クエストは運営が承認するまで掲示板に出ません。</b>
-          審査が止まると「投稿したのに何も起きない」状態になります。1日1回は確認してください。
+          <b>クエストは運営が承認するまで掲示板に出ません。</b>1日1回は確認してください。
+          動作確認でテスト用のクエストを出すときは、管理画面の一番上のスイッチで<b>Slack通知を一時停止</b>できます。
         </Note>
       </Step>
 
-      <Step n={2} title="「クエスト審査」タブでカードを開く">
-        審査待ちが既定の表示です。カードをクリックすると内容が開きます。
+      <Step n={2} title="「クエスト審査」タブで依頼書を確認する">
+        カードを開くと、依頼書の全項目と、<b>掲示しない「当日の受け入れ担当者」</b>が表示されます（運営にだけ見えます）。
         <Mock>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
             {pill('審査中', '#d97706', '#fffbeb')}
-            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>業務委託</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)', borderRadius: '9999px', padding: '0.1875rem 0.625rem' }}>
-              <Building2 size={11} />九州大学◯◯サークル
-            </span>
+            {orgChip}
           </div>
-          <p style={{ fontSize: '0.875rem', fontWeight: 700 }}>イベント告知用チラシのデザイン</p>
-          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.25rem' }}>掲示者: 山田太郎 / 申請日: 2026/09/17</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginTop: '0.75rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Users size={13} style={{ color: 'var(--color-primary)' }} />募集: 1人</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Tag size={13} style={{ color: 'var(--color-accent)' }} />5,000円</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Calendar size={13} style={{ color: 'var(--color-text-tertiary)' }} />2週間</span>
-          </div>
+          <p style={{ fontSize: '0.875rem', fontWeight: 700 }}>{EX_TITLE}</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.25rem' }}>10月20日(火) 10:00〜12:00 ・ 定員10人 ・ 参加費 無料</p>
         </Mock>
       </Step>
 
       <Step n={3} title="確認すること">
         <div style={{ ...S.mock, background: 'var(--bg-base)' }}>
           <ul style={{ margin: 0, paddingLeft: '1.125rem', fontSize: '0.8125rem', lineHeight: 2, color: 'var(--color-text-secondary)' }}>
-            <li><b>申請団体</b> — 関連団体からの依頼か。「個人申請」のバッジが出ていたら要注意</li>
-            <li><b>禁止事項</b> — レポート代行などの学業不正、マルチ商法・宗教勧誘、出会い目的、おとり募集</li>
-            <li><b>報酬の妥当性</b> — 雇用契約なら最低賃金以上か。作業量に対して極端に安くないか</li>
-            <li><b>条件の明示</b> — 作業内容・期限・支払い方法が読み取れるか</li>
-            <li><b>学業への支障</b> — 深夜の拘束や過酷なスケジュールになっていないか</li>
-            <li><b>研究協力</b> — 人を対象とする研究なら倫理委員会の承認に触れているか</li>
+            <li><b>クエストの条件</b> — 手や体を動かす体験があるか／入部・入会の条件になっていないか／感想が言える形か</li>
+            <li><b>参加費</b> — 必要経費の範囲か。参加者に報酬が出るものは受けない</li>
+            <li><b>お受けできないもの</b> — 勧誘が主目的、お酒・夜間の屋外・水辺・高所・激しい運動、車やバイクの運転など</li>
+            <li><b>当日の受け入れ担当者</b> — 名前と当日つながる連絡先が書かれているか</li>
+            <li><b>書き方</b> — 言い切り・根拠のない表現が無いか。団体を知らない人が読んで分かるか</li>
           </ul>
         </div>
-        <Note kind="warn">
-          試行段階では<b>関連団体に所属するユーザーからのクエストのみ受注</b>する方針です。
-          「個人申請」のものは、原則リジェクトするか、所属を申請してもらってください。
-        </Note>
       </Step>
 
       <Step n={4} title="承認する">
-        ワンクリックで承認されます。掲示期間はこの時点から起算されます。
+        ワンクリックで承認されます。掲示は「申込の締切」の日まで続きます。
         <div style={{ marginTop: '0.75rem' }}>{fakeBtn('承認する', 'ok', CheckCircle2)}</div>
         <p style={{ marginTop: '0.625rem' }}>
           承認すると掲示板に載り、<b>掲示者に承認メールが届きます</b>。
-          条件に合うユーザーには、翌日の1日1回のLINEダイジェストでお知らせが配信されます。
         </p>
       </Step>
 
       <Step n={5} title="リジェクトする">
         「リジェクト」を押すと理由の入力欄に切り替わります。<b>理由は必須</b>です。
         <Mock>
-          {fakeInput('リジェクト理由 ※必須', '報酬が作業量に対して不明確なため、具体的な金額と支払い方法の記載をお願いします。')}
+          {fakeInput('リジェクト理由 ※必須', '参加費1,500円の内訳が分からないため、必要経費の内訳を書き添えてください。')}
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             {fakeBtn('キャンセル', 'ghost')}
             {fakeBtn('リジェクト', 'ng', XCircle)}
@@ -369,50 +314,26 @@ function ReviewTutorial() {
         </Mock>
         <Note kind="warn">
           <b>入力した理由は、そのまま掲示者へのメール本文に載ります。</b>
-          「規約違反のため」だけだと直しようがないので、
           <b>どこを直せば通るのか</b>が分かるように書いてください。
         </Note>
       </Step>
 
-      <Step n={6} title="所属団体の申請を審査する">
-        「所属申請」タブに、ユーザーからの所属申請が届きます。
-        メッセージ欄に本人確認の材料（学部・役職など）が書かれているので、
-        団体の名簿や担当者に確認したうえで承認してください。
-        <Mock>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-            {pill('審査待ち', '#d97706', '#fffbeb')}
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)', borderRadius: '9999px', padding: '0.1875rem 0.625rem' }}>
-              <Building2 size={11} />九州大学◯◯サークル
-            </span>
-          </div>
-          <p style={{ fontSize: '0.875rem', fontWeight: 700 }}>山田太郎</p>
-          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>yamada@s.kyushu-u.ac.jp / 申請日: 2026/09/17</p>
-          <div style={{ padding: '0.75rem', borderRadius: '0.5rem', background: 'var(--bg-base)', fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginTop: '0.625rem' }}>
-            工学部3年、◯◯サークルで会計を担当しています。
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-            {fakeBtn('承認する', 'ok', CheckCircle2)}
-            {fakeBtn('却下', 'ng', XCircle)}
-          </div>
-        </Mock>
-        <Note>
-          一覧にない団体名での申請には「新規団体」のバッジが付きます。
-          <b>承認すると、その団体が新しく登録されます</b>。名称に誤りがないか確認してください。
-        </Note>
-      </Step>
-
-      <Step n={7} title="団体を登録・管理する" last>
-        「団体管理」タブから、受注対象の団体を登録します。
-        団体の行を開くと、表示名やメールアドレスでユーザーを検索して所属を付与できます。
+      <Step n={6} title="団体を登録し、団体長を指名する">
+        「団体管理」タブで団体を登録し、団体の行を開いてメンバーを追加します。
+        メンバーの行の「<b>団体長にする</b>」で団体長を指名できます。
+        団体長は、以後メールアドレスを入力して自分の団体にメンバーを追加できます（追加・削除は運営のSlackに通知されます）。
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
           {fakeBtn('追加する', 'dark', Plus)}
           {fakeBtn('検索', 'ghost', Search)}
         </div>
         <Note kind="warn">
-          団体をやめるときは<b>削除ではなく「無効にする」</b>を使ってください。
-          無効にすると新しい依頼で選べなくなりますが、
-          過去のクエストに残った団体名は消えません（審査の記録を保つため）。
+          団体をやめるときは<b>削除ではなく「無効にする」</b>を使ってください（過去のクエストの記録を保つため）。
         </Note>
+      </Step>
+
+      <Step n={7} title="所属申請・イベントを管理する" last>
+        「所属申請」タブには、ユーザーから届いた所属の申請が並びます。本人確認の材料を見て承認してください。
+        イベントの<b>登録・編集・削除</b>は「イベント管理」タブで行います（カレンダー画面からは登録できません）。
       </Step>
     </>
   );
