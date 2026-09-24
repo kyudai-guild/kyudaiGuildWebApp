@@ -14,7 +14,10 @@ const STYLES = `
   /* 連続する予定は週単位で1本のバーとして表示する（レーン割り当ては JS 側） */
   .cal-event-bar { position: absolute; text-align: left; font-size: 0.6875rem; font-weight: 600; height: var(--cal-bar-h); line-height: var(--cal-bar-h); padding: 0 6px; border: none; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: opacity 0.15s; }
   .cal-event-bar:hover { opacity: 0.8; }
+  /* スマホではマスに題名が入らないので、月の予定を下に並べる */
+  .cal-month-list { display: none; }
   @media (max-width: 640px) {
+    .cal-month-list { display: block; }
     .cal-week { --cal-bar-top: 26px; --cal-lane-h: 12px; --cal-bar-h: 10px; --cal-min: 56px; }
     .cal-day-cell { padding: 0.25rem; }
     .cal-event-bar { font-size: 0; padding: 0; }
@@ -113,6 +116,15 @@ export default function EventCalendar({ events, isAdmin }: Props) {
       });
     });
   }, [weeks, events, year, month]);
+
+  // 表示中の月にかかる予定（スマホで、カレンダーの下に並べる）
+  const monthEvents = useMemo(() => {
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0, 23, 59, 59);
+    return events
+      .filter(ev => new Date(ev.event_date) <= monthEnd && new Date(ev.event_end_date ?? ev.event_date) >= monthStart)
+      .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
+  }, [events, year, month]);
 
   const isToday = (day: number) =>
     day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
@@ -232,6 +244,38 @@ export default function EventCalendar({ events, isAdmin }: Props) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {viewMode === 'calendar' && (
+        <div className="cal-month-list" style={{ marginTop: '1.25rem' }}>
+          <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-tertiary)', marginBottom: '0.5rem' }}>
+            {month + 1}月の予定
+          </h3>
+          {monthEvents.length === 0 ? (
+            <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)', padding: '1rem 0' }}>この月の予定はありません。</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', borderRadius: '0.875rem', overflow: 'hidden', background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}>
+              {monthEvents.map((ev, i) => {
+                const c = eventStyle(ev);
+                const d = new Date(ev.event_date);
+                return (
+                  <button key={ev.id} onClick={() => setSelectedEvent(ev)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 0.875rem', textAlign: 'left', width: '100%', background: 'none', border: 'none', borderTop: i > 0 ? '1px solid var(--color-border)' : 'none', cursor: 'pointer' }}>
+                    <span style={{ width: 4, alignSelf: 'stretch', borderRadius: 9999, background: c.color, flexShrink: 0 }} />
+                    <span style={{ width: 76, flexShrink: 0, whiteSpace: 'nowrap', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+                      {d.getMonth() + 1}/{d.getDate()}<span style={{ fontSize: '0.6875rem', fontWeight: 500, color: 'var(--color-text-tertiary)' }}>（{d.toLocaleDateString('ja-JP', { weekday: 'short' })}）</span>
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.title}</span>
+                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{fmtTimeRange(ev)}</span>
+                    </span>
+                    <ChevronRight size={14} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

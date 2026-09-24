@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
@@ -26,7 +26,7 @@ const DEMO_STUDENT = 'はなこ';
 const PAGE_STYLES = `
   .demo-shell { max-width: 900px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 2rem) 4rem; }
   .demo-head  { padding: clamp(1rem, 4vw, 1.5rem) clamp(1rem, 4vw, 2rem); }
-  .demo-rail  { display: flex; gap: 0.375rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+  .demo-rail  { position: relative; display: flex; gap: 0.375rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
   .demo-split { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
   @media (max-width: 760px) {
     .demo-split { grid-template-columns: 1fr; gap: 1.25rem; }
@@ -363,6 +363,16 @@ export default function DemoPage() {
 
   const next = () => setStep(s => (s === STEPS.length - 1 ? 0 : s + 1));
 
+  // スマホでは進捗の列が横にはみ出すので、今のステップが見える位置まで横に送る
+  // （縦には動かさない。scrollIntoView だとページごと動いてしまう）
+  const railRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const rail = railRef.current;
+    const active = rail?.children[step] as HTMLElement | undefined;
+    if (!rail || !active) return;
+    rail.scrollTo({ left: active.offsetLeft - (rail.clientWidth - active.clientWidth) / 2, behavior: 'smooth' });
+  }, [step]);
+
   return (
     <div style={{ minHeight: '100vh' }}>
       <style>{PAGE_STYLES}</style>
@@ -400,7 +410,7 @@ export default function DemoPage() {
 
       <div className="demo-shell" style={{ paddingTop: '1.5rem' }}>
         {/* 進捗 */}
-        <div className="demo-rail">
+        <div className="demo-rail" ref={railRef}>
           {STEPS.map((s, i) => {
             const done = i < step;
             const active = i === step;

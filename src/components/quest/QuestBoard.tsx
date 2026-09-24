@@ -66,7 +66,7 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 8 }}
         transition={{ duration: 0.2 }}
-        style={{ position: 'relative', width: '100%', maxWidth: 600, maxHeight: '88vh', overflowY: 'auto', borderRadius: '1.25rem', padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)' }}
+        style={{ position: 'relative', width: '100%', maxWidth: 600, maxHeight: '88dvh', overflowY: 'auto', overscrollBehavior: 'contain', borderRadius: '1.25rem', padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -86,8 +86,8 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
               </div>
             )}
           </div>
-          <button onClick={onClose}
-            style={{ padding: '0.375rem', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', flexShrink: 0, transition: 'background 0.2s' }}
+          <button onClick={onClose} aria-label="閉じる"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, margin: '-0.5rem -0.5rem 0 0', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', flexShrink: 0, transition: 'background 0.2s' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-secondary)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
           ><X size={18} /></button>
@@ -152,10 +152,13 @@ const QuestBoard: React.FC = () => {
   const [category, setCategory] = useState('すべて');
 
   const approved = quests.filter(q => q.status === 'approved');
+  // 団体名や場所でも探せるようにする（「和太鼓」「伊都」などで引けるように）
+  const needle = search.trim().toLowerCase();
   const filtered = approved.filter(q => {
     const matchCat = category === 'すべて' || q.quest_type === category;
-    const matchSearch = q.title.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch;
+    const haystack = [q.title, q.organization_name ?? q.organization?.name, q.location, q.description, ...(q.tags ?? [])]
+      .filter(Boolean).join(' ').toLowerCase();
+    return matchCat && (!needle || haystack.includes(needle));
   });
 
   return (
@@ -189,7 +192,7 @@ const QuestBoard: React.FC = () => {
         <div style={{ position: 'relative', maxWidth: 400 }}>
           <Search size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--color-text-tertiary)' }} />
           <input
-            type="text" placeholder="クエストを探す..."
+            type="search" enterKeyHint="search" placeholder="クエスト名・団体名・場所で探す"
             value={search} onChange={e => setSearch(e.target.value)}
             style={{
               width: '100%',
@@ -260,7 +263,8 @@ const QuestBoard: React.FC = () => {
                   onClick={() => setSelectedQuest(quest)}
                   className="animate-fade-in-up"
                   style={{
-                    animationDelay: `${i * 80}ms`,
+                    // 件数が多いと下の方のカードが何秒も透明のままになるので、遅らせるのは最初の数枚だけ
+                    animationDelay: `${Math.min(i, 6) * 60}ms`,
                     borderRadius: '1rem',
                     padding: '1.25rem 1.5rem',
                     cursor: 'pointer',
@@ -271,7 +275,9 @@ const QuestBoard: React.FC = () => {
                     boxShadow: 'var(--shadow-card)',
                     transition: 'box-shadow 0.3s, transform 0.3s, border-color 0.3s',
                   }}
-                  onMouseEnter={e => {
+                  // ホバーの演出はマウスのときだけ。タッチではタップ後に浮いたまま残ってしまう
+                  onPointerEnter={e => {
+                    if (e.pointerType !== 'mouse') return;
                     const el = e.currentTarget as HTMLElement;
                     el.style.boxShadow = 'var(--shadow-card-hover)';
                     el.style.transform = 'translateY(-2px)';
@@ -281,7 +287,8 @@ const QuestBoard: React.FC = () => {
                     const title = el.querySelector('.card-title') as HTMLElement;
                     if (title) title.style.color = 'var(--color-primary)';
                   }}
-                  onMouseLeave={e => {
+                  onPointerLeave={e => {
+                    if (e.pointerType !== 'mouse') return;
                     const el = e.currentTarget as HTMLElement;
                     el.style.boxShadow = 'var(--shadow-card)';
                     el.style.transform = 'translateY(0)';

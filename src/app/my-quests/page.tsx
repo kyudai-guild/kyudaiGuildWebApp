@@ -64,7 +64,8 @@ const S = {
   titleGroup: { display: 'flex', alignItems: 'center', gap: '0.75rem' } as React.CSSProperties,
   content: { maxWidth: 900, margin: '0 auto', padding: '0 clamp(1rem, 4vw, 2rem) 3rem' } as React.CSSProperties,
   filterRow: { display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', overflowX: 'auto', paddingBottom: '0.25rem' } as React.CSSProperties,
-  alertBanner: { display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' } as React.CSSProperties,
+  // 操作したボタンはページの下の方にあることが多い。上に固定して、スクロールしていても見えるようにする
+  alertBanner: { position: 'sticky', top: 'calc(var(--header-height) + 0.5rem)', zIndex: 20, boxShadow: 'var(--shadow-md)', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', transition: 'background 0.2s', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' } as React.CSSProperties,
   spinner: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', textAlign: 'center', padding: '5rem 0' } as React.CSSProperties,
   emptyBox: { textAlign: 'center', padding: '4rem 2rem', borderRadius: '1rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)' } as React.CSSProperties,
   stack: { display: 'flex', flexDirection: 'column', gap: '0.75rem' } as React.CSSProperties,
@@ -77,8 +78,9 @@ const S = {
   metaItem: { display: 'flex', alignItems: 'center', gap: '0.375rem' } as React.CSSProperties,
   rejectionBox: { padding: '1rem', borderRadius: '0.75rem', background: '#fef2f2', border: '1px solid #fecaca', marginTop: '0.75rem' } as React.CSSProperties,
   applicantCard: { padding: '1rem', borderRadius: '0.75rem', background: 'var(--bg-base)', border: '1px solid var(--color-border)' } as React.CSSProperties,
-  smallBtn: { display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.875rem', borderRadius: '9999px', cursor: 'pointer', border: '1px solid var(--color-border)', background: 'var(--bg-card)', color: 'var(--color-text-secondary)', transition: 'all 0.2s' } as React.CSSProperties,
-  primarySmallBtn: { display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.875rem', borderRadius: '9999px', cursor: 'pointer', border: 'none', background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', transition: 'background 0.2s' } as React.CSSProperties,
+  // スマホで押しやすい高さ（36px）を確保する
+  smallBtn: { display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.875rem', minHeight: 36, borderRadius: '9999px', cursor: 'pointer', border: '1px solid var(--color-border)', background: 'var(--bg-card)', color: 'var(--color-text-secondary)', transition: 'all 0.2s' } as React.CSSProperties,
+  primarySmallBtn: { display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.875rem', minHeight: 36, borderRadius: '9999px', cursor: 'pointer', border: 'none', background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', transition: 'background 0.2s' } as React.CSSProperties,
 };
 
 export default function MyQuestsPage() {
@@ -145,7 +147,9 @@ export default function MyQuestsPage() {
     setLoading(false);
   }, [member.id, member.isVisitor]);
 
-  const reviewApplication = async (appId: string, action: 'accept' | 'reject') => {
+  const reviewApplication = async (appId: string, action: 'accept' | 'reject', name?: string) => {
+    // 見送りは取り消せない。「承認する」の隣にあり、スマホでは押し間違えやすい
+    if (action === 'reject' && !confirm(`${name ?? 'この方'}さんの応募を見送りますか？\nこの操作は取り消せません。`)) return;
     setBusy(true); setActionError(null);
     try {
       const res = await fetch(`/api/applications/${appId}`, {
@@ -163,6 +167,7 @@ export default function MyQuestsPage() {
   };
 
   const completeQuest = async (questId: string) => {
+    if (!confirm('このクエストの完了を報告しますか？\n完了すると、掲示板から外れて新しい応募を受け付けなくなります。')) return;
     setBusy(true); setActionError(null);
     try {
       const res = await fetch(`/api/quests/${questId}/complete`, { method: 'POST' });
@@ -252,7 +257,7 @@ export default function MyQuestsPage() {
       <div style={S.content}>
         {actionError && (
           <div style={S.alertBanner} onClick={() => setActionError(null)}>
-            <AlertCircle size={14} style={{ flexShrink: 0 }} />{actionError}（クリックで閉じる）
+            <AlertCircle size={14} style={{ flexShrink: 0 }} />{actionError}（押すと閉じます）
           </div>
         )}
 
@@ -366,7 +371,7 @@ export default function MyQuestsPage() {
                                                 <button style={S.primarySmallBtn} disabled={busy} onClick={() => reviewApplication(app.id, 'accept')}>
                                                   <CheckCircle2 size={12} />承認する
                                                 </button>
-                                                <button style={S.smallBtn} disabled={busy} onClick={() => reviewApplication(app.id, 'reject')}>
+                                                <button style={S.smallBtn} disabled={busy} onClick={() => reviewApplication(app.id, 'reject', app.applicant?.display_name)}>
                                                   <XCircle size={12} />見送る
                                                 </button>
                                               </>

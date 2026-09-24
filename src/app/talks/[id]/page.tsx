@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Send, ShieldCheck, Users, ChevronDown, ChevronUp, UserPlus, UserMinus } from 'lucide-react';
 import { useGuild } from '@/contexts/GuildContext';
 import { ChatSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
+import { isSubmitEnter } from '@/lib/keyboard';
 
 interface TalkMessage {
   id: string; body: string; created_at: string; sender_id: string;
@@ -196,13 +197,17 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
   let lastDate = '';
 
   return (
-    <div style={{ minHeight: 'calc(100vh - var(--header-height))', display: 'flex', flexDirection: 'column', maxWidth: 760, margin: '0 auto', padding: '1rem clamp(0.5rem, 3vw, 1.5rem) 1.5rem' }}>
+    // 高さを画面に固定し、メッセージ欄だけをスクロールさせる。
+    // min-height だとメッセージの分だけページが伸び、開いたときに最新まで送れず、
+    // 入力欄もページの一番下まで行かないと出てこない。
+    // dvh はスマホのアドレスバーの出入りに追従する高さ。
+    <div style={{ height: 'calc(100dvh - var(--header-height))', display: 'flex', flexDirection: 'column', maxWidth: 760, margin: '0 auto', padding: 'clamp(0.5rem, 2vw, 1rem) clamp(0.5rem, 3vw, 1.5rem) clamp(0.5rem, 2vw, 1.5rem)' }}>
       <SkeletonStyles />
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, borderRadius: '1rem', overflow: 'hidden', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}>
         {/* ヘッダー */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.875rem 1.25rem', borderBottom: '1px solid var(--color-border)', background: 'var(--bg-card)' }}>
           <button onClick={() => router.push('/talks')} aria-label="トーク一覧へ"
-            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--color-text-tertiary)', padding: '0.25rem' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, margin: '-0.375rem 0 -0.375rem -0.5rem', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--color-text-tertiary)' }}
           ><ArrowLeft size={18} /></button>
           <span style={{ width: 36, height: 36, borderRadius: '9999px', flexShrink: 0, background: 'var(--bg-dark)', color: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontFamily: 'var(--font-display)' }}>
             {headerName.charAt(0)}
@@ -216,7 +221,7 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
         <StaffPanel roomId={id} onChanged={reloadRoom} />
 
         {/* メッセージ */}
-        <div ref={bodyRef} style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', gap: '0.375rem', minHeight: 300 }}>
+        <div ref={bodyRef} style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain', padding: 'clamp(0.75rem, 3vw, 1.25rem)', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', gap: '0.375rem', minHeight: 160 }}>
           {loading ? (
             <ChatSkeleton rows={4} />
           ) : notMember ? (
@@ -266,7 +271,7 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
         )}
         {!notMember && <div style={{ display: 'flex', gap: '0.625rem', padding: '0.875rem 1rem', background: 'var(--bg-card)', borderTop: '1px solid var(--color-border)' }}>
           <input value={input} onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }}
+            onKeyDown={e => { if (isSubmitEnter(e)) { e.preventDefault(); send(); } }}
             placeholder="メッセージを入力" autoComplete="off"
             style={{ flex: 1, background: 'var(--bg-base)', border: '1px solid var(--color-border)', borderRadius: '9999px', padding: '0.625rem 1.125rem', fontSize: '0.875rem', outline: 'none', color: 'var(--color-text-primary)' }} />
           <button onClick={send} disabled={sending} aria-label="送信"

@@ -5,6 +5,7 @@ import { Shield, LogIn, Edit2, Check, X } from 'lucide-react';
 import { useGuild } from '@/contexts/GuildContext';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
+import { isSubmitEnter } from '@/lib/keyboard';
 
 export default function MemberCard() {
   const { isLoggedIn, member, updateProfile } = useGuild();
@@ -65,7 +66,7 @@ export default function MemberCard() {
               <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
                 style={{ fontSize: '1rem', fontWeight: 600, padding: '0.25rem 0.75rem', borderRadius: '0.5rem', outline: 'none', border: '1px solid var(--color-primary)', color: 'var(--color-text-primary)', background: 'var(--bg-base)', boxShadow: '0 0 0 3px rgba(26,74,58,0.1)', boxSizing: 'border-box', flex: 1, minWidth: 0 }}
                 autoFocus
-                onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(false); }}
+                onKeyDown={e => { if (isSubmitEnter(e)) saveEdit(); if (e.key === 'Escape') setEditing(false); }}
               />
               <button onClick={saveEdit} disabled={saving} style={{ ...iconBtnS, color: '#16a34a' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f0fdf4'; }}

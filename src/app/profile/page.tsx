@@ -6,6 +6,7 @@ import { ArrowLeft, Scroll, Heart, Pencil, Building2, Mail } from 'lucide-react'
 import { useGuild } from '@/contexts/GuildContext';
 import { RowListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 import OrgManagerPanel from '@/components/org/OrgManagerPanel';
+import { isSubmitEnter } from '@/lib/keyboard';
 
 interface Option { id: string; label: string; description?: string }
 interface Stats { posted_total: number; posted_completed: number; accepted_completed: number; thanks_received: number; member_since: string | null }
@@ -312,7 +313,7 @@ export default function ProfilePage() {
             </div>
             <p style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem' }}>資格・スキル<span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', fontWeight: 400, marginLeft: '0.375rem' }}>Enterで追加</span></p>
             <input style={inputStyle} value={skillInput} onChange={e => setSkillInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const s = skillInput.trim(); if (s && !skills.includes(s)) { setSkills(prev => [...prev, s]); setSkillInput(''); } } }}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (!isSubmitEnter(e)) return; const s = skillInput.trim(); if (s && !skills.includes(s)) { setSkills(prev => [...prev, s]); setSkillInput(''); } } }}
               placeholder="例: TOEIC 800点" />
             {skills.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.625rem' }}>

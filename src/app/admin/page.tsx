@@ -13,6 +13,7 @@ import OrgBadge from '@/components/quest/OrgBadge';
 import QuestDetails from '@/components/quest/QuestDetails';
 import type { QuestSession, ScheduleRow } from '@/lib/quest-form';
 import { CardListSkeleton, RowListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
+import { isSubmitEnter } from '@/lib/keyboard';
 
 interface AdminQuest {
   id: string; title: string; description: string | null; quest_type: string;
@@ -802,7 +803,7 @@ export default function AdminPage() {
                               <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-text-primary)', margin: '1rem 0 0.625rem' }}>ユーザーを追加</p>
                               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.625rem' }}>
                                 <input type="text" value={userQuery} onChange={e => setUserQuery(e.target.value)}
-                                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchUsers(); } }}
+                                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (isSubmitEnter(e)) searchUsers(); } }}
                                   placeholder="表示名・メールアドレスで検索"
                                   style={{ flex: 1, background: 'var(--bg-base)', border: '1px solid var(--color-border)', borderRadius: '0.75rem', padding: '0.625rem 0.875rem', fontSize: '0.875rem', color: 'var(--color-text-primary)', outline: 'none', boxSizing: 'border-box' }}
                                   onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,74,58,0.1)'; }}

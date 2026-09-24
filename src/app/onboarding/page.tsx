@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, CheckCircle2 } from 'lucide-react';
 import { useGuild } from '@/contexts/GuildContext';
+import { isSubmitEnter } from '@/lib/keyboard';
 
 interface Option { id: string; label: string; description?: string }
 
@@ -190,7 +191,7 @@ export default function OnboardingPage() {
 
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>資格・スキル<span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', fontWeight: 400, marginLeft: '0.375rem' }}>Enterで追加</span></label>
             <input style={inputStyle} value={skillInput} onChange={e => setSkillInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSkill(); } }}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (isSubmitEnter(e)) addSkill(); } }}
               placeholder="例: TOEIC 800点 / 基本情報技術者 / 普通自動車免許" />
             {skills.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.625rem' }}>

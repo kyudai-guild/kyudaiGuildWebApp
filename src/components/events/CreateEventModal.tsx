@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Send, AlertCircle, Calendar, Clock, MapPin, Users, Tag, Check } from 'lucide-react';
 import { EVENT_COLORS, DEFAULT_EVENT_COLOR, type GuildEvent } from './types';
+import { isSubmitEnter } from '@/lib/keyboard';
 
 /** 主催欄の既定値。他団体のイベントを代理登録する場合はここを書き換えて使う */
 const DEFAULT_ORGANIZER = '九大ギルド運営';
@@ -132,7 +133,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated, editing }
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(15,10,5,0.4)', backdropFilter: 'blur(4px)' }}>
       <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2 }}
-        style={{ position: 'relative', width: '100%', maxWidth: 520, maxHeight: '92vh', overflowY: 'auto', borderRadius: '1.25rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)' }}
+        style={{ position: 'relative', width: '100%', maxWidth: 520, maxHeight: '92dvh', overflowY: 'auto', overscrollBehavior: 'contain', borderRadius: '1.25rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)' }}
       >
         {/* Header */}
         <div style={{ position: 'sticky', top: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid var(--color-border)', background: 'var(--bg-card)', zIndex: 10 }}>
@@ -212,7 +213,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated, editing }
             <label style={lS}><Users size={13} style={{ display: 'inline', marginRight: 4 }} />共催（任意）</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input type="text" list="event-org-suggestions" value={coInput} onChange={e => setCoInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); addCo(); } }}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (isSubmitEnter(e)) addCo(); } }}
                 placeholder="団体名を入力（候補から選べます）" style={{ ...iS, flex: 1 }} onFocus={focus} onBlur={blur} />
               <datalist id="event-org-suggestions">
                 {orgNames.map(n => <option key={n} value={n} />)}
@@ -264,7 +265,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated, editing }
             <label style={lS}><Tag size={13} style={{ display: 'inline', marginRight: 4 }} />タグ</label>
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <input type="text" value={customTag} onChange={e => setCustomTag(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (isSubmitEnter(e)) addTag(); } }}
                 placeholder="タグを追加..."
                 style={{ ...iS, flex: 1 }} onFocus={focus} onBlur={blur}
               />

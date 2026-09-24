@@ -109,7 +109,7 @@ export default function Header() {
         boxShadow: scrolled ? '0 1px 2px rgba(31,20,15,0.04)' : 'none',
         transition: 'background 0.4s, box-shadow 0.4s',
       }}>
-        <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto', height: '100%', padding: '0 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ maxWidth: 'var(--content-max)', margin: '0 auto', height: '100%', padding: '0 clamp(1rem, 4vw, 2rem)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
           {/* Logo */}
           <button onClick={() => router.push('/')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -177,9 +177,13 @@ export default function Header() {
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="メニュー"
             className="header-mobile-btn"
-            style={{ padding: '0.5rem', color: 'var(--color-text-primary)', alignItems: 'center', justifyContent: 'center' }}
+            style={{ position: 'relative', padding: '0.5rem', marginRight: '-0.5rem', color: 'var(--color-text-primary)', alignItems: 'center', justifyContent: 'center' }}
           >
             {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+            {/* スマホではメニューの中の赤い数字が見えないので、ボタンに印を出す */}
+            {!mobileOpen && notifCount + adminCount > 0 && (
+              <span aria-label="対応が必要なものがあります" style={{ position: 'absolute', top: 6, right: 4, width: 10, height: 10, borderRadius: 9999, background: '#dc2626', border: '2px solid var(--bg-base)' }} />
+            )}
           </button>
         </div>
       </header>

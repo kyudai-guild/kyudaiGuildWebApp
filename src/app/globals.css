@@ -182,10 +182,13 @@ img {
     border-color var(--duration-normal) var(--ease-out);
 }
 
-.rpg-card:hover {
-  box-shadow: var(--shadow-card-hover);
-  transform: translateY(-2px);
-  border-color: var(--color-border-strong);
+/* タッチ端末ではホバーを出さない（タップ後に浮いたまま残るため） */
+@media (hover: hover) {
+  .rpg-card:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-2px);
+    border-color: var(--color-border-strong);
+  }
 }
 
 /* ================================================================
@@ -290,5 +293,13 @@ img {
 @media (max-width: 768px) {
   :root {
     --header-height: 60px;
+  }
+
+  /* iPhone は 16px 未満の入力欄にフォーカスすると画面を拡大し、戻らなくなる。
+     各画面のインライン指定（0.875rem など）より優先させるため !important */
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),
+  select,
+  textarea {
+    font-size: 16px !important;
   }
 }

@@ -12,6 +12,7 @@ import {
   validateQuestInput, todayJst, photoUrl,
   type QuestSession, type ScheduleRow,
 } from '@/lib/quest-form';
+import { isSubmitEnter } from '@/lib/keyboard';
 
 type CreateQuestModalProps = { isOpen: boolean; onClose: () => void };
 type MyOrg = { id: string; name: string; description: string | null; public_contact: string | null };
@@ -35,8 +36,12 @@ const MODAL_STYLES = `
   .cq-flow { display: grid; grid-template-columns: 6.5rem 1fr auto; gap: 0.375rem; align-items: center; }
   @media (max-width: 560px) {
     .cq-grid-2 { grid-template-columns: 1fr; }
-    .cq-session { grid-template-columns: 1fr 1fr auto 1fr auto; }
+    /* 日付だけ1行目に置き、2行目を「開始 〜 終了 削除」にそろえる */
+    .cq-session { grid-template-columns: 1fr auto 1fr auto; }
     .cq-session > input[type=date] { grid-column: 1 / -1; }
+    /* 項目が多いので、スマホでは画面いっぱいに使う */
+    .cq-overlay { padding: 0 !important; }
+    .cq-panel { max-height: none !important; height: 100dvh; border-radius: 0 !important; border: none !important; }
   }
 `;
 
@@ -311,8 +316,17 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
     touched.current = { intro: false, contact: false };
   };
 
+  // 何か書き始めているか。団体を選ぶと紹介・問い合わせ先は自動で入るので、それは数えない
+  const isDirty = step === 'form' && (
+    !!f.title.trim() || !!f.location.trim() || !!f.appeal.trim() || !!f.description.trim()
+    || f.schedule.some(r => r.content.trim()) || f.sessions.some(s => s.date)
+    || !!f.receiver_name.trim() || !!photoPath
+  );
+
   // 申請せずに閉じたら、アップロード済みの写真は消しておく（使われない画像を残さない）
   const handleClose = () => {
+    // スマホでは閉じるボタンに指が当たりやすい。書いた内容は戻せないので確かめる
+    if (isDirty && !confirm('書きかけの依頼書を閉じますか？\n入力した内容は消えます。')) return;
     if (photoPath) supabase.storage.from('quest-photos').remove([photoPath]).catch(() => {});
     reset();
     onClose();
@@ -337,25 +351,25 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
   };
 
   const overlay: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(15,10,5,0.4)', backdropFilter: 'blur(4px)' };
-  const panel: React.CSSProperties = { position: 'relative', width: '100%', maxWidth: 640, maxHeight: '92vh', overflowY: 'auto', borderRadius: '1.25rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)' };
+  const panel: React.CSSProperties = { position: 'relative', width: '100%', maxWidth: 640, maxHeight: '92dvh', overflowY: 'auto', overscrollBehavior: 'contain', borderRadius: '1.25rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)' };
   const stickyHeader: React.CSSProperties = { position: 'sticky', top: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid var(--color-border)', background: 'var(--bg-card)', zIndex: 10 };
   const photoSrc = photoUrl(photoPath);
 
   return (
-    <div style={overlay}>
+    <div className="cq-overlay" style={overlay}>
       <style>{MODAL_STYLES}</style>
-      <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2 }} style={panel}>
+      <motion.div className="cq-panel" initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2 }} style={panel}>
         <div style={stickyHeader}>
           <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>
             {step === 'guidelines' ? 'クエストを出す前に' : 'クエスト依頼書'}
           </h2>
-          <button onClick={handleClose} aria-label="閉じる" style={{ padding: '0.375rem', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none' }}>
+          <button onClick={handleClose} aria-label="閉じる" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, margin: '-0.5rem -0.625rem -0.5rem 0', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none' }}>
             <X size={18} />
           </button>
         </div>
 
         <div style={{ padding: '1.5rem' }}>
-          {error && (
+          {error && step === 'guidelines' && (
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 500, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
               <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} /><p>{error}</p>
             </div>
@@ -366,7 +380,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-primary)' }}>
                 <FileText size={16} /><span style={{ fontSize: '0.875rem', fontWeight: 600 }}>はじめにご確認ください</span>
               </div>
-              <div style={{ borderRadius: '0.75rem', padding: '1rem 1.125rem', maxHeight: '48vh', overflowY: 'auto', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
+              <div style={{ borderRadius: '0.75rem', padding: '1rem 1.125rem', maxHeight: '48dvh', overflowY: 'auto', overscrollBehavior: 'contain', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
                 <Guidelines />
               </div>
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.75rem', borderRadius: '0.75rem', cursor: 'pointer', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>
@@ -472,7 +486,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <input type="text" value={customTag} onChange={e => setCustomTag(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }} maxLength={30} placeholder="タグを追加..." style={{ ...iStyle, flex: 1 }} onFocus={focusI} onBlur={blurI} />
+                  <input type="text" value={customTag} onChange={e => setCustomTag(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (isSubmitEnter(e)) addTag(); } }} maxLength={30} placeholder="タグを追加..." style={{ ...iStyle, flex: 1 }} onFocus={focusI} onBlur={blurI} />
                   <button type="button" onClick={addTag} style={{ padding: '0.625rem 1rem', fontSize: '0.875rem', fontWeight: 600, borderRadius: '0.75rem', cursor: 'pointer', background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>追加</button>
                 </div>
               </div>
@@ -606,9 +620,17 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                 ))}
               </div>
 
+              {/* エラーは申請ボタンのすぐ上に出す。長いフォームの一番上に出すと、
+                  スマホでは押しても何も起きないように見える */}
+              {error && (
+                <div role="alert" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 500, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
+                  <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} /><p>{error}</p>
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.5rem' }}>
                 <button type="button" onClick={() => setStep('guidelines')}
-                  style={{ flex: 1, padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+                  style={{ flex: '0 0 auto', whiteSpace: 'nowrap', padding: '0.875rem 1rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
                 >注意事項に戻る</button>
                 <button type="submit" disabled={loading || photoBusy || myOrgs.length === 0 || atLimit}
                   style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: (loading || myOrgs.length === 0 || atLimit) ? 0.5 : 1, background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', border: 'none' }}

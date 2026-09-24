@@ -36,7 +36,7 @@ export default function UserProfileModal({ userId, onClose }: { userId: string; 
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(15,10,5,0.4)', backdropFilter: 'blur(4px)' }}>
-      <div onClick={e => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: 440, maxHeight: '85vh', overflowY: 'auto', borderRadius: '1.25rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)', padding: '1.75rem' }}>
+      <div onClick={e => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: 440, maxHeight: '85dvh', overflowY: 'auto', overscrollBehavior: 'contain', borderRadius: '1.25rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: '0 12px 40px rgba(31,20,15,0.12)', padding: '1.75rem' }}>
         <button onClick={onClose} aria-label="閉じる"
           style={{ position: 'absolute', top: '1rem', right: '1rem', width: 32, height: 32, borderRadius: '9999px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'var(--bg-base)', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}
         ><X size={16} /></button>

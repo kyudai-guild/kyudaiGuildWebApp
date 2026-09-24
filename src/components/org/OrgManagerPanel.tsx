@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Crown, UserPlus, Trash2, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { isSubmitEnter } from '@/lib/keyboard';
 
 /**
  * 団体長（運営が指名）にだけ表示する「団体の管理」欄。
@@ -88,7 +89,7 @@ function OrgCard({ org, onChanged }: { org: ManagedOrg; onChanged: () => void })
       {/* メールで追加 */}
       <p style={{ fontSize: '0.8125rem', fontWeight: 700, marginBottom: '0.375rem' }}>メンバーを追加</p>
       <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+        <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (isSubmitEnter(e)) add(); } }}
           placeholder="追加する人がログインに使っているメールアドレス" style={{ ...input, flex: 1 }} autoComplete="off" />
         <button type="button" onClick={add} disabled={busy || !email.trim()} style={{ ...btn, opacity: busy || !email.trim() ? 0.5 : 1, flexShrink: 0 }}>
           <UserPlus size={14} />追加
