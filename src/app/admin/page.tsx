@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useGuild } from '@/contexts/GuildContext';
 import { GuildEvent, eventStyle, fmtDateLong, fmtTimeRange } from '@/components/events/types';
 import EventDetailModal from '@/components/events/EventDetailModal';
+import CreateEventModal from '@/components/events/CreateEventModal';
 import { ADMIN_QUEST_STATUS as STATUS } from '@/components/quest/status';
 import OrgBadge from '@/components/quest/OrgBadge';
 import QuestDetails from '@/components/quest/QuestDetails';
@@ -42,6 +43,36 @@ interface OrgRequest {
   organization: { id: string; name: string } | null;
   applicant: { id: string; display_name: string | null; email: string | null } | null;
 }
+
+/*
+ * 管理画面だけの配色（ダーク）。
+ * 既存の部品はすべて CSS 変数で色を指定しているので、この範囲だけ変数を
+ * 上書きすれば、部品を書き直さずに管理画面全体が切り替わる。
+ * 一般の画面と見た目がはっきり違うことで、「いま運営として操作している」ことが分かる。
+ * ここで開くモーダル（イベント登録など）も、この範囲の中に描画されるので同じ配色になる。
+ */
+const ADMIN_THEME = `
+  .admin-theme {
+    color-scheme: dark;
+    --bg-base: #0f1714;
+    --bg-secondary: #1a2622;
+    --bg-tertiary: #24332d;
+    --bg-card: #15201c;
+    --bg-card-hover: #1b2823;
+    --color-primary: #86cfab;
+    --bg-dark: #2f6f57;
+    --bg-dark-hover: #3a8266;
+    --color-text-primary: #eef2ef;
+    --color-text-secondary: #b7c2bc;
+    --color-text-tertiary: #84928b;
+    --color-text-inverse: #f5f7f6;
+    --color-border: rgba(255, 255, 255, 0.1);
+    --color-border-strong: rgba(255, 255, 255, 0.18);
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    background: var(--bg-base);
+    color: var(--color-text-primary);
+  }
+`;
 
 const S = {
   page: { minHeight: '100vh' } as React.CSSProperties,
@@ -117,6 +148,11 @@ export default function AdminPage() {
   // タブのバッジ用。一覧を絞り込んでも数字がぶれないよう別に持つ。
   const [pendingOrgReqCount, setPendingOrgReqCount] = useState(0);
 
+  // ── イベントの登録・編集・削除 ──
+  const [eventModal, setEventModal] = useState<{ mode: 'new' } | { mode: 'edit'; event: GuildEvent } | null>(null);
+  const [eventBusy, setEventBusy] = useState(false);
+  const [eventError, setEventError] = useState<string | null>(null);
+
   // ── 運営設定（Slack通知のON/OFF）──
   const [slackOn, setSlackOn] = useState(true);
   const [settingsReady, setSettingsReady] = useState(false);
@@ -188,6 +224,17 @@ export default function AdminPage() {
       setSlackOn(!next);
       setSettingsError(e.message);
     }
+  };
+
+  // イベントの削除。間違えて登録したものを消す用途なので、確認してから消す
+  const deleteEvent = async (ev: GuildEvent) => {
+    if (!confirm(`「${ev.title}」を削除しますか？\nこの操作は取り消せません。`)) return;
+    setEventBusy(true); setEventError(null);
+    try {
+      const res = await fetch(`/api/events/${ev.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error((await res.json()).error || '削除に失敗しました。');
+      await fetchEvents();
+    } catch (e: any) { setEventError(e.message); } finally { setEventBusy(false); }
   };
 
   const createOrg = async () => {
@@ -314,7 +361,12 @@ export default function AdminPage() {
   };
 
   return (
-    <div style={S.page}>
+    <div className="admin-theme" style={S.page}>
+      <style>{ADMIN_THEME}</style>
+      {/* 管理者モードの帯。一般の画面との違いを一目で分かるようにする */}
+      <div style={{ background: '#c8956c', color: '#1f140f', padding: '0.4375rem clamp(1rem, 4vw, 2rem)', fontSize: '0.8125rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', textAlign: 'center' }}>
+        <Shield size={14} />管理者モード — 運営だけが見られる画面です。ここでの操作は利用者に反映されます。
+      </div>
       <div style={S.pageHeader}>
         <div style={S.inner}>
           <button onClick={() => router.push('/')} style={S.backBtn}
@@ -793,9 +845,20 @@ export default function AdminPage() {
         {/* ══════════ EVENT TAB ══════════ */}
         {tab === 'events' && (
           <>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)', marginBottom: '1rem' }}>
-              ※イベントの登録は <button onClick={() => router.push('/events')} style={{ color: 'var(--color-primary)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>イベントカレンダー</button> ページの「イベントを登録」から行えます。
-            </p>
+            {/* イベントの登録・編集・削除は管理画面に集約（カレンダー画面からは外した） */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+              <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)' }}>
+                登録したイベントは、すぐにイベントカレンダーに公開されます。
+              </p>
+              <button onClick={() => setEventModal({ mode: 'new' })}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 600, padding: '0.5rem 1.125rem', borderRadius: '9999px', background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', cursor: 'pointer', border: 'none' }}
+              ><Plus size={14} />イベントを登録</button>
+            </div>
+            {eventError && (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: '0.75rem', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 500, background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
+                <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />{eventError}
+              </div>
+            )}
             <div style={S.filterRow}>
               {(['approved','all'] as const).map(key => {
                 const label = key === 'all' ? 'すべて' : '公開中';
@@ -820,12 +883,11 @@ export default function AdminPage() {
                 {eventFiltered.map((ev, i) => {
                   const c = eventStyle(ev);
                   return (
-                    <motion.button key={ev.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-                      onClick={() => setSelectedEvent(ev)}
-                      style={{ ...S.card, display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.25rem', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+                    <motion.div key={ev.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                      style={{ ...S.card, display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.25rem', textAlign: 'left', width: '100%' }}
                     >
                       <div style={{ width: 4, alignSelf: 'stretch', borderRadius: '9999px', background: c.color, flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => setSelectedEvent(ev)}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{fmtDateLong(ev.event_date)}・{fmtTimeRange(ev)}</span>
                         </div>
@@ -835,9 +897,20 @@ export default function AdminPage() {
                             <MapPin size={11} />{ev.location}
                           </p>
                         )}
+                        <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>
+                          主催: {ev.organizer_name?.trim() || '九大ギルド運営'}
+                          {(ev.co_organizer_names ?? []).length > 0 && ` ／ 共催: ${(ev.co_organizer_names ?? []).join('・')}`}
+                        </p>
                       </div>
-                      <ChevronDown size={16} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0, transform: 'rotate(-90deg)' }} />
-                    </motion.button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', flexShrink: 0 }}>
+                        <button onClick={() => setEventModal({ mode: 'edit', event: ev })}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.75rem', borderRadius: '9999px', cursor: 'pointer', background: 'var(--bg-card)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+                        ><Pencil size={12} />編集</button>
+                        <button onClick={() => deleteEvent(ev)} disabled={eventBusy}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, padding: '0.375rem 0.75rem', borderRadius: '9999px', cursor: eventBusy ? 'not-allowed' : 'pointer', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}
+                        ><Trash2 size={12} />削除</button>
+                      </div>
+                    </motion.div>
                   );
                 })}
               </div>
@@ -848,6 +921,16 @@ export default function AdminPage() {
 
       <AnimatePresence>
         {selectedEvent && <EventDetailModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {eventModal && (
+          <CreateEventModal
+            isOpen
+            editing={eventModal.mode === 'edit' ? eventModal.event : null}
+            onClose={() => setEventModal(null)}
+            onCreated={fetchEvents}
+          />
+        )}
       </AnimatePresence>
 
       <SkeletonStyles />

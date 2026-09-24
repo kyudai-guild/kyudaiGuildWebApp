@@ -96,6 +96,7 @@ export default function EventDetailModal({ event, onClose }: { event: GuildEvent
           {/* Organizer */}
           <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', borderTop: '1px solid var(--color-border)', paddingTop: '0.75rem' }}>
             主催: {event.organizer_name?.trim() || '九大ギルド運営'}
+            {(event.co_organizer_names ?? []).length > 0 && ` ／ 共催: ${(event.co_organizer_names ?? []).join('・')}`}
           </p>
         </div>
       </motion.div>

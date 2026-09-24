@@ -1,10 +1,8 @@
 ﻿'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { CalendarDays, Plus } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 import { useGuild } from '@/contexts/GuildContext';
 import EventCalendar from '@/components/events/EventCalendar';
-import CreateEventModal from '@/components/events/CreateEventModal';
 import { GuildEvent } from '@/components/events/types';
 import { readCache, writeCache } from '@/lib/client-cache';
 import { CalendarSkeleton, SKELETON_STYLES } from '@/components/ui/Skeleton';
@@ -25,7 +23,6 @@ export default function EventsPage() {
   const { isAdmin, isLoggedIn, member } = useGuild();
   const [events, setEvents] = useState<GuildEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
   // writeCache 時点で最新のIDを読みたいので ref に持つ
   const memberIdForCache = useRef<string | null>(null);
 
@@ -76,15 +73,7 @@ export default function EventsPage() {
             </div>
           </div>
 
-          {isAdmin && (
-            <button onClick={() => setModalOpen(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 600, padding: '0.625rem 1.25rem', borderRadius: '9999px', background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', cursor: 'pointer', transition: 'background 0.2s, transform 0.2s', border: 'none', flexShrink: 0 }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
-            >
-              <Plus size={14} />イベントを登録
-            </button>
-          )}
+          {/* イベントの登録・編集・削除は管理画面（/admin のイベント管理）に集約した */}
         </div>
       </div>
 
@@ -97,15 +86,6 @@ export default function EventsPage() {
         )}
       </div>
 
-      <AnimatePresence>
-        {modalOpen && (
-          <CreateEventModal
-            isOpen={modalOpen}
-            onClose={() => setModalOpen(false)}
-            onCreated={fetchEvents}
-          />
-        )}
-      </AnimatePresence>
 
     </div>
   );

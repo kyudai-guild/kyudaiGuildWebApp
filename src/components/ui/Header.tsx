@@ -3,12 +3,15 @@
 import { useState, useEffect } from 'react';
 import { useGuild } from '@/contexts/GuildContext';
 import { Scroll, Shield, LogIn, LogOut, Menu, X, CalendarDays, UserRound, MessageCircle, BookOpen } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
 
 export default function Header() {
   const { isLoggedIn, isAdmin } = useGuild();
   const router = useRouter();
+  const pathname = usePathname();
+  // 管理画面を開いている間は「管理」を強調する（いま運営として操作していることが分かるように）
+  const onAdmin = pathname?.startsWith('/admin') ?? false;
   const supabase = createClient();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -151,7 +154,10 @@ export default function Header() {
               </button>
             )}
             {isAdmin && (
-              <button onClick={() => router.push('/admin')} className="header-nav-link" style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
+              <button onClick={() => router.push('/admin')} className="header-nav-link"
+                style={onAdmin
+                  ? { color: '#1f140f', background: '#c8956c', fontWeight: 700 }
+                  : { color: 'var(--color-primary)', fontWeight: 600 }}>
                 <Shield size={14} />管理{adminBadge}
               </button>
             )}

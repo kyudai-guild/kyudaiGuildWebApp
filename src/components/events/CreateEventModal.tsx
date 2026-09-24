@@ -1,51 +1,88 @@
 ﻿'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Send, AlertCircle, Calendar, Clock, MapPin, Users, Tag, Check } from 'lucide-react';
-import { EVENT_COLORS, DEFAULT_EVENT_COLOR } from './types';
+import { EVENT_COLORS, DEFAULT_EVENT_COLOR, type GuildEvent } from './types';
 
 /** 主催欄の既定値。他団体のイベントを代理登録する場合はここを書き換えて使う */
 const DEFAULT_ORGANIZER = '九大ギルド運営';
 
-interface Props { isOpen: boolean; onClose: () => void; onCreated: () => void; }
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+  /** 渡すと編集モードになる（管理画面のイベント一覧から開く） */
+  editing?: GuildEvent | null;
+}
+
+/** ISO日時を、フォームの入力欄（date / datetime-local）の形式に戻す。ローカル時刻で表す */
+function toLocalInput(iso: string | null | undefined, allDay: boolean): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return allDay ? date : `${date}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 const iS: React.CSSProperties = { width: '100%', background: 'var(--bg-base)', border: '1px solid var(--color-border)', borderRadius: '0.75rem', padding: '0.625rem 0.875rem', fontSize: '0.875rem', color: 'var(--color-text-primary)', outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s', boxSizing: 'border-box' };
 const lS: React.CSSProperties = { display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '0.375rem' };
 const focus = (e: React.FocusEvent<any>) => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,74,58,0.1)'; };
 const blur  = (e: React.FocusEvent<any>) => { e.currentTarget.style.borderColor = 'var(--color-border)';  e.currentTarget.style.boxShadow = 'none'; };
 
-export default function CreateEventModal({ isOpen, onClose, onCreated }: Props) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [allDay, setAllDay] = useState(false);
-  const [eventDate, setEventDate] = useState('');      // datetime-local（時間指定）/ date（終日）
-  const [eventEndDate, setEventEndDate] = useState('');
-  const [location, setLocation] = useState('');
-  const [locationUrl, setLocationUrl] = useState('');
-  const [organizerName, setOrganizerName] = useState(DEFAULT_ORGANIZER);
-  const [color, setColor] = useState(DEFAULT_EVENT_COLOR);
-  const [capacity, setCapacity] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
+export default function CreateEventModal({ isOpen, onClose, onCreated, editing }: Props) {
+  // 編集モードでは既存の内容を初期値にする（開くたびにマウントされる前提）
+  const [title, setTitle] = useState(editing?.title ?? '');
+  const [description, setDescription] = useState(editing?.description ?? '');
+  const [allDay, setAllDay] = useState(editing?.all_day ?? false);
+  // datetime-local（時間指定）/ date（終日）
+  const [eventDate, setEventDate] = useState(toLocalInput(editing?.event_date, editing?.all_day ?? false));
+  const [eventEndDate, setEventEndDate] = useState(toLocalInput(editing?.event_end_date, editing?.all_day ?? false));
+  const [location, setLocation] = useState(editing?.location ?? '');
+  const [locationUrl, setLocationUrl] = useState(editing?.location_url ?? '');
+  const [organizerName, setOrganizerName] = useState(editing?.organizer_name ?? DEFAULT_ORGANIZER);
+  // 共催団体（自由入力。登録済みの団体は入力候補として出す）
+  const [coOrganizers, setCoOrganizers] = useState<string[]>(editing?.co_organizer_names ?? []);
+  const [coInput, setCoInput] = useState('');
+  const [orgNames, setOrgNames] = useState<string[]>([]);
+  const [color, setColor] = useState(editing?.color ?? DEFAULT_EVENT_COLOR);
+  const [capacity, setCapacity] = useState(editing?.capacity ? String(editing.capacity) : '');
+  const [tags, setTags] = useState<string[]>(editing?.tags ?? []);
   const [customTag, setCustomTag] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 共催の入力候補（登録済みの団体名）。早期 return より上に置くこと
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch('/api/organizations')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setOrgNames((d?.organizations ?? []).filter((o: any) => o.is_active !== false).map((o: any) => o.name)))
+      .catch(() => {});
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  const addCo = () => {
+    const n = coInput.trim();
+    if (n && !coOrganizers.includes(n) && n !== organizerName.trim()) setCoOrganizers(p => [...p, n]);
+    setCoInput('');
+  };
 
   const addTag = () => { const t = customTag.trim(); if (t && !tags.includes(t)) { setTags(p => [...p, t]); setCustomTag(''); } };
   const removeTag = (t: string) => setTags(p => p.filter(x => x !== t));
 
   const reset = () => {
     setTitle(''); setDescription(''); setAllDay(false); setEventDate(''); setEventEndDate('');
-    setLocation(''); setLocationUrl(''); setOrganizerName(DEFAULT_ORGANIZER); setColor(DEFAULT_EVENT_COLOR);
+    setLocation(''); setLocationUrl(''); setOrganizerName(DEFAULT_ORGANIZER); setCoOrganizers([]); setCoInput(''); setColor(DEFAULT_EVENT_COLOR);
     setCapacity(''); setTags([]); setError(null);
   };
 
   // 終日⇔時間指定の切替時は、入力形式（date / datetime-local）が変わるため日時をリセット
   const toggleAllDay = (next: boolean) => {
     setAllDay(next);
-    setEventDate('');
-    setEventEndDate('');
+    // 入力形式が変わるので、日付部分だけ残して形式を合わせる
+    setEventDate(v => (v ? (next ? v.slice(0, 10) : `${v.slice(0, 10)}T09:00`) : ''));
+    setEventEndDate(v => (v ? (next ? v.slice(0, 10) : `${v.slice(0, 10)}T18:00`) : ''));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,8 +110,8 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: Props) 
 
     setLoading(true); setError(null);
     try {
-      const res = await fetch('/api/events', {
-        method: 'POST',
+      const res = await fetch(editing ? `/api/events/${editing.id}` : '/api/events', {
+        method: editing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title, description, event_date: startIso,
@@ -82,12 +119,13 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: Props) 
           all_day: allDay,
           location: location || null, location_url: locationUrl || null,
           organizer_name: organizerName.trim() || DEFAULT_ORGANIZER,
+          co_organizer_names: coOrganizers,
           color, capacity: capacity ? Number(capacity) : null, tags,
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
       reset(); onCreated(); onClose();
-    } catch (err: any) { setError(err.message || 'イベントの登録に失敗しました。'); }
+    } catch (err: any) { setError(err.message || (editing ? 'イベントの更新に失敗しました。' : 'イベントの登録に失敗しました。')); }
     finally { setLoading(false); }
   };
 
@@ -98,7 +136,7 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: Props) 
       >
         {/* Header */}
         <div style={{ position: 'sticky', top: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid var(--color-border)', background: 'var(--bg-card)', zIndex: 10 }}>
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>新しいイベントを登録</h2>
+          <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>{editing ? 'イベントを編集' : '新しいイベントを登録'}</h2>
           <button onClick={() => { reset(); onClose(); }} style={{ padding: '0.375rem', borderRadius: '0.5rem', cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-secondary)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
@@ -169,6 +207,35 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: Props) 
             </p>
           </div>
 
+          {/* Co-organizers（共催） */}
+          <div>
+            <label style={lS}><Users size={13} style={{ display: 'inline', marginRight: 4 }} />共催（任意）</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input type="text" list="event-org-suggestions" value={coInput} onChange={e => setCoInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); addCo(); } }}
+                placeholder="団体名を入力（候補から選べます）" style={{ ...iS, flex: 1 }} onFocus={focus} onBlur={blur} />
+              <datalist id="event-org-suggestions">
+                {orgNames.map(n => <option key={n} value={n} />)}
+              </datalist>
+              <button type="button" onClick={addCo}
+                style={{ padding: '0.625rem 1rem', fontSize: '0.875rem', fontWeight: 600, borderRadius: '0.75rem', cursor: 'pointer', background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}
+              >追加</button>
+            </div>
+            {coOrganizers.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginTop: '0.5rem' }}>
+                {coOrganizers.map(n => (
+                  <span key={n} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', padding: '0.25rem 0.625rem', borderRadius: '9999px', color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>
+                    {n}
+                    <button type="button" onClick={() => setCoOrganizers(p => p.filter(x => x !== n))} aria-label={`${n}を外す`} style={{ cursor: 'pointer', color: 'var(--color-text-tertiary)', background: 'none', border: 'none', display: 'flex', alignItems: 'center' }}><X size={10} /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>
+              学外の団体・行政なども自由に入力できます。登録済みの団体は候補に出ます。
+            </p>
+          </div>
+
           {/* Location */}
           <div>
             <label style={lS}><MapPin size={13} style={{ display: 'inline', marginRight: 4 }} />場所</label>
@@ -222,9 +289,9 @@ export default function CreateEventModal({ isOpen, onClose, onCreated }: Props) 
             style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.875rem', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1, background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', border: 'none', transition: 'background 0.2s' }}
             onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; }}
-          ><Send size={15} />{loading ? '登録中...' : 'イベントを登録する'}</button>
+          ><Send size={15} />{loading ? (editing ? '保存中...' : '登録中...') : (editing ? '変更を保存する' : 'イベントを登録する')}</button>
           <p style={{ fontSize: '0.75rem', textAlign: 'center', color: 'var(--color-text-tertiary)', marginTop: '-0.5rem' }}>
-            ※登録後すぐに公開されます。
+            {editing ? '※保存するとすぐに反映されます。' : '※登録後すぐに公開されます。'}
           </p>
         </form>
       </motion.div>

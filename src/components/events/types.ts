@@ -11,6 +11,8 @@ export interface GuildEvent {
   location_url: string | null;
   /** 表示用の主催団体名。登録者(organizer_id)とは別 */
   organizer_name: string | null;
+  /** 共催団体（自由入力・v21） */
+  co_organizer_names?: string[] | null;
   color: string | null;
   capacity: number | null;
   tags: string[];

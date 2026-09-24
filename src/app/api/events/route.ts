@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { validateEventInput } from '@/lib/event-form';
 
 export async function GET(request: Request) {
   try {
@@ -58,30 +59,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '管理者のみイベントを登録できます。' }, { status: 403 });
     }
 
-    const body = await request.json();
-    const {
-      title, description, event_date, event_end_date, all_day,
-      location, location_url, color, capacity, tags, organizer_name,
-    } = body;
-
-    if (!title || !event_date) {
-      return NextResponse.json({ error: 'タイトルと開催日時は必須です。' }, { status: 400 });
-    }
-    if (event_end_date && new Date(event_end_date) < new Date(event_date)) {
-      return NextResponse.json({ error: '終了日時は開始日時より後にしてください。' }, { status: 400 });
-    }
+    const checked = validateEventInput(await request.json());
+    if (!checked.ok) return NextResponse.json({ error: checked.error }, { status: 400 });
 
     const { data, error } = await supabase
       .from('events')
       .insert({
         organizer_id: user.id,
-        title, description, event_date, event_end_date: event_end_date || null,
-        all_day: Boolean(all_day),
-        location, location_url,
-        // 表示用の主催団体名。登録者（organizer_id）とは別に持つ
-        organizer_name: organizer_name?.trim() || '九大ギルド運営',
-        color: color || '#1a4a3a',
-        capacity: capacity || null, tags: tags || [],
+        // organizer_name は表示用の主催団体名。登録者（organizer_id）とは別に持つ
+        ...checked.value,
         status: 'approved', // 管理者が直接登録 → 即承認
       })
       .select().single();
