@@ -162,8 +162,8 @@ export default function QuestDetails({
 
       {/* 当日の受け入れ担当者（掲示しない） */}
       {privateDetails && (
-        <div style={{ ...box, background: '#fffbeb', border: '1px solid #fde68a' }}>
-          <p style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', fontWeight: 700, color: '#92400e', marginBottom: '0.375rem' }}>
+        <div style={{ ...box, background: 'var(--notice-warn-bg)', border: '1px solid var(--notice-warn-border)' }}>
+          <p style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--notice-warn-title)', marginBottom: '0.375rem' }}>
             <Lock size={12} />当日の受け入れ担当者（掲示していません）
           </p>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-primary)' }}>{privateDetails.receiver_name}</p>

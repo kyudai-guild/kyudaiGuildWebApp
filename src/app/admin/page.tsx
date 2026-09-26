@@ -70,6 +70,12 @@ const ADMIN_THEME = `
     --color-border: rgba(255, 255, 255, 0.1);
     --color-border-strong: rgba(255, 255, 255, 0.18);
     --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    --notice-warn-bg: rgba(245, 158, 11, 0.12);
+    --notice-warn-border: rgba(251, 191, 36, 0.35);
+    --notice-warn-title: #fcd34d;
+    --notice-danger-bg: rgba(239, 68, 68, 0.12);
+    --notice-danger-border: rgba(248, 113, 113, 0.35);
+    --notice-danger-title: #fca5a5;
     background: var(--bg-base);
     color: var(--color-text-primary);
   }
@@ -504,8 +510,8 @@ export default function AdminPage() {
                                 </p>
                               )}
                               {quest.status === 'rejected' && quest.rejection_reason && (
-                                <div style={{ padding: '1rem', borderRadius: '0.75rem', background: '#fef2f2', border: '1px solid #fecaca', marginBottom: '0.75rem' }}>
-                                  <p style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem', color: '#dc2626' }}>リジェクト理由:</p>
+                                <div style={{ padding: '1rem', borderRadius: '0.75rem', background: 'var(--notice-danger-bg)', border: '1px solid var(--notice-danger-border)', marginBottom: '0.75rem' }}>
+                                  <p style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--notice-danger-title)' }}>リジェクト理由:</p>
                                   <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{quest.rejection_reason}</p>
                                 </div>
                               )}
@@ -625,8 +631,8 @@ export default function AdminPage() {
                       )}
 
                       {req.status === 'rejected' && req.review_note && (
-                        <div style={{ padding: '0.875rem 1rem', borderRadius: '0.75rem', background: '#fef2f2', border: '1px solid #fecaca', marginTop: '0.75rem' }}>
-                          <p style={{ fontWeight: 600, fontSize: '0.8125rem', marginBottom: '0.375rem', color: '#dc2626' }}>却下理由:</p>
+                        <div style={{ padding: '0.875rem 1rem', borderRadius: '0.75rem', background: 'var(--notice-danger-bg)', border: '1px solid var(--notice-danger-border)', marginTop: '0.75rem' }}>
+                          <p style={{ fontWeight: 600, fontSize: '0.8125rem', marginBottom: '0.375rem', color: 'var(--notice-danger-title)' }}>却下理由:</p>
                           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{req.review_note}</p>
                         </div>
                       )}

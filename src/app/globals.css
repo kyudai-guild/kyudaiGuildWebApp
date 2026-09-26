@@ -34,6 +34,16 @@
   --color-border: rgba(31, 20, 15, 0.1);
   --color-border-strong: rgba(31, 20, 15, 0.18);
 
+  /* --- 注意書きの枠（管理画面の暗い配色では admin/page.tsx の ADMIN_THEME で差し替える）---
+     背景を明るい色で固定し、文字だけ --color-text-* にすると、暗い配色で文字が背景に溶ける。
+     枠の中で文字色を変数にするときは、背景もこの変数を使うこと */
+  --notice-warn-bg: #fffbeb;
+  --notice-warn-border: #fde68a;
+  --notice-warn-title: #92400e;
+  --notice-danger-bg: #fef2f2;
+  --notice-danger-border: #fecaca;
+  --notice-danger-title: #dc2626;
+
   /* --- Legacy variable aliases (used throughout components) --- */
   --gold: #c8956c;
   --gold-light: #1a4a3a;
