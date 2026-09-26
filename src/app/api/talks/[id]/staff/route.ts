@@ -1,18 +1,19 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { requireSignedIn, isManagerOf, logManagerAction } from '@/lib/org-manager';
+import { requireSignedIn, isManagerOf, isMemberOf, logManagerAction } from '@/lib/org-manager';
 
-// トークの人員（団体長のみ）
+// トークの人員（掲示した団体の所属者なら誰でも）
 //   GET   : 追加できる人（同じ団体のメンバー）と、今トークにいるかどうか
-//   POST  : 団体のメンバーをトークに追加   body { profile_id }
+//   POST  : 団体のメンバーをトークに追加（自分の参加も含む）   body { profile_id }
 //   DELETE: トークから外す   ?profile_id=...
 //
-// 団体単位の運用になったので、掲示した団体の団体長が、そのクエストの
-// トークに入れる人員を決められるようにする（2026-09 追加）。
-// 実際の可否はDB（v20 の can_manage_talk_staff）が判定する:
+// 団体単位の運用のため、掲示した団体の所属者が、そのクエストのトークに入れる人員を決められる
+// （2026-09 追加。当初は団体長だけだったが、所属者全員に広げた）。
+// 実際の可否はDB（v24 の can_manage_talk_staff）が判定する:
+//   - 操作できるのは、掲示した団体の所属者
 //   - 対象は同じ団体の所属者だけ
-//   - 掲示した本人と、承認済みの応募者（学生）は外せない
-// 候補の一覧に出すのはメールアドレスだけ（表示名は出さない。団体長の管理画面と同じ方針）。
+//   - 承認済みの応募者（学生）は外せない
+// 候補は表示名で出す。メールアドレスは団体長にだけ出す（団体長の管理画面と同じ範囲）。
 
 async function loadContext(roomId: string) {
   const auth = await requireSignedIn();
@@ -32,8 +33,8 @@ async function loadContext(roomId: string) {
   if (!room || !quest) {
     return { error: NextResponse.json({ error: 'トークルームが見つかりません。' }, { status: 404 }) };
   }
-  if (!quest.organization_id || !(await isManagerOf(auth.supabase, auth.userId, quest.organization_id))) {
-    return { error: NextResponse.json({ error: 'このトークの人員を変更できるのは、掲示した団体の団体長だけです。' }, { status: 403 }) };
+  if (!quest.organization_id || !(await isMemberOf(auth.supabase, auth.userId, quest.organization_id))) {
+    return { error: NextResponse.json({ error: 'このトークの人員を変更できるのは、掲示した団体のメンバーだけです。' }, { status: 403 }) };
   }
   return { auth, admin, quest, orgId: quest.organization_id };
 }
@@ -46,12 +47,13 @@ export async function GET(
     const { id } = await params;
     const ctx = await loadContext(id);
     if ('error' in ctx && ctx.error) return ctx.error;
-    const { admin, quest, orgId } = ctx as Exclude<typeof ctx, { error: NextResponse }>;
+    const { auth, admin, quest, orgId } = ctx as Exclude<typeof ctx, { error: NextResponse }>;
 
-    const [{ data: orgMembers }, { data: roomMembers }, { data: accepted }] = await Promise.all([
-      admin.from('profile_organizations').select('profile_id, role, profile:profile_id (email)').eq('organization_id', orgId),
+    const [{ data: orgMembers }, { data: roomMembers }, { data: accepted }, showEmail] = await Promise.all([
+      admin.from('profile_organizations').select('profile_id, role, profile:profile_id (display_name, email)').eq('organization_id', orgId),
       admin.from('talk_members').select('profile_id').eq('room_id', id),
       admin.from('quest_applications').select('applicant_id').eq('quest_id', quest.id).eq('status', 'accepted'),
+      isManagerOf(auth.supabase, auth.userId, orgId),
     ]);
     const inRoom = new Set((roomMembers ?? []).map(m => m.profile_id));
     const acceptedIds = new Set((accepted ?? []).map(a => a.applicant_id));
@@ -60,11 +62,13 @@ export async function GET(
       can_manage: true,
       candidates: (orgMembers ?? []).map((m: any) => ({
         profile_id: m.profile_id,
-        email: m.profile?.email ?? null,
+        name: m.profile?.display_name ?? null,
+        email: showEmail ? (m.profile?.email ?? null) : null,
         role: m.role,
+        is_creator: m.profile_id === quest.creator_id,
         in_room: inRoom.has(m.profile_id),
-        // 掲示した本人と、学生として参加している人は外せない
-        locked: m.profile_id === quest.creator_id || acceptedIds.has(m.profile_id),
+        // 学生として参加している人は外せない
+        locked: acceptedIds.has(m.profile_id),
       })),
     });
   } catch (err: any) {
@@ -126,7 +130,7 @@ export async function DELETE(
     }
     // RLS で弾かれた場合はエラーにならず0件になる（掲示した本人・学生など）
     if (!data || data.length === 0) {
-      return NextResponse.json({ error: 'この人はトークから外せません（掲示した本人と、応募した学生は外せません）。' }, { status: 403 });
+      return NextResponse.json({ error: 'この人はトークから外せません（応募した学生は外せません）。' }, { status: 403 });
     }
     await logManagerAction({ actorId: auth.userId, organizationId: orgId, action: 'remove_talk_staff', targetProfileId: profileId });
     return NextResponse.json({ ok: true });

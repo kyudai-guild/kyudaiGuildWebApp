@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { unreadByRoom } from '@/lib/talk-unread';
+import { myOrganizationIds } from '@/lib/org-manager';
 
 // トークルームの一覧
 //   - 自分が参加しているルーム
-//   - 自分が団体長を務める団体のクエストのルーム（参加していなくても人員を管理できるように）
+//   - 自分が所属する団体のクエストのルーム（参加していなくても、自分で参加したり人員を管理したりできるように）
+//     2026-09: 以前は団体長だけだったが、団体の所属者なら誰でもできるようにした
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -22,18 +24,13 @@ export async function GET() {
 
     const memberRoomIds = new Set((memberships ?? []).map(m => m.room_id));
 
-    // 団体長として管理できるルーム。完了したクエストは本人のセッションでは見えない
-    // 場合があるので、団体長であることを確かめたうえでサーバー権限で探す。
+    // 自分の団体のクエストのルーム。完了したクエストは本人のセッションでは見えない
+    // 場合があるので、所属を確かめたうえでサーバー権限で探す。
     const managedRoomIds = new Set<string>();
-    const { data: managed } = await supabase
-      .from('profile_organizations')
-      .select('organization_id')
-      .eq('profile_id', user.id)
-      .eq('role', 'manager');
-    const managedOrgIds = (managed ?? []).map(m => m.organization_id);
+    const myOrgIds = await myOrganizationIds(supabase, user.id);
     const admin = createAdminClient();
-    if (admin && managedOrgIds.length > 0) {
-      const { data: orgQuests } = await admin.from('quests').select('id').in('organization_id', managedOrgIds);
+    if (admin && myOrgIds.length > 0) {
+      const { data: orgQuests } = await admin.from('quests').select('id').in('organization_id', myOrgIds);
       const questIds = (orgQuests ?? []).map(q => q.id);
       if (questIds.length > 0) {
         const { data: rooms } = await admin.from('talk_rooms').select('id').in('quest_id', questIds);
@@ -44,7 +41,7 @@ export async function GET() {
     const roomIds = [...new Set([...memberRoomIds, ...managedRoomIds])];
     if (roomIds.length === 0) return NextResponse.json([]);
 
-    // 団体長として見るだけのルームも含むので、サーバー権限で読む（対象IDは上で絞り込み済み）
+    // 参加していない団体のルームも含むので、サーバー権限で読む（対象IDは上で絞り込み済み）
     const reader = admin ?? supabase;
     const { data: rooms, error: roomError } = await reader
       .from('talk_rooms')
@@ -75,7 +72,7 @@ export async function GET() {
       ...r,
       last_message: latestByRoom.get(r.id) ?? null,
       unread_count: unread.get(r.id) ?? 0,
-      // 団体長として管理できるが、まだ自分は参加していないルーム
+      // 自分の団体のトークだが、まだ自分は参加していないルーム
       managed_only: !memberRoomIds.has(r.id),
     })));
   } catch (err: any) {

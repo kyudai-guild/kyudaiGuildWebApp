@@ -23,15 +23,18 @@ interface RoomInfo {
 
 const POLL_INTERVAL_MS = 5000;
 
-type StaffCandidate = { profile_id: string; email: string | null; role: string; in_room: boolean; locked: boolean };
+type StaffCandidate = {
+  profile_id: string; name: string | null; email: string | null; role: string;
+  is_creator: boolean; in_room: boolean; locked: boolean;
+};
 
 /**
- * 団体長だけに出す「トークの人員」パネル。
- * 同じ団体のメンバーを、このクエストのトークに追加・削除できる。
- * 候補はメールアドレスで表示する（団体長の管理画面と同じく、表示名は出さない）。
- * 掲示した本人と、応募した学生は外せない（DB側でも拒否される）。
+ * 掲示した団体のメンバーに出す「トークの人員」パネル。
+ * 同じ団体のメンバーを、このクエストのトークに追加・削除できる（自分の参加も含む）。
+ * メールアドレスは団体長にだけ返ってくる（団体長の管理画面と同じ範囲）。
+ * 応募した学生は外せない（DB側でも拒否される）。
  */
-function StaffPanel({ roomId, onChanged }: { roomId: string; onChanged: () => void }) {
+function StaffPanel({ roomId, currentUserId, onChanged }: { roomId: string; currentUserId: string; onChanged: () => void }) {
   const [candidates, setCandidates] = useState<StaffCandidate[] | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -39,7 +42,7 @@ function StaffPanel({ roomId, onChanged }: { roomId: string; onChanged: () => vo
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/talks/${roomId}/staff`);
-    if (!res.ok) { setCandidates(null); return; }  // 団体長でなければ何も出さない
+    if (!res.ok) { setCandidates(null); return; }  // 掲示した団体のメンバーでなければ何も出さない
     setCandidates((await res.json()).candidates ?? []);
   }, [roomId]);
 
@@ -65,20 +68,26 @@ function StaffPanel({ roomId, onChanged }: { roomId: string; onChanged: () => vo
     <div style={{ borderBottom: '1px solid var(--color-border)', background: '#fffbeb' }}>
       <button onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', padding: '0.625rem 1.25rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 700, color: '#92400e', textAlign: 'left' }}>
-        <Users size={14} />トークの人員（団体長）— 団体のメンバー {inRoom}人が参加中
+        <Users size={14} />トークの人員 — 団体のメンバー {inRoom}人が参加中
         <span style={{ marginLeft: 'auto' }}>{open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
       </button>
       {open && (
         <div style={{ padding: '0 1.25rem 0.875rem' }}>
           <p style={{ fontSize: '0.75rem', color: '#92400e', lineHeight: 1.6, marginBottom: '0.5rem' }}>
-            このクエストのトークに入れる、団体のメンバーを選べます。掲示した本人と応募した学生は外せません。
+            このクエストのトークに入れる団体のメンバーを選べます。団体のメンバーなら誰でも変更できます（応募した学生は外せません）。
           </p>
           {err && <p style={{ fontSize: '0.75rem', color: '#dc2626', marginBottom: '0.5rem' }}>{err}</p>}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
             {candidates.map(c => (
               <div key={c.profile_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.4375rem 0.75rem', borderRadius: '0.625rem', background: 'var(--bg-card)', border: '1px solid var(--color-border)' }}>
-                <span style={{ fontSize: '0.8125rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-primary)' }}>
-                  {c.email ?? '（不明）'}{c.role === 'manager' ? '（団体長）' : ''}
+                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-primary)' }}>
+                  <span style={{ fontSize: '0.8125rem' }}>
+                    {c.name ?? c.email ?? '（不明）'}
+                    {c.profile_id === currentUserId && '（あなた）'}
+                    {c.role === 'manager' && '（団体長）'}
+                    {c.is_creator && '（掲示した人）'}
+                  </span>
+                  {c.email && c.name && <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)', marginLeft: '0.375rem' }}>{c.email}</span>}
                 </span>
                 {c.locked ? (
                   <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>参加中（外せません）</span>
@@ -88,7 +97,9 @@ function StaffPanel({ roomId, onChanged }: { roomId: string; onChanged: () => vo
                       ...(c.in_room
                         ? { background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }
                         : { background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', border: 'none' }) }}>
-                    {c.in_room ? <><UserMinus size={11} />外す</> : <><UserPlus size={11} />追加</>}
+                    {c.in_room
+                      ? <><UserMinus size={11} />{c.profile_id === currentUserId ? '抜ける' : '外す'}</>
+                      : <><UserPlus size={11} />{c.profile_id === currentUserId ? '参加する' : '追加'}</>}
                   </button>
                 )}
               </div>
@@ -212,7 +223,7 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
   };
 
   const others = (room?.members ?? []).filter(m => m.profile_id !== member.id);
-  // 団体長として開いているが、まだ自分は参加していない
+  // 団体のメンバーとして開いているが、まだ自分は参加していない
   const notMember = !!room && !room.members.some(m => m.profile_id === member.id);
   const headerName = others.map(m => m.profile?.display_name ?? '不明').join('、') || 'トーク';
 
@@ -240,7 +251,7 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
           </div>
         </div>
 
-        <StaffPanel roomId={id} onChanged={reloadRoom} />
+        <StaffPanel roomId={id} currentUserId={member.id} onChanged={reloadRoom} />
 
         {/* メッセージ */}
         <div ref={bodyRef} style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain', padding: 'clamp(0.75rem, 3vw, 1.25rem)', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', gap: '0.375rem', minHeight: 160 }}>
@@ -249,7 +260,7 @@ export default function TalkRoomPage({ params }: { params: Promise<{ id: string 
           ) : notMember ? (
             <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)', textAlign: 'center', padding: '2rem 1rem', lineHeight: 1.8 }}>
               あなたはこのトークに参加していません。<br />
-              上の「トークの人員」から自分を追加すると、内容を見てやり取りできます。
+              上の「トークの人員」を開いて、自分の「参加する」を押すと、内容を見てやり取りできます。
             </p>
           ) : messages.length === 0 ? (
             <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-tertiary)', textAlign: 'center', padding: '2rem 0' }}>

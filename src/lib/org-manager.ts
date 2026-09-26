@@ -38,6 +38,30 @@ export async function isManagerOf(supabase: SupabaseClient, userId: string, orgI
   return (count ?? 0) > 0;
 }
 
+/** 自分が所属している団体のID（団体長・一般メンバーを問わない。本人のセッションで読む） */
+export async function myOrganizationIds(supabase: SupabaseClient, userId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from('profile_organizations')
+    .select('organization_id')
+    .eq('profile_id', userId);
+  return (data ?? []).map(r => r.organization_id as string);
+}
+
+/**
+ * 自分がその団体の所属者か（団体長・一般メンバーを問わない）。
+ * 2026-09: クエストは団体単位で運用するため、応募の承認・完了報告・トークの人員の管理は
+ * 掲示した団体の所属者なら誰でもできる（以前は掲示した本人・団体長だけだった）。
+ */
+export async function isMemberOf(supabase: SupabaseClient, userId: string, orgId: string | null | undefined): Promise<boolean> {
+  if (!orgId) return false;
+  const { count } = await supabase
+    .from('profile_organizations')
+    .select('profile_id', { count: 'exact', head: true })
+    .eq('profile_id', userId)
+    .eq('organization_id', orgId);
+  return (count ?? 0) > 0;
+}
+
 /**
  * 団体長の操作を記録する（v20 の org_manager_actions）。
  * 書き込めるのは service_role だけなので、サーバー権限で書く。

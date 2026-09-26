@@ -15,7 +15,7 @@ interface TalkRoom {
   quest: { id: string; title: string; quest_type: string; status: string } | null;
   members: { profile_id: string; profile: { display_name: string } | null }[];
   last_message: { body: string; created_at: string } | null;
-  // 団体長として管理できるが、自分はまだ参加していないルーム
+  // 自分の団体のトークだが、自分はまだ参加していないルーム
   managed_only?: boolean;
   /** 自分の未読メッセージ数 */
   unread_count?: number;
@@ -112,7 +112,7 @@ export default function TalksPage() {
                       )}
                       {room.managed_only && (
                         <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#92400e', background: '#fef3c7', padding: '0.125rem 0.625rem', borderRadius: '9999px' }}>
-                          団体長として管理（未参加）
+                          団体のトーク（未参加）
                         </span>
                       )}
                     </span>

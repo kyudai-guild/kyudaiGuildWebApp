@@ -25,6 +25,9 @@ interface Application {
 }
 interface MyQuest {
   id: string; title: string; description: string; quest_type: string;
+  creator_id: string;
+  // 「自団体の掲示クエスト」でだけ返る。誰が掲示したか
+  creator?: { display_name: string } | null;
   max_applicants: number; tags: string[]; status: string;
   rejection_reason: string | null; reviewed_at: string | null;
   reviewer: { display_name: string } | null;
@@ -87,8 +90,12 @@ const S = {
 export default function MyQuestsPage() {
   const router = useRouter();
   const { member } = useGuild();
-  const [view, setView] = useState<'posted' | 'applied'>('posted');
+  const [view, setView] = useState<'posted' | 'org' | 'applied'>('posted');
   const [quests, setQuests] = useState<MyQuest[]>([]);
+  // 自分が所属する団体の名義で出されたクエスト（掲示した人を問わない）
+  const [orgQuests, setOrgQuests] = useState<MyQuest[]>([]);
+  const [orgCount, setOrgCount] = useState(0);
+  const [orgLoading, setOrgLoading] = useState(true);
   const [appliedItems, setAppliedItems] = useState<AppliedItem[]>([]);
   const [appliedMore, setAppliedMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -115,6 +122,16 @@ export default function MyQuestsPage() {
       })
       .catch(() => {});
   }, []);
+  const loadOrg = useCallback(() => {
+    return fetch('/api/my-quests/org')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        setOrgQuests(data.quests ?? []);
+        setOrgCount((data.organizations ?? []).length);
+      })
+      .catch(() => {});
+  }, []);
   const loadApplied = useCallback((offset = 0) => {
     return fetch(`/api/profile/history?role=applied&offset=${offset}`)
       .then(r => r.ok ? r.json() : { items: [], hasMore: false })
@@ -126,8 +143,12 @@ export default function MyQuestsPage() {
 
   useEffect(() => {
     loadPosted().finally(() => setLoading(false));
+    loadOrg().finally(() => setOrgLoading(false));
     loadApplied().finally(() => setAppliedLoading(false));
-  }, [loadPosted, loadApplied]);
+  }, [loadPosted, loadOrg, loadApplied]);
+
+  // 応募の処理や完了報告は、どちらの一覧から行っても両方に反映させる
+  const reloadQuests = () => Promise.all([loadPosted(), loadOrg()]);
 
   // この画面を開いた＝リジェクトを実際に目にした、とみなして確認済みにする。
   // 以降ホーム画面のバナーには出ない。
@@ -159,7 +180,7 @@ export default function MyQuestsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       if (data.warning) setActionError(data.warning);
-      await loadPosted();
+      await reloadQuests();
       refreshBadges(); // マイクエストの赤い数字（未処理の応募）を減らす
     } catch (e: any) {
       setActionError(e.message || '操作に失敗しました。');
@@ -174,7 +195,7 @@ export default function MyQuestsPage() {
     try {
       const res = await fetch(`/api/quests/${questId}/complete`, { method: 'POST' });
       if (!res.ok) throw new Error((await res.json()).error);
-      await loadPosted();
+      await reloadQuests();
     } catch (e: any) {
       setActionError(e.message || '完了報告に失敗しました。');
     } finally {
@@ -191,16 +212,15 @@ export default function MyQuestsPage() {
     if (!res.ok) throw new Error((await res.json()).error);
   };
 
-  const filtered = filter === 'all' ? quests : quests.filter(q => q.status === filter);
-  const counts: Record<string, number> = {
-    all: quests.length,
-    pending: quests.filter(q => q.status === 'pending').length,
-    approved: quests.filter(q => q.status === 'approved').length,
-    completed: quests.filter(q => q.status === 'completed').length,
-    rejected: quests.filter(q => q.status === 'rejected').length,
-  };
+  const countsOf = (list: MyQuest[]): Record<string, number> => ({
+    all: list.length,
+    pending: list.filter(q => q.status === 'pending').length,
+    approved: list.filter(q => q.status === 'approved').length,
+    completed: list.filter(q => q.status === 'completed').length,
+    rejected: list.filter(q => q.status === 'rejected').length,
+  });
 
-  const filterBtn = (key: string) => {
+  const filterBtn = (key: string, counts: Record<string, number>) => {
     const cfg = key === 'all' ? { label: 'すべて' } : STATUS[key];
     const active = filter === key;
     return (
@@ -214,62 +234,16 @@ export default function MyQuestsPage() {
     );
   };
 
-  const appliedStatusBadge = (item: AppliedItem) => {
-    const st = item.quest?.status === 'completed' && item.status === 'accepted'
-      ? { label: '完了', color: '#0f766e', bg: '#f0fdfa' }
-      : APP_STATUS[item.status] ?? APP_STATUS.pending;
-    return <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '9999px', color: st.color, background: st.bg }}>{st.label}</span>;
-  };
-
-  return (
-    <div style={S.page}>
-      <div style={S.pageHeader}>
-        <div style={S.inner}>
-          <button onClick={() => router.push('/')} style={S.backBtn}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-primary)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-tertiary)'; }}
-          ><ArrowLeft size={14} />ホームへ戻る</button>
-          <div style={S.titleRow}>
-            <div style={S.titleGroup}>
-              <div style={S.iconBox}><Scroll size={18} style={{ color: 'var(--color-accent)' }} /></div>
-              <div>
-                <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>マイクエスト</h1>
-                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>依頼の管理・応募状況の確認</p>
-              </div>
-            </div>
-            <button onClick={() => router.push('/#quest-board')}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 600, padding: '0.625rem 1.25rem', borderRadius: '9999px', background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', cursor: 'pointer', transition: 'background 0.2s, transform 0.2s' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
-            ><Plus size={14} />新しく申請</button>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem' }}>
-            {([['posted', '掲示した依頼'], ['applied', '応募した依頼']] as const).map(([key, label]) => (
-              <button key={key} onClick={() => setView(key)}
-                style={{ fontSize: '0.875rem', fontWeight: 600, padding: '0.5rem 1.25rem', borderRadius: '9999px', cursor: 'pointer', transition: 'all 0.2s',
-                  background: view === key ? 'var(--bg-dark)' : 'var(--bg-base)',
-                  color: view === key ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
-                  border: view === key ? '1px solid var(--bg-dark)' : '1px solid var(--color-border)' }}
-              >{label}{key === 'applied' && appliedItems.length > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.6 }}> ({appliedItems.length})</span>}</button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div style={S.content}>
-        {actionError && (
-          <div style={S.alertBanner} onClick={() => setActionError(null)}>
-            <AlertCircle size={14} style={{ flexShrink: 0 }} />{actionError}（押すと閉じます）
-          </div>
-        )}
-
-        {loading ? (
-          <CardListSkeleton rows={3} lines={2} />
-        ) : view === 'posted' ? (
+  // 「掲示した依頼」と「自団体の掲示クエスト」の一覧。
+  // 応募の承認・見送り・完了報告は、掲示した本人と、掲示した団体の所属者なら誰でもできる
+  const renderQuestList = (list: MyQuest[], mode: 'posted' | 'org') => {
+    const filtered = filter === 'all' ? list : list.filter(q => q.status === filter);
+    const counts = countsOf(list);
+    return (
           <>
-            <div style={S.filterRow}>{(['all', 'pending', 'approved', 'completed', 'rejected'] as const).map(filterBtn)}</div>
+            <div style={S.filterRow}>{(['all', 'pending', 'approved', 'completed', 'rejected'] as const).map(k => filterBtn(k, counts))}</div>
 
-            {counts.rejected > 0 && filter !== 'rejected' && (
+            {mode === 'posted' && counts.rejected > 0 && filter !== 'rejected' && (
               <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
                 style={S.alertBanner} onClick={() => setFilter('rejected')}
               ><AlertCircle size={14} style={{ flexShrink: 0 }} />リジェクトされたクエストが {counts.rejected} 件あります。理由を確認してください。</motion.div>
@@ -279,9 +253,11 @@ export default function MyQuestsPage() {
               <div style={S.emptyBox}>
                 <Scroll size={32} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 1rem', opacity: 0.3 }} />
                 <p style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '1rem', color: 'var(--color-text-tertiary)' }}>
-                  {filter === 'all' ? 'まだクエストを申請していません。' : `${STATUS[filter]?.label || ''}のクエストはありません。`}
+                  {filter !== 'all'
+                    ? `${STATUS[filter]?.label || ''}のクエストはありません。`
+                    : mode === 'org' ? '団体の名義で出されたクエストはまだありません。' : 'まだクエストを申請していません。'}
                 </p>
-                {filter === 'all' && (
+                {filter === 'all' && mode === 'posted' && (
                   <button onClick={() => router.push('/')}
                     style={{ fontSize: '0.875rem', fontWeight: 600, padding: '0.625rem 1.25rem', borderRadius: '9999px', background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', cursor: 'pointer' }}
                   >クエストを申請する</button>
@@ -312,6 +288,12 @@ export default function MyQuestsPage() {
                             </div>
                             <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{quest.title}</h3>
                             <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>
+                              {mode === 'org' && (
+                                <span style={{ fontWeight: 600, color: quest.creator_id === member.id ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}>
+                                  {quest.creator_id === member.id ? 'あなたが掲示' : `掲示: ${quest.creator?.display_name ?? '不明'}`}
+                                  {' / '}
+                                </span>
+                              )}
                               申請日: {new Date(quest.created_at).toLocaleDateString('ja-JP')}
                               {quest.reviewed_at && ` / 審査日: ${new Date(quest.reviewed_at).toLocaleDateString('ja-JP')}`}
                             </p>
@@ -384,7 +366,7 @@ export default function MyQuestsPage() {
                                                 💬 トークで連絡
                                               </button>
                                             )}
-                                            {quest.status === 'completed' && app.status === 'accepted' && (
+                                            {quest.status === 'completed' && app.status === 'accepted' && quest.creator_id === member.id && (
                                               <button style={{ ...S.primarySmallBtn, background: 'var(--color-accent)' }}
                                                 onClick={() => setThanksTarget({ questId: quest.id, questTitle: quest.title, recipientName: app.applicant?.display_name ?? '応募者', recipientId: app.applicant_id })}>
                                                 <Heart size={12} />感謝をおくる
@@ -419,6 +401,67 @@ export default function MyQuestsPage() {
               </div>
             )}
           </>
+    );
+  };
+
+  const appliedStatusBadge = (item: AppliedItem) => {
+    const st = item.quest?.status === 'completed' && item.status === 'accepted'
+      ? { label: '完了', color: '#0f766e', bg: '#f0fdfa' }
+      : APP_STATUS[item.status] ?? APP_STATUS.pending;
+    return <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '9999px', color: st.color, background: st.bg }}>{st.label}</span>;
+  };
+
+  return (
+    <div style={S.page}>
+      <div style={S.pageHeader}>
+        <div style={S.inner}>
+          <button onClick={() => router.push('/')} style={S.backBtn}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-primary)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-tertiary)'; }}
+          ><ArrowLeft size={14} />ホームへ戻る</button>
+          <div style={S.titleRow}>
+            <div style={S.titleGroup}>
+              <div style={S.iconBox}><Scroll size={18} style={{ color: 'var(--color-accent)' }} /></div>
+              <div>
+                <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' }}>マイクエスト</h1>
+                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>依頼の管理・応募状況の確認</p>
+              </div>
+            </div>
+            <button onClick={() => router.push('/#quest-board')}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 600, padding: '0.625rem 1.25rem', borderRadius: '9999px', background: 'var(--bg-dark)', color: 'var(--color-text-inverse)', cursor: 'pointer', transition: 'background 0.2s, transform 0.2s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark-hover)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-dark)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+            ><Plus size={14} />新しく申請</button>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', flexWrap: 'wrap' }}>
+            {([['posted', '掲示した依頼'], ['org', '自団体の掲示クエスト'], ['applied', '応募した依頼']] as const)
+              // 団体に所属していない人には「自団体の掲示クエスト」を出さない
+              .filter(([key]) => key !== 'org' || orgCount > 0)
+              .map(([key, label]) => (
+              <button key={key} onClick={() => { setView(key); setFilter('all'); setExpandedId(null); }}
+                style={{ fontSize: '0.875rem', fontWeight: 600, padding: '0.5rem 1.25rem', borderRadius: '9999px', cursor: 'pointer', transition: 'all 0.2s',
+                  background: view === key ? 'var(--bg-dark)' : 'var(--bg-base)',
+                  color: view === key ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
+                  border: view === key ? '1px solid var(--bg-dark)' : '1px solid var(--color-border)' }}
+              >{label}{key === 'applied' && appliedItems.length > 0 && <span style={{ fontSize: '0.75rem', opacity: 0.6 }}> ({appliedItems.length})</span>}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={S.content}>
+        {actionError && (
+          <div style={S.alertBanner} onClick={() => setActionError(null)}>
+            <AlertCircle size={14} style={{ flexShrink: 0 }} />{actionError}（押すと閉じます）
+          </div>
+        )}
+
+        {loading ? (
+          <CardListSkeleton rows={3} lines={2} />
+        ) : view === 'posted' ? (
+          renderQuestList(quests, 'posted')
+        ) : view === 'org' ? (
+          orgLoading ? <CardListSkeleton rows={3} lines={2} /> : renderQuestList(orgQuests, 'org')
         ) : (
           /* ===== 応募した依頼 ===== */
           /* 掲示側をキャッシュで先に描いたときは、こちらがまだ取得中のことがある。
