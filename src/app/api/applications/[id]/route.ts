@@ -77,16 +77,17 @@ export async function PATCH(
           room = created;
         }
         if (room) {
-          const { error: memberError } = await supabase
-            .from('talk_members')
-            .upsert(
-              [
-                { room_id: room.id, profile_id: user.id },
-                { room_id: room.id, profile_id: application.applicant_id },
-              ],
-              { onConflict: 'room_id,profile_id', ignoreDuplicates: true }
-            );
-          if (memberError) throw memberError;
+          // 1人ずつ普通に追加し、「すでに参加している」（一意制約違反 23505）は成功とみなす。
+          // upsert（ON CONFLICT）にしないこと。ON CONFLICT を付けると PostgreSQL は、
+          // 追加する行を本人が「読める」かも確かめる。トークのメンバー表は参加者と運営しか
+          // 読めないため、まだ誰も参加していない新しいルームでは、一般の依頼者は必ず拒否される
+          // （運営は読めるので、運営のアカウントで試したときには起きなかった）。
+          for (const profileId of [user.id, application.applicant_id]) {
+            const { error: memberError } = await supabase
+              .from('talk_members')
+              .insert({ room_id: room.id, profile_id: profileId });
+            if (memberError && memberError.code !== '23505') throw memberError;
+          }
         }
       } catch (roomErr) {
         // ルーム作成の失敗で承認自体は巻き戻さない。ただし黙殺せず画面に伝える。
