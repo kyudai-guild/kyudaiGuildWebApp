@@ -32,7 +32,10 @@ export async function GET(req: NextRequest) {
   });
 }
 
-// プロフィールを更新（Upsert）
+// 保存後に返す列。select() だと全列を返そうとして、v22 以降は権限エラーになる
+const RETURN_COLUMNS = 'id, display_name, tags, qualifications, bio, onboarded_at';
+
+// プロフィールを更新
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -44,25 +47,38 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { display_name, tags, qualifications, bio, line_notify, talk_mail_notify, onboarded, purpose_ids, interest_ids } = body;
 
-  const upsertData: Record<string, unknown> = {
-    id: user.id,
-    email: user.email,
-  };
+  const patch: Record<string, unknown> = {};
+  if (display_name !== undefined) patch.display_name = display_name;
+  if (tags !== undefined) patch.tags = tags;
+  if (qualifications !== undefined) patch.qualifications = qualifications;
+  if (bio !== undefined) patch.bio = bio;
+  if (line_notify !== undefined) patch.line_notify = line_notify;
+  if (talk_mail_notify !== undefined) patch.talk_mail_notify = talk_mail_notify;
+  if (onboarded === true) patch.onboarded_at = new Date().toISOString();
 
-  if (display_name !== undefined) upsertData.display_name = display_name;
-  if (tags !== undefined) upsertData.tags = tags;
-  if (qualifications !== undefined) upsertData.qualifications = qualifications;
-  if (bio !== undefined) upsertData.bio = bio;
-  if (line_notify !== undefined) upsertData.line_notify = line_notify;
-  if (talk_mail_notify !== undefined) upsertData.talk_mail_notify = talk_mail_notify;
-  if (onboarded === true) upsertData.onboarded_at = new Date().toISOString();
+  // upsert にしないこと（email も書かないこと）。
+  //   以前は email を含む upsert（INSERT ... ON CONFLICT DO UPDATE）だった。v22 で
+  //   profiles の読み取り権限を列ごとに絞ってから、PostgreSQL は「衝突時に email を
+  //   書き換える」のに email の読み取り権限を求めるため、保存がすべて
+  //   permission denied になり、新規登録の初期設定が完了できなくなっていた。
+  //   プロフィールの行は新規登録時にトリガー（handle_new_user）が作るので、更新だけでよい。
+  const first = Object.keys(patch).length > 0
+    ? await supabase.from('profiles').update(patch).eq('id', user.id).select(RETURN_COLUMNS).maybeSingle()
+    : await supabase.from('profiles').select(RETURN_COLUMNS).eq('id', user.id).maybeSingle();
+  let data = first.data;
+  let error = first.error;
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .upsert(upsertData)
-    // select() だと全列を返そうとして、v22 以降は権限エラーになる
-    .select('id, display_name, tags, qualifications, bio, onboarded_at')
-    .single();
+  // 行が無いとき（トリガーより前に作られたアカウントなど）だけ、行を作る。
+  // 衝突時の書き換えを伴わない INSERT なので、上の権限の問題は起きない
+  if (!error && !data) {
+    const created = await supabase
+      .from('profiles')
+      .insert({ id: user.id, email: user.email, ...patch })
+      .select(RETURN_COLUMNS)
+      .single();
+    data = created.data;
+    error = created.error;
+  }
 
   if (error) {
     console.error('Upsert profile error:', error);
