@@ -14,6 +14,7 @@ import type { QuestSession, ScheduleRow } from '@/lib/quest-form';
 import { CardListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 import { readCache, writeCache } from '@/lib/client-cache';
 import { refreshBadges } from '@/lib/badges';
+import { questFields } from '@/lib/quest-types';
 
 const POSTED_CACHE = 'my-quests-posted';
 const CACHE_MAX_AGE = 3 * 60 * 1000;
@@ -25,6 +26,7 @@ interface Application {
 }
 interface MyQuest {
   id: string; title: string; description: string; quest_type: string;
+  fields?: string[] | null;
   creator_id: string;
   // 「自団体の掲示クエスト」でだけ返る。誰が掲示したか
   creator?: { display_name: string } | null;
@@ -280,7 +282,7 @@ export default function MyQuestsPage() {
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '9999px', color: st.color, background: st.bg }}>
                                 <StIcon size={10} />{st.label}
                               </span>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{quest.quest_type}</span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{questFields(quest).join('・')}</span>
                               <OrgBadge
                                 name={quest.organization_name ?? quest.organization?.name}
                                 inactive={quest.organization?.is_active === false}

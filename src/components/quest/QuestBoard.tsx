@@ -2,16 +2,23 @@
 
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search, Plus, X, AlertCircle, CheckCircle2, Send, Calendar, MapPin, Wallet, Clock } from 'lucide-react';
+import { Search, Plus, X, AlertCircle, CheckCircle2, Send, Calendar, MapPin, Wallet, Clock, Building2 } from 'lucide-react';
 import { useGuild, Quest } from '@/contexts/GuildContext';
 import CreateQuestModal from './CreateQuestModal';
 import OrgBadge from './OrgBadge';
 import QuestDetails from './QuestDetails';
 import { fmtSessionsShort, daysUntil, fmtDateJa } from '@/lib/quest-form';
-import { QUEST_TYPES, questTypeStyle } from '@/lib/quest-types';
+import { QUEST_TYPES, questTypeStyle, questFields } from '@/lib/quest-types';
 
 /* 種別の絞り込み。スマホでは折り返さず横にスクロールさせる（種別が多く、何行にもなるため） */
 const FILTER_STYLES = `
+  .qb-search-row { display: flex; gap: 0.625rem; align-items: stretch; }
+  .qb-search-row > .qb-search { flex: 1 1 auto; max-width: 400px; position: relative; }
+  .qb-search-row > .qb-org { flex: 0 1 260px; position: relative; }
+  @media (max-width: 640px) {
+    .qb-search-row { flex-direction: column; }
+    .qb-search-row > .qb-search, .qb-search-row > .qb-org { max-width: none; flex: 1 1 auto; }
+  }
   .qb-cats { display: flex; flex-wrap: wrap; gap: 0.5rem; }
   .qb-cats > button { flex-shrink: 0; white-space: nowrap; }
   @media (max-width: 640px) {
@@ -19,6 +26,22 @@ const FILTER_STYLES = `
     .qb-cats::-webkit-scrollbar { display: none; }
   }
 `;
+
+/** クエストの分野のバッジ（複数）。1つ目が主な分野 */
+function FieldBadges({ quest, size = 'md' }: { quest: Quest; size?: 'sm' | 'md' }) {
+  return (
+    <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+      {questFields(quest).map(label => {
+        const c = questTypeStyle(label);
+        return (
+          <span key={label} style={{ display: 'inline-flex', alignItems: 'center', fontSize: size === 'sm' ? '0.6875rem' : '0.75rem', fontWeight: 700, padding: size === 'sm' ? '0.1875rem 0.5rem' : '0.25rem 0.625rem', borderRadius: '9999px', color: c.color, background: c.bg }}>
+            {label}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
 
 /** 申込の締切の表示。近いほど目立たせる */
 function deadlineLabel(date: string | null | undefined): { text: string; color: string } | null {
@@ -103,9 +126,7 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
         {/* 本文（ここだけスクロールする） */}
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', padding: '1.5rem' }}>
           <div style={{ marginBottom: '1.25rem', paddingRight: '2.5rem' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '9999px', color: catStyle.color, background: catStyle.bg }}>
-              {quest.quest_type}
-            </span>
+            <FieldBadges quest={quest} />
             <h2 style={{ marginTop: '0.5rem', fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1.4 }}>{quest.title}</h2>
             <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)' }}>
               掲示者: {quest.creator?.display_name || '不明'} / {new Date(quest.created_at).toLocaleDateString('ja-JP')}
@@ -185,21 +206,39 @@ const QuestBoard: React.FC = () => {
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('すべて');
+  const [orgFilter, setOrgFilter] = useState('');   // 空 = すべての団体
 
   const approved = quests.filter(q => q.status === 'approved');
-  // 絞り込みの候補は、いま掲示中のクエストがある種別だけ（空の種別を押して0件、を避ける）
-  const typeCounts = QUEST_TYPES
-    .map(t => ({ label: t.label, n: approved.filter(q => q.quest_type === t.label).length }))
-    .filter(t => t.n > 0);
-  const categories = [{ label: 'すべて', n: approved.length }, ...typeCounts];
+  const orgOf = (q: Quest) => q.organization_name ?? q.organization?.name ?? '';
+  const matchField = (q: Quest) => category === 'すべて' || questFields(q).includes(category);
+  const matchOrg = (q: Quest) => !orgFilter || orgOf(q) === orgFilter;
+
+  // 分野の候補: 選んでいる団体の中で、掲示中のクエストがある分野だけ（押して0件、を避ける）
+  const inOrg = approved.filter(matchOrg);
+  const fieldCounts = QUEST_TYPES
+    .map(t => ({ label: t.label, n: inOrg.filter(q => questFields(q).includes(t.label)).length }))
+    .filter(t => t.n > 0 || t.label === category);
+  const categories = [{ label: 'すべて', n: inOrg.length }, ...fieldCounts];
+
+  // 団体の候補: 選んでいる分野の中で、掲示中のクエストがある団体（件数の多い順）。
+  // 団体が増えてもボタンが並ばないよう、プルダウンにする
+  const orgCounts = new Map<string, number>();
+  for (const q of approved.filter(matchField)) {
+    const name = orgOf(q);
+    if (name) orgCounts.set(name, (orgCounts.get(name) ?? 0) + 1);
+  }
+  if (orgFilter && !orgCounts.has(orgFilter)) orgCounts.set(orgFilter, 0);
+  const orgOptions = [...orgCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ja'));
+
   // 団体名や場所でも探せるようにする（「和太鼓」「伊都」などで引けるように）
   const needle = search.trim().toLowerCase();
   const filtered = approved.filter(q => {
-    const matchCat = category === 'すべて' || q.quest_type === category;
-    const haystack = [q.title, q.organization_name ?? q.organization?.name, q.location, q.description, ...(q.tags ?? [])]
+    const haystack = [q.title, orgOf(q), q.location, q.description, ...questFields(q), ...(q.tags ?? [])]
       .filter(Boolean).join(' ').toLowerCase();
-    return matchCat && (!needle || haystack.includes(needle));
+    return matchField(q) && matchOrg(q) && (!needle || haystack.includes(needle));
   });
+  const filtering = !!search || category !== 'すべて' || !!orgFilter;
+  const resetFilters = () => { setSearch(''); setCategory('すべて'); setOrgFilter(''); };
 
   return (
     <section id="quest-board">
@@ -209,7 +248,7 @@ const QuestBoard: React.FC = () => {
           Quest Board
         </span>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '1rem' }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '0.02em' }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.5rem, 6vw, 2rem)', fontWeight: 700, color: 'var(--color-text-primary)', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
             クエスト掲示板
           </h2>
           {isLoggedIn && (
@@ -228,8 +267,10 @@ const QuestBoard: React.FC = () => {
 
       {/* Search + Filters */}
       <div style={{ marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {/* Search */}
-        <div style={{ position: 'relative', maxWidth: 400 }}>
+        <style>{FILTER_STYLES}</style>
+        {/* 検索と団体の絞り込み */}
+        <div className="qb-search-row">
+        <div className="qb-search">
           <Search size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--color-text-tertiary)' }} />
           <input
             type="search" enterKeyHint="search" placeholder="クエスト名・団体名・場所で探す"
@@ -252,8 +293,20 @@ const QuestBoard: React.FC = () => {
             onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
           />
         </div>
-        {/* Category Filters */}
-        <style>{FILTER_STYLES}</style>
+        {orgOptions.length > 0 && (
+          <div className="qb-org">
+            <Building2 size={15} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: orgFilter ? 'var(--color-primary)' : 'var(--color-text-tertiary)' }} />
+            <select value={orgFilter} onChange={e => setOrgFilter(e.target.value)} aria-label="団体で絞り込む"
+              style={{ width: '100%', height: '100%', minHeight: 42, fontSize: '0.875rem', paddingLeft: '2.375rem', paddingRight: '0.75rem', borderRadius: '0.75rem', outline: 'none', cursor: 'pointer',
+                background: orgFilter ? '#f2f7f4' : 'var(--bg-card)', border: `1px solid ${orgFilter ? '#cfe3d8' : 'var(--color-border)'}`,
+                color: orgFilter ? 'var(--color-primary)' : 'var(--color-text-secondary)', fontWeight: orgFilter ? 700 : 400 }}>
+              <option value="">すべての団体</option>
+              {orgOptions.map(([name, n]) => <option key={name} value={name}>{name}（{n}）</option>)}
+            </select>
+          </div>
+        )}
+        </div>
+        {/* 分野の絞り込み */}
         <div className="qb-cats">
           {categories.map(({ label: cat, n }) => (
             <button key={cat} onClick={() => setCategory(cat)}
@@ -283,12 +336,12 @@ const QuestBoard: React.FC = () => {
           <p style={{ fontSize: '1rem', color: 'var(--color-text-tertiary)', marginBottom: '1rem' }}>
             {approved.length === 0 ? '現在公開中のクエストはありません。' : '条件に合うクエストが見つかりません。'}
           </p>
-          {(search || category !== 'すべて') && (
-            <button onClick={() => { setSearch(''); setCategory('すべて'); }}
+          {filtering && (
+            <button onClick={resetFilters}
               style={{ fontSize: '0.875rem', fontWeight: 600, padding: '0.5rem 1.25rem', borderRadius: '9999px', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', cursor: 'pointer', transition: 'all 0.2s' }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--color-primary)'; (e.currentTarget as HTMLElement).style.color = 'var(--color-text-inverse)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--color-primary)'; }}
-            >フィルタをリセット</button>
+            >絞り込みを解除</button>
           )}
         </div>
       ) : (
@@ -342,9 +395,7 @@ const QuestBoard: React.FC = () => {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '9999px', color: catStyle.color, background: catStyle.bg }}>
-                      {quest.quest_type}
-                    </span>
+                    <FieldBadges quest={quest} size="sm" />
                     <span style={{ fontSize: '0.75rem', fontWeight: 500, color: isFull ? 'var(--color-text-tertiary)' : catStyle.color }}>
                       定員 {quest.accepted_count ?? 0}/{quest.max_applicants}人
                     </span>
@@ -394,7 +445,10 @@ const QuestBoard: React.FC = () => {
               );
             })}
           </div>
-          <p style={{ marginTop: '1.5rem', textAlign: 'right', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-tertiary)' }}>{filtered.length} 件のクエスト</p>
+          <p style={{ marginTop: '1.5rem', textAlign: 'right', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-tertiary)' }}>
+            {filtered.length} 件のクエスト
+            {filtering && <button onClick={resetFilters} style={{ marginLeft: '0.75rem', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>絞り込みを解除</button>}
+          </p>
         </>
       )}
 

@@ -15,6 +15,7 @@ type NotifiableQuest = {
   id: string;
   title: string;
   quest_type: string;
+  fields?: string[] | null;
   tags?: string[] | null;
   sessions?: QuestSession[] | null;
   location?: string | null;
@@ -26,13 +27,14 @@ type NotifiableQuest = {
 /**
  * クエストの内容と、ユーザーが登録した「興味のある分野」を突き合わせる。
  * 判定はラベル単位:
- *   - クエスト種別と完全一致（例: 「音楽・演奏」。興味分野と種別は同じ言葉にしてある → lib/quest-types.ts）
+ *   - クエストの分野のどれかと完全一致（例: 「音楽・演奏」。興味分野と分野は同じ言葉にしてある → lib/quest-types.ts）
  *   - タグと完全一致
  *   - タイトルに含まれる（例: 「Webサイト制作」を含むタイトル）
  * 説明文は誤検知が増えるため対象にしない。
  */
 function matchesQuest(label: string, quest: NotifiableQuest) {
   if (quest.quest_type === label) return true;
+  if ((quest.fields ?? []).includes(label)) return true;
   if ((quest.tags ?? []).some(t => t === label)) return true;
   if (quest.title.includes(label)) return true;
   return false;
@@ -97,7 +99,7 @@ async function runDigest(siteUrl: string): Promise<DigestResult> {
   const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const { data: quests, error: questError } = await admin
     .from('quests')
-    .select('id, title, quest_type, tags, sessions, location, max_applicants, effective_end_date, creator_id')
+    .select('id, title, quest_type, fields, tags, sessions, location, max_applicants, effective_end_date, creator_id')
     .eq('status', 'approved')
     .is('line_notified_at', null)
     .gte('reviewed_at', since)

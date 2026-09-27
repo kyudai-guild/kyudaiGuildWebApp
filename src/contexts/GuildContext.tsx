@@ -29,7 +29,8 @@ export interface Quest {
   id: string;
   title: string;
   description: string | null;   // 補足の自由記述（任意）
-  quest_type: string;
+  quest_type: string;             // 主な分野（fields の1つ目）
+  fields?: string[] | null;       // 分野（複数。v26）。それより前のクエストは空
   max_applicants: number;       // 定員（承認した人数で数える）
   tags: string[];
   listing_duration_type: string;

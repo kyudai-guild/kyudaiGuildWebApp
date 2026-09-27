@@ -36,6 +36,19 @@ export function questTypeStyle(label: string | null | undefined): { color: strin
   return { color: t.color, bg: t.bg };
 }
 
+/** 1つのクエストに付けられる分野の数 */
+export const MAX_QUEST_FIELDS = 3;
+
+/**
+ * クエストの分野（複数）。2026-09-27 から複数選べるようにした（quests.fields / v26）。
+ * それより前のクエストは fields が空なので、単一の種別（quest_type）を分野として扱う。
+ * quest_type には、選んだ分野の1つ目（主な分野）が入る。
+ */
+export function questFields(q: { fields?: string[] | null; quest_type?: string | null }): string[] {
+  if (q.fields && q.fields.length > 0) return q.fields;
+  return q.quest_type ? [q.quest_type] : [];
+}
+
 /**
  * 依頼書のタグの候補。活動のジャンルは「種別」で表すので、
  * タグは参加する人が気にする「参加のしやすさ」を表すものにする。

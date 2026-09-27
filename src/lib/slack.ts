@@ -117,7 +117,7 @@ export async function notifyQuestSubmitted(params: {
   // 報酬は廃止。代わりに一日体験の判断材料になる日程・場所・参加費を出す
   const when = fmtSessionsShort(params.sessions);
   const meta = [
-    `種別: ${esc(params.questType)}`,
+    `分野: ${esc(params.questType)}`,
     when ? `日程: ${esc(when)}` : null,
     params.location ? `場所: ${esc(params.location)}` : null,
     params.participationFee ? `参加費: ${esc(params.participationFee)}` : null,

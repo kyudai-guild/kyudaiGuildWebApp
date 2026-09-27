@@ -205,7 +205,7 @@ function ApplyTutorial() {
   return (
     <>
       <Step n={1} title="掲示板でクエストを探す">
-        クエストは、団体の活動に<b>一日だけ参加してみる体験</b>です。種別やキーワードで絞り込めます。
+        クエストは、団体の活動に<b>一日だけ参加してみる体験</b>です。分野・団体・キーワードで絞り込めます。
         カードには主催団体・日程・場所・参加費が出ます。
         <Mock>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.625rem' }}>

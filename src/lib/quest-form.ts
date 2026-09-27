@@ -6,7 +6,7 @@
  * 「画面を通さない送信なら素通りする」の両方を防ぐ。
  */
 
-import { QUEST_TYPE_LABELS } from '@/lib/quest-types';
+import { QUEST_TYPE_LABELS, MAX_QUEST_FIELDS } from '@/lib/quest-types';
 
 /** 1団体あたりの未完了（審査待ち＋掲示中）クエストの上限。DB側（v19）も同じ値。 */
 export const MAX_OPEN_QUESTS_PER_ORG = 10;
@@ -31,7 +31,8 @@ export const FIELD_DEFAULTS = {
 export type QuestInput = {
   organization_id: string;
   title: string;
-  quest_type: string;
+  fields: string[];             // 分野（1〜3つ。プロフィールの「興味のある分野」と同じ一覧）
+  quest_type: string;           // 主な分野（fields の1つ目）。表示の色などに使う
   description: string;          // 任意（補足の自由記述）
   tags: string[];
   sessions: QuestSession[];
@@ -97,6 +98,9 @@ export function validateQuestInput(
   const tags: string[] = Array.isArray(raw?.tags)
     ? raw.tags.map((t: unknown) => str(t, 30)).filter(Boolean).slice(0, 20)
     : [];
+  // 分野。以前の形式（quest_type だけ）で送られてきたら、それを1つ目の分野にする
+  const rawFields: unknown[] = Array.isArray(raw?.fields) ? raw.fields : (raw?.quest_type ? [raw.quest_type] : []);
+  const fields: string[] = [...new Set(rawFields.map(v => str(v, 30)).filter(Boolean))];
   const confirmations: boolean[] = Array.isArray(raw?.confirmations)
     ? raw.confirmations.map((c: unknown) => c === true)
     : [];
@@ -104,7 +108,8 @@ export function validateQuestInput(
   const value: QuestInput = {
     organization_id: str(raw?.organization_id, 64),
     title: str(raw?.title, 100),
-    quest_type: str(raw?.quest_type, 30),
+    fields,
+    quest_type: fields[0] ?? '',
     description: str(raw?.description, 4000),
     tags,
     sessions: sortSessions(sessions),
@@ -126,9 +131,10 @@ export function validateQuestInput(
 
   if (!value.organization_id) return fail('主催団体を選んでください。');
   if (!value.title) return fail('クエスト名を入力してください。');
-  if (!value.quest_type) return fail('クエスト種別を選んでください。');
-  // 一覧にない種別（改定前の種別や、手で書き換えた値）は受け付けない
-  if (!QUEST_TYPE_LABELS.includes(value.quest_type)) return fail('クエスト種別を選び直してください。');
+  if (value.fields.length === 0) return fail('分野を1つ以上選んでください。');
+  if (value.fields.length > MAX_QUEST_FIELDS) return fail(`分野は${MAX_QUEST_FIELDS}つまで選べます。`);
+  // 一覧にない分野（改定前の種別や、手で書き換えた値）は受け付けない
+  if (value.fields.some(v => !QUEST_TYPE_LABELS.includes(v))) return fail('分野を選び直してください。');
 
   if (value.sessions.length === 0) return fail('日程を1つ以上入力してください。');
   const today = todayJst();

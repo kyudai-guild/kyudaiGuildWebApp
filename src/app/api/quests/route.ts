@@ -17,7 +17,7 @@ const BOARD_LIMIT = 300;
 //     「問い合わせ先」（preferred_contact）だけを出す
 //   - 当日の受け入れ担当者は別の表（quest_private_details）にあり、ここでは読まない
 const BOARD_COLUMNS = `
-  id, title, description, quest_type, max_applicants, tags, status,
+  id, title, description, quest_type, fields, max_applicants, tags, status,
   listing_duration_type, listing_end_date, effective_end_date,
   rejection_reason, reviewed_at, created_at, creator_id,
   preferred_contact, organization_id, organization_name,
@@ -164,6 +164,7 @@ export async function POST(request: Request) {
         organization_name: org.name, // 申請時点のスナップショット（DB側でも上書きされる）
         title: input.title,
         quest_type: input.quest_type,
+        fields: input.fields,
         description: input.description || null,
         tags: input.tags,
         max_applicants: input.max_applicants,
@@ -187,7 +188,7 @@ export async function POST(request: Request) {
         contact_email_public: false,
         status: 'pending',
       })
-      .select('id, title, description, quest_type, max_applicants, organization_name, sessions, location, participation_fee')
+      .select('id, title, description, quest_type, fields, max_applicants, organization_name, sessions, location, participation_fee')
       .single();
 
     if (insertError || !quest) {
@@ -222,7 +223,7 @@ export async function POST(request: Request) {
       await notifyQuestSubmitted({
         title: quest.title,
         description: quest.description,
-        questType: quest.quest_type,
+        questType: (quest.fields?.length ? quest.fields : [quest.quest_type]).join('・'),
         maxApplicants: quest.max_applicants,
         organizationName: quest.organization_name,
         sessions: quest.sessions,

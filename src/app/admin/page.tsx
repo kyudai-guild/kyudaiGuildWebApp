@@ -14,9 +14,11 @@ import QuestDetails from '@/components/quest/QuestDetails';
 import type { QuestSession, ScheduleRow } from '@/lib/quest-form';
 import { CardListSkeleton, RowListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 import { isSubmitEnter } from '@/lib/keyboard';
+import { questFields } from '@/lib/quest-types';
 
 interface AdminQuest {
   id: string; title: string; description: string | null; quest_type: string;
+  fields?: string[] | null;
   max_applicants: number; tags: string[]; status: string;
   listing_duration_type: string; listing_duration_weeks: number | null;
   listing_end_date: string | null; effective_end_date: string | null;
@@ -479,7 +481,7 @@ export default function AdminPage() {
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '9999px', color: st.color, background: st.bg }}>
                                 <StIcon size={10} />{st.label}
                               </span>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{quest.quest_type}</span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{questFields(quest).join('・')}</span>
                               {/* どの団体からの申請か。団体未設定は『個人申請』と明示する */}
                               <OrgBadge
                                 name={quest.organization_name ?? quest.organization?.name}

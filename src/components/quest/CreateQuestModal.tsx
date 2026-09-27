@@ -13,7 +13,7 @@ import {
   type QuestSession, type ScheduleRow,
 } from '@/lib/quest-form';
 import { isSubmitEnter } from '@/lib/keyboard';
-import { QUEST_TYPES, QUEST_TYPE_LABELS, PRESET_TAGS } from '@/lib/quest-types';
+import { QUEST_TYPES, QUEST_TYPE_LABELS, PRESET_TAGS, MAX_QUEST_FIELDS, questTypeStyle } from '@/lib/quest-types';
 import { readDraft, writeDraft, removeDraft } from '@/lib/client-cache';
 
 type CreateQuestModalProps = { isOpen: boolean; onClose: () => void };
@@ -174,7 +174,7 @@ function Guidelines() {
 type FormState = {
   organization_id: string;
   title: string;
-  quest_type: string;
+  fields: string[];              // 分野（1〜3つ）
   description: string;
   tags: string[];
   sessions: QuestSession[];
@@ -196,7 +196,7 @@ type FormState = {
 const emptyForm = (): FormState => ({
   organization_id: '',
   title: '',
-  quest_type: '',
+  fields: [],
   description: '',
   tags: [],
   sessions: [{ date: '', start: '', end: '' }],
@@ -255,9 +255,11 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
   const [guidelinesAccepted, setGuidelinesAccepted] = useState(!!draft);
   const [f, setF] = useState<FormState>(() => {
     if (!draft) return emptyForm();
-    const restored = { ...emptyForm(), ...draft.f };
-    // 廃止した種別（2026-09-27 改定前）が下書きに残っていたら、選び直してもらう
-    if (!QUEST_TYPE_LABELS.includes(restored.quest_type)) restored.quest_type = '';
+    const saved = draft.f as Partial<FormState> & { quest_type?: string };
+    const restored: FormState = { ...emptyForm(), ...saved };
+    // 以前の下書きは分野を1つだけ（quest_type）持っていた。一覧にない分野（廃止した種別）は外す
+    const fields = Array.isArray(saved.fields) ? saved.fields : (saved.quest_type ? [saved.quest_type] : []);
+    restored.fields = fields.filter(v => QUEST_TYPE_LABELS.includes(v)).slice(0, MAX_QUEST_FIELDS);
     return restored;
   });
   const [customTag, setCustomTag] = useState('');
@@ -346,6 +348,10 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
   const setFlow = (i: number, key: keyof ScheduleRow, v: string) =>
     set('schedule', f.schedule.map((r, j) => (j === i ? { ...r, [key]: v } : r)));
 
+  // 分野の選択。選んだ順に並べる（1つ目が主な分野）
+  const toggleField = (label: string) => set('fields',
+    f.fields.includes(label) ? f.fields.filter(v => v !== label)
+      : f.fields.length < MAX_QUEST_FIELDS ? [...f.fields, label] : f.fields);
   const addTag = () => { const t = customTag.trim(); if (t && !f.tags.includes(t)) { set('tags', [...f.tags, t]); setCustomTag(''); } };
   const togglePreset = (t: string) => set('tags', f.tags.includes(t) ? f.tags.filter(x => x !== t) : [...f.tags, t]);
 
@@ -523,12 +529,26 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                 <p style={hintS}>九大生が見て、何をするか分かる短い名前にしてください。</p>
               </div>
               <div>
-                <label style={labelS}>クエスト種別 {req}</label>
-                <select value={f.quest_type} onChange={e => set('quest_type', e.target.value)} style={{ ...iStyle, color: f.quest_type ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)' }} onFocus={focusI} onBlur={blurI}>
-                  <option value="" disabled>活動のジャンルを選んでください</option>
-                  {QUEST_TYPES.map(t => <option key={t.label} value={t.label}>{t.label}（{t.examples}）</option>)}
-                </select>
-                <p style={hintS}>最も当てはまるジャンルを選択してください。九大生は、興味のあるジャンルの新着情報をLINEで受け取ることができます。</p>
+                <label style={labelS}>分野 {req}<span style={{ fontWeight: 400, fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginLeft: '0.375rem' }}>（{MAX_QUEST_FIELDS}つまで・{f.fields.length}/{MAX_QUEST_FIELDS}）</span></label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                  {QUEST_TYPES.map(t => {
+                    const on = f.fields.includes(t.label);
+                    const full = !on && f.fields.length >= MAX_QUEST_FIELDS;
+                    const c = questTypeStyle(t.label);
+                    return (
+                      <button key={t.label} type="button" onClick={() => toggleField(t.label)} disabled={full} aria-pressed={on}
+                        style={{ fontSize: '0.8125rem', padding: '0.375rem 0.75rem', minHeight: 36, borderRadius: '9999px', cursor: full ? 'not-allowed' : 'pointer', fontWeight: on ? 700 : 500, opacity: full ? 0.4 : 1,
+                          background: on ? c.color : 'var(--bg-card)', color: on ? '#fff' : 'var(--color-text-secondary)', border: `1px solid ${on ? c.color : 'var(--color-border)'}` }}
+                      >{on ? '✓ ' : ''}{t.label}</button>
+                    );
+                  })}
+                </div>
+                {f.fields.length > 0 && (
+                  <p style={{ ...hintS, marginTop: '0.5rem' }}>
+                    {f.fields.map(label => `${label}：${QUEST_TYPES.find(t => t.label === label)?.examples ?? ''}`).join(' ／ ')}
+                  </p>
+                )}
+                <p style={hintS}>当てはまる分野を選択してください（1つ目が主な分野として表示されます）。九大生は、興味のある分野の新着情報をLINEで受け取ることができます。</p>
               </div>
               <div>
                 <label style={labelS}>当日の流れ {req}</label>
