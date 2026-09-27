@@ -8,17 +8,17 @@ import CreateQuestModal from './CreateQuestModal';
 import OrgBadge from './OrgBadge';
 import QuestDetails from './QuestDetails';
 import { fmtSessionsShort, daysUntil, fmtDateJa } from '@/lib/quest-form';
+import { QUEST_TYPES, questTypeStyle } from '@/lib/quest-types';
 
-const CATEGORIES = ['すべて', '仲間探し', '研究協力', '業務委託', 'ボランティア募集', '雇用契約', 'その他'];
-
-const CATEGORY_STYLE: Record<string, { color: string; bg: string }> = {
-  '仲間探し':     { color: '#2563eb', bg: '#eff6ff' },
-  '研究協力':     { color: '#7c3aed', bg: '#f5f3ff' },
-  '業務委託':     { color: '#d97706', bg: '#fffbeb' },
-  'ボランティア募集': { color: '#059669', bg: '#ecfdf5' },
-  '雇用契約':     { color: '#db2777', bg: '#fdf2f8' },
-  'その他':       { color: '#6b7280', bg: '#f9fafb' },
-};
+/* 種別の絞り込み。スマホでは折り返さず横にスクロールさせる（種別が多く、何行にもなるため） */
+const FILTER_STYLES = `
+  .qb-cats { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .qb-cats > button { flex-shrink: 0; white-space: nowrap; }
+  @media (max-width: 640px) {
+    .qb-cats { flex-wrap: nowrap; overflow-x: auto; margin: 0 -1rem; padding: 0 1rem 0.25rem; scrollbar-width: none; }
+    .qb-cats::-webkit-scrollbar { display: none; }
+  }
+`;
 
 /** 申込の締切の表示。近いほど目立たせる */
 function deadlineLabel(date: string | null | undefined): { text: string; color: string } | null {
@@ -54,7 +54,7 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
   const isFull = (quest.accepted_count ?? 0) >= quest.max_applicants;
   const isExpired = quest.effective_end_date && new Date(quest.effective_end_date) < new Date();
   const canApply = isLoggedIn && !isCreator && !isFull && !isExpired;
-  const catStyle = CATEGORY_STYLE[quest.quest_type] || CATEGORY_STYLE['その他'];
+  const catStyle = questTypeStyle(quest.quest_type);
 
   const handleApply = async () => {
     setLoading(true);
@@ -187,6 +187,11 @@ const QuestBoard: React.FC = () => {
   const [category, setCategory] = useState('すべて');
 
   const approved = quests.filter(q => q.status === 'approved');
+  // 絞り込みの候補は、いま掲示中のクエストがある種別だけ（空の種別を押して0件、を避ける）
+  const typeCounts = QUEST_TYPES
+    .map(t => ({ label: t.label, n: approved.filter(q => q.quest_type === t.label).length }))
+    .filter(t => t.n > 0);
+  const categories = [{ label: 'すべて', n: approved.length }, ...typeCounts];
   // 団体名や場所でも探せるようにする（「和太鼓」「伊都」などで引けるように）
   const needle = search.trim().toLowerCase();
   const filtered = approved.filter(q => {
@@ -248,8 +253,9 @@ const QuestBoard: React.FC = () => {
           />
         </div>
         {/* Category Filters */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-          {CATEGORIES.map(cat => (
+        <style>{FILTER_STYLES}</style>
+        <div className="qb-cats">
+          {categories.map(({ label: cat, n }) => (
             <button key={cat} onClick={() => setCategory(cat)}
               style={{
                 padding: '0.375rem 1rem',
@@ -266,7 +272,7 @@ const QuestBoard: React.FC = () => {
               }}
               onMouseEnter={e => { if (category !== cat) { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border-strong)'; (e.currentTarget as HTMLElement).style.background = 'var(--bg-secondary)'; } }}
               onMouseLeave={e => { if (category !== cat) { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)'; (e.currentTarget as HTMLElement).style.background = 'var(--bg-card)'; } }}
-            >{cat}</button>
+            >{cat}<span style={{ marginLeft: '0.25rem', fontSize: '0.75rem', opacity: 0.6 }}>{n}</span></button>
           ))}
         </div>
       </div>
@@ -289,7 +295,7 @@ const QuestBoard: React.FC = () => {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
             {filtered.map((quest, i) => {
-              const catStyle = CATEGORY_STYLE[quest.quest_type] || CATEGORY_STYLE['その他'];
+              const catStyle = questTypeStyle(quest.quest_type);
               const isFull = (quest.accepted_count ?? 0) >= quest.max_applicants;
               const when = fmtSessionsShort(quest.sessions);
               const deadline = deadlineLabel(quest.listing_end_date);

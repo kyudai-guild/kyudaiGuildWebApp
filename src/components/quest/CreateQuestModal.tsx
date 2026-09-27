@@ -13,6 +13,7 @@ import {
   type QuestSession, type ScheduleRow,
 } from '@/lib/quest-form';
 import { isSubmitEnter } from '@/lib/keyboard';
+import { QUEST_TYPES, QUEST_TYPE_LABELS, PRESET_TAGS } from '@/lib/quest-types';
 import { readDraft, writeDraft, removeDraft } from '@/lib/client-cache';
 
 type CreateQuestModalProps = { isOpen: boolean; onClose: () => void };
@@ -20,8 +21,6 @@ type MyOrg = { id: string; name: string; description: string | null; public_cont
 type OpenCounts = { pending: number; approved: number; limit: number };
 
 // 種別・タグは従来どおり残す（2026-09 会議: 置き換えではなく追加）
-const QUEST_TYPES = ['仲間探し', '研究協力', '業務委託', 'ボランティア募集', '雇用契約', 'その他'];
-const PRESET_TAGS = ['プログラミング', 'Web制作', 'デザイン', '動画編集', '翻訳', '研究', 'データ分析', '体力仕事', '教育・指導', 'イベント運営'];
 
 const iStyle: React.CSSProperties = { width: '100%', background: 'var(--bg-base)', border: '1px solid var(--color-border)', borderRadius: '0.75rem', padding: '0.625rem 0.875rem', fontSize: '0.875rem', color: 'var(--color-text-primary)', outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s', boxSizing: 'border-box' };
 const labelS: React.CSSProperties = { display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '0.375rem' };
@@ -161,7 +160,7 @@ type FormState = {
 const emptyForm = (): FormState => ({
   organization_id: '',
   title: '',
-  quest_type: QUEST_TYPES[0],
+  quest_type: '',
   description: '',
   tags: [],
   sessions: [{ date: '', start: '', end: '' }],
@@ -218,7 +217,13 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
 
   const [step, setStep] = useState<'guidelines' | 'form'>(draft ? 'form' : 'guidelines');
   const [guidelinesAccepted, setGuidelinesAccepted] = useState(!!draft);
-  const [f, setF] = useState<FormState>(() => (draft ? { ...emptyForm(), ...draft.f } : emptyForm()));
+  const [f, setF] = useState<FormState>(() => {
+    if (!draft) return emptyForm();
+    const restored = { ...emptyForm(), ...draft.f };
+    // 廃止した種別（2026-09-27 改定前）が下書きに残っていたら、選び直してもらう
+    if (!QUEST_TYPE_LABELS.includes(restored.quest_type)) restored.quest_type = '';
+    return restored;
+  });
   const [customTag, setCustomTag] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -483,9 +488,11 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
               </div>
               <div>
                 <label style={labelS}>クエスト種別 {req}</label>
-                <select value={f.quest_type} onChange={e => set('quest_type', e.target.value)} style={iStyle} onFocus={focusI} onBlur={blurI}>
-                  {QUEST_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                <select value={f.quest_type} onChange={e => set('quest_type', e.target.value)} style={{ ...iStyle, color: f.quest_type ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)' }} onFocus={focusI} onBlur={blurI}>
+                  <option value="" disabled>活動のジャンルを選んでください</option>
+                  {QUEST_TYPES.map(t => <option key={t.label} value={t.label}>{t.label}（{t.examples}）</option>)}
                 </select>
+                <p style={hintS}>いちばん近いジャンルを選んでください。九大生は、興味のあるジャンルの新着をLINEで受け取れます。</p>
               </div>
               <div>
                 <label style={labelS}>当日の流れ {req}</label>
@@ -516,6 +523,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
               </div>
               <div>
                 <label style={labelS}><Tag size={13} style={{ display: 'inline', marginRight: 4 }} />タグ（任意）</label>
+                <p style={{ ...hintS, marginTop: 0, marginBottom: '0.5rem' }}>参加する人が気にする点を選べます。当てはまるものがなければ、自由に追加できます。</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '0.625rem' }}>
                   {PRESET_TAGS.map(tag => (
                     <button key={tag} type="button" onClick={() => togglePreset(tag)}
@@ -529,7 +537,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <input type="text" value={customTag} onChange={e => setCustomTag(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (isSubmitEnter(e)) addTag(); } }} maxLength={30} placeholder="タグを追加..." style={{ ...iStyle, flex: 1 }} onFocus={focusI} onBlur={blurI} />
+                  <input type="text" value={customTag} onChange={e => setCustomTag(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (isSubmitEnter(e)) addTag(); } }} maxLength={30} placeholder="例: 雨天決行" style={{ ...iStyle, flex: 1 }} onFocus={focusI} onBlur={blurI} />
                   <button type="button" onClick={addTag} style={{ padding: '0.625rem 1rem', fontSize: '0.875rem', fontWeight: 600, borderRadius: '0.75rem', cursor: 'pointer', background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>追加</button>
                 </div>
               </div>

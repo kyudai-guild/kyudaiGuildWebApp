@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { fmtSessionsShort, type QuestSession } from '@/lib/quest-form';
+import { questTypeStyle } from '@/lib/quest-types';
 
 /**
  * LINE Login (OAuth 2.1 / OIDC) と Messaging API の薄いラッパー。
@@ -215,14 +216,6 @@ export function verifyWebhookSignature(rawBody: string, signature: string | null
    通知メッセージの組み立て
    ============================================================ */
 
-const CATEGORY_BADGE: Record<string, { color: string; bg: string }> = {
-  '業務委託': { color: '#d97706', bg: '#fffbeb' },
-  '研究協力': { color: '#2563eb', bg: '#eff6ff' },
-  '仲間探し': { color: '#059669', bg: '#ecfdf5' },
-  'ボランティア募集': { color: '#e11d48', bg: '#fff1f2' },
-  '雇用契約': { color: '#7c3aed', bg: '#f5f3ff' },
-  'その他': { color: '#6b7280', bg: '#f9fafb' },
-};
 
 export type NotifiableQuestSummary = {
   title: string;
@@ -240,7 +233,7 @@ export function buildQuestMatchMessage(
   siteUrl: string
 ): LineMessage {
   const questUrl = `${siteUrl}/#quest-board`;
-  const badge = CATEGORY_BADGE[quest.quest_type] ?? CATEGORY_BADGE['その他'];
+  const badge = questTypeStyle(quest.quest_type);
   const rows: LineMessage[] = [];
   const row = (k: string, v: string) => ({
     type: 'box', layout: 'baseline', spacing: 'sm',
@@ -311,7 +304,7 @@ function digestBubble(
   total: number,
   siteUrl: string
 ): LineMessage {
-  const badge = CATEGORY_BADGE[quest.quest_type] ?? CATEGORY_BADGE['その他'];
+  const badge = questTypeStyle(quest.quest_type);
   const rows: LineMessage[] = [];
   const row = (k: string, v: string) => ({
     type: 'box', layout: 'baseline', spacing: 'sm',

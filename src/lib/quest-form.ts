@@ -6,6 +6,8 @@
  * 「画面を通さない送信なら素通りする」の両方を防ぐ。
  */
 
+import { QUEST_TYPE_LABELS } from '@/lib/quest-types';
+
 /** 1団体あたりの未完了（審査待ち＋掲示中）クエストの上限。DB側（v19）も同じ値。 */
 export const MAX_OPEN_QUESTS_PER_ORG = 10;
 
@@ -125,6 +127,8 @@ export function validateQuestInput(
   if (!value.organization_id) return fail('主催団体を選んでください。');
   if (!value.title) return fail('クエスト名を入力してください。');
   if (!value.quest_type) return fail('クエスト種別を選んでください。');
+  // 一覧にない種別（改定前の種別や、手で書き換えた値）は受け付けない
+  if (!QUEST_TYPE_LABELS.includes(value.quest_type)) return fail('クエスト種別を選び直してください。');
 
   if (value.sessions.length === 0) return fail('日程を1つ以上入力してください。');
   const today = todayJst();

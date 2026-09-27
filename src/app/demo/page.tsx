@@ -180,7 +180,7 @@ const MockReview = (
 const MockBoard = (
   <MockFrame label="学生から見た掲示板">
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.625rem' }}>
-      {pill('仲間探し', '#2563eb', '#eff6ff')}
+      {pill('音楽・演奏', '#db2777', '#fdf2f8')}
       <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>定員 0/10人</span>
     </div>
     <p style={{ fontSize: '0.9375rem', fontWeight: 700, marginBottom: '0.5rem' }}>{DEMO_QUEST}</p>

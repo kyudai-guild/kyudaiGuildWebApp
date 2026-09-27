@@ -7,6 +7,7 @@ import { useGuild } from '@/contexts/GuildContext';
 import { RowListSkeleton, SkeletonStyles } from '@/components/ui/Skeleton';
 import OrgManagerPanel from '@/components/org/OrgManagerPanel';
 import { isSubmitEnter } from '@/lib/keyboard';
+import { questTypeStyle } from '@/lib/quest-types';
 
 interface Option { id: string; label: string; description?: string }
 interface Stats { posted_total: number; posted_completed: number; accepted_completed: number; thanks_received: number; member_since: string | null }
@@ -18,13 +19,8 @@ interface MyOrgRequest {
   message: string | null; status: string; review_note: string | null; created_at: string;
 }
 
-const TYPE_COLORS: Record<string, [string, string]> = {
-  '業務委託': ['#d97706', '#fffbeb'], '仲間探し': ['#059669', '#ecfdf5'],
-  '研究協力': ['#2563eb', '#eff6ff'], 'ボランティア募集': ['#e11d48', '#fff1f2'],
-  '雇用契約': ['#7c3aed', '#f5f3ff'], 'その他': ['#6b7280', '#f9fafb'],
-};
 const typeBadge = (t: string) => {
-  const [c, bg] = TYPE_COLORS[t] ?? TYPE_COLORS['その他'];
+  const { color: c, bg } = questTypeStyle(t);
   return <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '0.1875rem 0.625rem', borderRadius: '9999px', whiteSpace: 'nowrap', color: c, background: bg }}>{t}</span>;
 };
 
