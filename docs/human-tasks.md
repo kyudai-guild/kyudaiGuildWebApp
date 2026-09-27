@@ -14,8 +14,9 @@
 
 ### 常設クエスト・日程や場所が未定のクエスト（2026-09-28）
 
-- ☐ `supabase/supabase_migration_v27_ongoing_quests.sql` を実行（**Claude が MCP で実行します**。push の前に）
-- ☐ push → Vercel が Ready になったら確認する
+- [x] `supabase/supabase_migration_v27_ongoing_quests.sql` を実行（2026-09-28 Claude が MCP で実行済み）
+- [x] push 済み
+- ☐ Vercel が Ready になったら確認する
   - ☐ 依頼書の最初で「日程のあるクエスト」「常設クエスト」を選べる
   - ☐ 日程・場所・定員を空欄のまま申請でき、掲示板に「未定（応募後にトークで調整）」「定員なし」と出る
   - ☐ 常設クエストが掲示板の「いつでも参加できる常設クエスト」の枠に出る。「すべて見る」で一覧になる
