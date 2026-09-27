@@ -678,7 +678,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
               </div>
 
               {/* ── 当日の受け入れ担当者（掲示しない） ── */}
-              <SectionTitle icon={Lock} note="公開されません。運営と、依頼を提出した方のみが閲覧できます。">
+              <SectionTitle icon={Lock} note="公開されません。運営と、主催団体のメンバーのみが閲覧できます。">
                 当日の受け入れ担当者
               </SectionTitle>
               <div className="cq-grid-2">

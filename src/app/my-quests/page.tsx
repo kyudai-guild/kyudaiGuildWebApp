@@ -41,7 +41,7 @@ interface MyQuest {
   belongings?: string | null; schedule?: ScheduleRow[]; requirements?: string | null;
   org_intro?: string | null; appeal?: string | null; photo_path?: string | null;
   preferred_contact?: string | null; listing_end_date?: string | null;
-  // 掲示しない担当者情報。掲示した本人にだけ返る（RLS）。1対1の埋め込みなので配列で来ることもある
+  // 公開しない担当者情報。掲示した本人（RLS）と、主催団体のメンバー（自団体の掲示クエスト）にだけ返る。1対1の埋め込みなので配列で来ることもある
   private_details?: { receiver_name: string; receiver_contact: string } | { receiver_name: string; receiver_contact: string }[] | null;
   applications: Application[];
 }

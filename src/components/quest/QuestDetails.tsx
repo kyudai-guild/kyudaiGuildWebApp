@@ -71,7 +71,7 @@ export default function QuestDetails({
   contactPreviewForCreator = false,
 }: {
   quest: QuestDetailData;
-  /** 当日の受け入れ担当者。運営と掲示した本人の画面でだけ渡す */
+  /** 当日の受け入れ担当者。運営と主催団体のメンバーの画面でだけ渡す（掲示板には出さない） */
   privateDetails?: { receiver_name: string; receiver_contact: string } | null;
   /** 掲示した本人が見ているとき、問い合わせ先に「応募者にはこう表示されます」と添える */
   contactPreviewForCreator?: boolean;
@@ -164,7 +164,7 @@ export default function QuestDetails({
       {privateDetails && (
         <div style={{ ...box, background: 'var(--notice-warn-bg)', border: '1px solid var(--notice-warn-border)' }}>
           <p style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--notice-warn-title)', marginBottom: '0.375rem' }}>
-            <Lock size={12} />当日の受け入れ担当者（掲示していません）
+            <Lock size={12} />当日の受け入れ担当者（公開されていません）
           </p>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-primary)' }}>{privateDetails.receiver_name}</p>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-primary)', wordBreak: 'break-word' }}>{privateDetails.receiver_contact}</p>
