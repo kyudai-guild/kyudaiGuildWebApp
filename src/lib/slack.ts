@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase-admin';
 import { isSlackNotificationEnabled } from '@/lib/app-settings';
-import { fmtSessionsShort, type QuestSession } from '@/lib/quest-form';
+import { fmtWhen, TBD_TEXT, type QuestSession } from '@/lib/quest-form';
 
 /**
  * 運営Slackへの即時通知（Incoming Webhook）。
@@ -98,11 +98,13 @@ export async function notifyQuestSubmitted(params: {
   title: string;
   description: string | null;
   questType: string;
-  maxApplicants: number;
+  maxApplicants: number | null;
   organizationName: string | null;
   sessions: QuestSession[] | null;
   location: string | null;
   participationFee: string | null;
+  isOngoing?: boolean | null;
+  scheduleNote?: string | null;
   creatorId: string;
   creatorEmail: string | null;
   siteUrl: string;
@@ -115,13 +117,14 @@ export async function notifyQuestSubmitted(params: {
     : ':bust_in_silhouette: *個人申請*';
 
   // 報酬は廃止。代わりに一日体験の判断材料になる日程・場所・参加費を出す
-  const when = fmtSessionsShort(params.sessions);
+  const when = fmtWhen({ is_ongoing: params.isOngoing, sessions: params.sessions, schedule_note: params.scheduleNote });
   const meta = [
+    params.isOngoing ? '*常設クエスト*' : null,
     `分野: ${esc(params.questType)}`,
-    when ? `日程: ${esc(when)}` : null,
-    params.location ? `場所: ${esc(params.location)}` : null,
+    `日程: ${esc(when)}`,
+    `場所: ${esc(params.location || TBD_TEXT)}`,
     params.participationFee ? `参加費: ${esc(params.participationFee)}` : null,
-    `定員: ${params.maxApplicants}人`,
+    params.isOngoing ? null : `定員: ${params.maxApplicants ? `${params.maxApplicants}人` : '上限なし'}`,
   ].filter(Boolean).join('  ・  ');
 
   const blocks: Record<string, unknown>[] = [

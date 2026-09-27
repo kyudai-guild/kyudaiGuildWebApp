@@ -19,6 +19,7 @@ import { questFields } from '@/lib/quest-types';
 interface AdminQuest {
   id: string; title: string; description: string | null; quest_type: string;
   fields?: string[] | null;
+  is_ongoing?: boolean | null;   // 常設クエスト（v27）
   max_applicants: number; tags: string[]; status: string;
   listing_duration_type: string; listing_duration_weeks: number | null;
   listing_end_date: string | null; effective_end_date: string | null;
@@ -482,6 +483,9 @@ export default function AdminPage() {
                                 <StIcon size={10} />{st.label}
                               </span>
                               <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{questFields(quest).join('・')}</span>
+                              {quest.is_ongoing && (
+                                <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '0.125rem 0.5rem', borderRadius: '9999px', color: 'var(--color-primary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>常設</span>
+                              )}
                               {/* どの団体からの申請か。団体未設定は『個人申請』と明示する */}
                               <OrgBadge
                                 name={quest.organization_name ?? quest.organization?.name}

@@ -31,7 +31,7 @@ export async function PATCH(
 
     const { data: application } = await admin
       .from('quest_applications')
-      .select('id, status, applicant_id, quest:quest_id (id, creator_id, status, max_applicants, organization_id)')
+      .select('id, status, applicant_id, quest:quest_id (id, creator_id, status, max_applicants, organization_id, is_ongoing)')
       .eq('id', id)
       .maybeSingle();
     if (!application) {
@@ -39,7 +39,7 @@ export async function PATCH(
     }
 
     const quest = application.quest as unknown as {
-      id: string; creator_id: string; status: string; max_applicants: number; organization_id: string | null;
+      id: string; creator_id: string; status: string; max_applicants: number | null; organization_id: string | null; is_ongoing: boolean | null;
     };
     const allowed = quest.creator_id === user.id || await isMemberOf(supabase, user.id, quest.organization_id);
     if (!allowed) {
@@ -49,7 +49,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'この応募はすでに処理済みです。' }, { status: 400 });
     }
 
-    if (action === 'accept') {
+    // 定員が空（上限なし）・常設クエストは数えない
+    if (action === 'accept' && quest.max_applicants != null) {
       const { count } = await admin
         .from('quest_applications')
         .select('id', { count: 'exact', head: true })
@@ -101,16 +102,26 @@ export async function PATCH(
  *   - 承認された応募者（学生）
  * 掲示した本人や他のメンバーは、トーク一覧の「（未参加）」から自分で参加できる。
  * すでに参加している人（一意制約違反 23505）は成功とみなす。
+ *
+ * 通常のクエストは 1クエスト1トーク（参加者みんなで1つ）。
+ * 常設クエストは応募者ごとに分ける（参加する時期が違う学生どうしを同じトークに入れない。v27）。
  */
 async function setupTalkRoom(
   admin: SupabaseClient,
-  quest: { id: string; organization_id: string | null },
+  quest: { id: string; organization_id: string | null; is_ongoing: boolean | null },
   approverId: string,
   applicantId: string,
 ) {
-  let { data: room } = await admin.from('talk_rooms').select('id').eq('quest_id', quest.id).maybeSingle();
+  const perApplicant = !!quest.is_ongoing;
+  let lookup = admin.from('talk_rooms').select('id').eq('quest_id', quest.id);
+  lookup = perApplicant ? lookup.eq('applicant_id', applicantId) : lookup.is('applicant_id', null);
+  let { data: room } = await lookup.maybeSingle();
   if (!room) {
-    const { data: created, error } = await admin.from('talk_rooms').insert({ quest_id: quest.id }).select('id').single();
+    const { data: created, error } = await admin
+      .from('talk_rooms')
+      .insert({ quest_id: quest.id, applicant_id: perApplicant ? applicantId : null })
+      .select('id')
+      .single();
     if (error) throw error;
     room = created;
   }

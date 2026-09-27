@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { fmtSessionsShort, type QuestSession } from '@/lib/quest-form';
+import { fmtWhen, type QuestSession } from '@/lib/quest-form';
 import { questTypeStyle } from '@/lib/quest-types';
 
 /**
@@ -225,6 +225,8 @@ export type NotifiableQuestSummary = {
   location?: string | null;
   max_applicants?: number | null;
   effective_end_date?: string | null;
+  is_ongoing?: boolean | null;     // 常設クエスト（v27）
+  schedule_note?: string | null;
 };
 
 export function buildQuestMatchMessage(
@@ -242,8 +244,8 @@ export function buildQuestMatchMessage(
       { type: 'text', text: v, size: 'sm', color: '#1f140f', weight: 'bold', flex: 5, wrap: true },
     ],
   });
-  const when = fmtSessionsShort(quest.sessions);
-  if (when) rows.push(row('日程', when));
+  // 日程は、未定・常設でも必ず出す（「未定（応募後にトークで調整）」「常設・毎週水曜…」）
+  rows.push(row('日程', fmtWhen(quest)));
   if (quest.location) rows.push(row('場所', quest.location));
   if (quest.max_applicants) rows.push(row('定員', `${quest.max_applicants}名`));
   if (quest.effective_end_date) {
@@ -313,8 +315,7 @@ function digestBubble(
       { type: 'text', text: v, size: 'xs', color: '#1f140f', weight: 'bold', flex: 5, wrap: true },
     ],
   });
-  const when = fmtSessionsShort(quest.sessions);
-  if (when) rows.push(row('日程', when));
+  rows.push(row('日程', fmtWhen(quest)));
   if (quest.effective_end_date) {
     const d = new Date(quest.effective_end_date);
     rows.push(row('締切', `${d.getMonth() + 1}月${d.getDate()}日まで`));

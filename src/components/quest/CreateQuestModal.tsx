@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, Send, AlertCircle, FileText, Calendar, Users, Tag, Building2, Plus, Trash2, Lock, ImagePlus, Mail, Clock } from 'lucide-react';
+import { X, Send, AlertCircle, FileText, Calendar, Users, Tag, Building2, Plus, Trash2, Lock, ImagePlus, Mail, Clock, Repeat } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useGuild } from '@/contexts/GuildContext';
 import { createClient } from '@/lib/supabase-client';
@@ -24,6 +24,7 @@ type OpenCounts = { pending: number; approved: number; limit: number };
 
 const iStyle: React.CSSProperties = { width: '100%', background: 'var(--bg-base)', border: '1px solid var(--color-border)', borderRadius: '0.75rem', padding: '0.625rem 0.875rem', fontSize: '0.875rem', color: 'var(--color-text-primary)', outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s', boxSizing: 'border-box' };
 const labelS: React.CSSProperties = { display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '0.375rem' };
+const recommend: React.CSSProperties = { fontSize: '0.6875rem', fontWeight: 700, padding: '0.0625rem 0.375rem', borderRadius: 4, marginLeft: '0.25rem', color: 'var(--color-primary)', background: '#f2f7f4', border: '1px solid #cfe3d8', verticalAlign: 'middle' };
 const hintS: React.CSSProperties = { fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--color-text-tertiary)', lineHeight: 1.6 };
 const focusI = (e: React.FocusEvent<any>) => { e.currentTarget.style.borderColor = 'var(--color-primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,74,58,0.1)'; };
 const blurI = (e: React.FocusEvent<any>) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; };
@@ -191,6 +192,8 @@ type FormState = {
   receiver_name: string;
   receiver_contact: string;
   confirmations: boolean[];
+  is_ongoing: boolean;           // 常設クエスト
+  schedule_note: string;         // 日程についての補足（常設なら頻度の目安）
 };
 
 const emptyForm = (): FormState => ({
@@ -213,6 +216,8 @@ const emptyForm = (): FormState => ({
   receiver_name: '',
   receiver_contact: '',
   confirmations: CONFIRMATIONS.map(() => false),
+  is_ongoing: false,
+  schedule_note: '',
 });
 
 /* ── 下書き ──
@@ -412,7 +417,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = { ...f, max_applicants: Number(f.max_applicants), photo_path: photoPath };
+    const payload = { ...f, max_applicants: f.max_applicants.trim() === '' ? null : Number(f.max_applicants), photo_path: photoPath };
     // サーバーと同じ関数で先に確認し、送る前に分かる間違いはここで止める
     const checked = validateQuestInput(payload, { userId: member.id });
     if (!checked.ok) { setError(checked.error); return; }
@@ -520,6 +525,28 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                 </div>
               </div>
 
+              {/* ── 掲載の形式 ── */}
+              <SectionTitle icon={Calendar}>掲載の形式 {req}</SectionTitle>
+              <div role="radiogroup" aria-label="掲載の形式" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.5rem' }}>
+                {([
+                  { ongoing: false, icon: Calendar, title: '日程のあるクエスト', text: '開催日がある体験です。申込の締切の日まで掲示板に掲載します。日程や場所が未定でも申請できます。' },
+                  { ongoing: true, icon: Repeat, title: '常設クエスト', text: '期限を決めずに、継続して参加者を募集します（例: 毎週のポッドキャストのゲスト）。掲示板の「常設クエスト」の枠に掲載します。' },
+                ] as const).map(o => {
+                  const on = f.is_ongoing === o.ongoing;
+                  const Icon = o.icon;
+                  return (
+                    <button key={o.title} type="button" role="radio" aria-checked={on} onClick={() => set('is_ongoing', o.ongoing)}
+                      style={{ textAlign: 'left', padding: '0.75rem 0.875rem', borderRadius: '0.75rem', cursor: 'pointer',
+                        background: on ? '#f2f7f4' : 'var(--bg-card)', border: `${on ? 2 : 1}px solid ${on ? 'var(--color-primary)' : 'var(--color-border)'}` }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 700, color: on ? 'var(--color-primary)' : 'var(--color-text-primary)' }}>
+                        <Icon size={14} />{o.title}
+                      </span>
+                      <span style={{ display: 'block', marginTop: '0.25rem', fontSize: '0.75rem', lineHeight: 1.6, color: 'var(--color-text-secondary)' }}>{o.text}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* ── クエストの内容 ── */}
               <SectionTitle icon={FileText}>クエストの内容</SectionTitle>
               <div>
@@ -551,7 +578,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                 <p style={hintS}>当てはまる分野を選択してください（1つ目が主な分野として表示されます）。九大生は、興味のある分野の新着情報をLINEで受け取ることができます。</p>
               </div>
               <div>
-                <label style={labelS}>当日の流れ {req}</label>
+                <label style={labelS}>当日の流れ <span style={recommend}>推奨</span></label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                   {f.schedule.map((r, i) => (
                     <div key={i} className="cq-flow">
@@ -567,7 +594,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                 <button type="button" onClick={() => set('schedule', [...f.schedule, { time: '', content: '' }])} style={{ ...smallBtn, marginTop: '0.5rem' }}>
                   <Plus size={12} />行を追加
                 </button>
-                <p style={hintS}>当日の活動内容が、順を追って分かるように記入してください。</p>
+                <p style={hintS}>当日の活動内容が、順を追って分かるように記入してください。時刻が未定の場合は、内容だけでも構いません。</p>
               </div>
               <div>
                 <label style={labelS}>この活動で体験してほしいこと（任意）</label>
@@ -600,8 +627,15 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
 
               {/* ── 日時・場所 ── */}
               <SectionTitle icon={Calendar}>日時・場所</SectionTitle>
-              <div>
-                <label style={labelS}>日程 {req}</label>
+              {f.is_ongoing ? (
+                <div>
+                  <label style={labelS}>活動の頻度・日時の目安 <span style={recommend}>推奨</span></label>
+                  <input type="text" value={f.schedule_note} onChange={e => set('schedule_note', e.target.value)} maxLength={300} placeholder="例: 毎週水曜 19:00〜20:00 に収録" style={iStyle} onFocus={focusI} onBlur={blurI} />
+                  <p style={hintS}>常設クエストは日程を1つに決めずに掲載します。参加する日は、応募後にトークで調整してください。</p>
+                </div>
+              ) : (
+                <div>
+                  <label style={labelS}>日程 <span style={recommend}>推奨</span></label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                   {f.sessions.map((s, i) => (
                     <div key={i} className="cq-session">
@@ -619,26 +653,38 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                 <button type="button" onClick={() => set('sessions', [...f.sessions, { date: '', start: '', end: '' }])} style={{ ...smallBtn, marginTop: '0.5rem' }}>
                   <Plus size={12} />日程を追加（複数回のクエスト）
                 </button>
-                <p style={hintS}>終了時刻まで書いてください。</p>
-              </div>
+                  <p style={hintS}>日付・開始・終了をすべて入れてください。<b>決まっていない場合は空欄のままで構いません</b>（掲示板には「未定（応募後にトークで調整）」と表示されます）。</p>
+                  <label style={{ ...labelS, fontSize: '0.8125rem', marginTop: '0.75rem' }}>日程についての補足（任意）</label>
+                  <input type="text" value={f.schedule_note} onChange={e => set('schedule_note', e.target.value)} maxLength={300} placeholder="例: 10月中の平日夕方を予定" style={iStyle} onFocus={focusI} onBlur={blurI} />
+                </div>
+              )}
               <div>
-                <label style={labelS}>場所・集合場所 {req}</label>
+                <label style={labelS}>場所・集合場所 <span style={recommend}>推奨</span></label>
                 <input type="text" value={f.location} onChange={e => set('location', e.target.value)} maxLength={300} placeholder="例: 伊都キャンパス センター2号館前に集合" style={iStyle} onFocus={focusI} onBlur={blurI} />
+                <p style={hintS}>未定の場合は空欄で構いません（「未定」と表示されます）。</p>
               </div>
-              <div>
-                <label style={labelS}><Clock size={13} style={{ display: 'inline', marginRight: 4 }} />申込の締切 {req}</label>
-                <input type="date" value={f.listing_end_date} min={today} max={firstDate || undefined} onChange={e => set('listing_end_date', e.target.value)} style={iStyle} onFocus={focusI} onBlur={blurI} />
-                <p style={hintS}>この日まで掲示板に掲示します。最初の日程の日付以前にしてください。</p>
-              </div>
+              {f.is_ongoing ? (
+                <div style={{ padding: '0.625rem 0.875rem', borderRadius: '0.625rem', fontSize: '0.75rem', lineHeight: 1.7, background: 'var(--bg-base)', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                  <b>常設クエストには申込の締切・定員がありません。</b>募集を終えるときは、マイクエストから「募集を終了する」を押してください。
+                </div>
+              ) : (
+                <div>
+                  <label style={labelS}><Clock size={13} style={{ display: 'inline', marginRight: 4 }} />申込の締切 {req}</label>
+                  <input type="date" value={f.listing_end_date} min={today} max={firstDate || undefined} onChange={e => set('listing_end_date', e.target.value)} style={iStyle} onFocus={focusI} onBlur={blurI} />
+                  <p style={hintS}>この日まで掲示板に掲載します。日程がある場合は、最初の日程の日付以前にしてください。日程が未定でも、掲載を終える日を決めてください。</p>
+                </div>
+              )}
 
               {/* ── 参加について ── */}
               <SectionTitle icon={Users}>参加について</SectionTitle>
               <div className="cq-grid-2">
-                <div>
-                  <label style={labelS}>定員 {req}</label>
-                  <input type="number" min={1} max={500} value={f.max_applicants} onChange={e => set('max_applicants', e.target.value)} placeholder="例: 10" style={iStyle} onFocus={focusI} onBlur={blurI} />
-                  <p style={hintS}>承認した人数でカウントします。見送った応募は定員枠を消費しません。</p>
-                </div>
+                {!f.is_ongoing && (
+                  <div>
+                    <label style={labelS}>定員（任意）</label>
+                    <input type="number" min={1} max={500} value={f.max_applicants} onChange={e => set('max_applicants', e.target.value)} placeholder="空欄なら上限なし" style={iStyle} onFocus={focusI} onBlur={blurI} />
+                    <p style={hintS}>承認した人数でカウントします。見送った応募は定員枠を消費しません。空欄の場合は上限なしになります。</p>
+                  </div>
+                )}
                 <div>
                   <label style={labelS}>参加費 {req}</label>
                   <input type="text" value={f.participation_fee} onChange={e => set('participation_fee', e.target.value)} maxLength={200} style={iStyle} onFocus={focusI} onBlur={blurI} />

@@ -17,7 +17,7 @@ const BOARD_LIMIT = 300;
 //     「問い合わせ先」（preferred_contact）だけを出す
 //   - 当日の受け入れ担当者は別の表（quest_private_details）にあり、ここでは読まない
 const BOARD_COLUMNS = `
-  id, title, description, quest_type, fields, max_applicants, tags, status,
+  id, title, description, quest_type, fields, max_applicants, tags, status, is_ongoing, schedule_note,
   listing_duration_type, listing_end_date, effective_end_date,
   rejection_reason, reviewed_at, created_at, creator_id,
   preferred_contact, organization_id, organization_name,
@@ -167,9 +167,12 @@ export async function POST(request: Request) {
         fields: input.fields,
         description: input.description || null,
         tags: input.tags,
+        // 常設クエスト・日程や場所が未定のクエストに対応（v27）。定員が空なら上限なし
+        is_ongoing: input.is_ongoing,
+        schedule_note: input.schedule_note || null,
         max_applicants: input.max_applicants,
         sessions: input.sessions,
-        location: input.location,
+        location: input.location || null,
         participation_fee: input.participation_fee,
         belongings: input.belongings,
         schedule: input.schedule,
@@ -181,14 +184,14 @@ export async function POST(request: Request) {
         // 掲示期間は「申込の締切」の日付指定のみ（n週間指定は廃止）
         listing_duration_type: 'date',
         listing_duration_weeks: null,
-        listing_end_date: input.listing_end_date,
+        listing_end_date: input.listing_end_date || null,   // 常設クエストは締切なし
         guideline_confirmed_at: new Date().toISOString(),
         // 旧フォームの項目。報酬は廃止、九大メール公開のチェックは問い合わせ先に一本化
         reward: '',
         contact_email_public: false,
         status: 'pending',
       })
-      .select('id, title, description, quest_type, fields, max_applicants, organization_name, sessions, location, participation_fee')
+      .select('id, title, description, quest_type, fields, max_applicants, organization_name, sessions, location, participation_fee, is_ongoing, schedule_note')
       .single();
 
     if (insertError || !quest) {
@@ -229,6 +232,8 @@ export async function POST(request: Request) {
         sessions: quest.sessions,
         location: quest.location,
         participationFee: quest.participation_fee,
+        isOngoing: quest.is_ongoing,
+        scheduleNote: quest.schedule_note,
         creatorId: user.id,
         creatorEmail: user.email ?? null,
         siteUrl,

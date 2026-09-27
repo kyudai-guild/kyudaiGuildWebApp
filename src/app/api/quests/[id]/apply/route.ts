@@ -2,6 +2,7 @@ import { NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { sendApplicationMail } from '@/lib/quest-mail';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { isListingClosed } from '@/lib/quest-form';
 
 export async function POST(
   request: Request,
@@ -22,7 +23,7 @@ export async function POST(
     // クエストの存在確認と承認済みチェック
     const { data: quest, error: fetchError } = await supabase
       .from('quests')
-      .select('id, title, status, creator_id, max_applicants, effective_end_date')
+      .select('id, title, status, creator_id, max_applicants, effective_end_date, listing_end_date, is_ongoing')
       .eq('id', questId)
       .single();
 
@@ -49,16 +50,14 @@ export async function POST(
       .select('id', { count: 'exact', head: true })
       .eq('quest_id', questId)
       .eq('status', 'accepted');
-    if ((acceptedCount ?? 0) >= quest.max_applicants) {
+    // 定員が空（上限なし）・常設クエストは数えない
+    if (quest.max_applicants != null && (acceptedCount ?? 0) >= quest.max_applicants) {
       return NextResponse.json({ error: '定員に達しているため応募できません。' }, { status: 400 });
     }
 
-    // 掲示期間チェック
-    if (quest.effective_end_date) {
-      const endDate = new Date(quest.effective_end_date);
-      if (new Date() > endDate) {
-        return NextResponse.json({ error: '掲示期間が終了しています。' }, { status: 400 });
-      }
+    // 掲示期間チェック。締切の日が終わるまで（日本時間）は応募できる。常設クエストは締切なし
+    if (isListingClosed(quest)) {
+      return NextResponse.json({ error: '掲示期間が終了しています。' }, { status: 400 });
     }
 
     // 重複応募チェック

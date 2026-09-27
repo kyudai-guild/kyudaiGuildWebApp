@@ -31,13 +31,15 @@ export const FIELD_DEFAULTS = {
 export type QuestInput = {
   organization_id: string;
   title: string;
+  is_ongoing: boolean;          // 常設クエスト（締切・定員・日程なし。団体が募集を終了するまで掲載）
+  schedule_note: string;        // 日程についての補足（任意。常設なら頻度の目安、未定なら見込み）
   fields: string[];             // 分野（1〜3つ。プロフィールの「興味のある分野」と同じ一覧）
   quest_type: string;           // 主な分野（fields の1つ目）。表示の色などに使う
   description: string;          // 任意（補足の自由記述）
   tags: string[];
   sessions: QuestSession[];
   location: string;
-  max_applicants: number;
+  max_applicants: number | null;  // 空 = 上限なし（常設クエストは常に上限なし）
   participation_fee: string;
   belongings: string;
   schedule: ScheduleRow[];
@@ -105,16 +107,19 @@ export function validateQuestInput(
     ? raw.confirmations.map((c: unknown) => c === true)
     : [];
 
+  const rawMax = raw?.max_applicants;
   const value: QuestInput = {
     organization_id: str(raw?.organization_id, 64),
     title: str(raw?.title, 100),
+    is_ongoing: raw?.is_ongoing === true,
+    schedule_note: str(raw?.schedule_note, 300),
     fields,
     quest_type: fields[0] ?? '',
     description: str(raw?.description, 4000),
     tags,
     sessions: sortSessions(sessions),
     location: str(raw?.location, 300),
-    max_applicants: Number(raw?.max_applicants),
+    max_applicants: rawMax === null || rawMax === undefined || rawMax === '' ? null : Number(rawMax),
     participation_fee: str(raw?.participation_fee, 200),
     belongings: str(raw?.belongings, 300),
     schedule,
@@ -136,7 +141,14 @@ export function validateQuestInput(
   // 一覧にない分野（改定前の種別や、手で書き換えた値）は受け付けない
   if (value.fields.some(v => !QUEST_TYPE_LABELS.includes(v))) return fail('分野を選び直してください。');
 
-  if (value.sessions.length === 0) return fail('日程を1つ以上入力してください。');
+  // 常設クエストは、日程・申込の締切・定員を持たない
+  if (value.is_ongoing) {
+    value.sessions = [];
+    value.listing_end_date = '';
+    value.max_applicants = null;
+  }
+
+  // 日程（推奨）。入れた場合だけ中身を確かめる。未定なら空でよい
   const today = todayJst();
   for (const [i, s] of value.sessions.entries()) {
     const label = value.sessions.length > 1 ? `${i + 1}つ目の日程` : '日程';
@@ -146,29 +158,34 @@ export function validateQuestInput(
     if (s.date < today) return fail(`${label}が過去の日付になっています。`);
   }
 
-  if (!value.location) return fail('場所・集合場所を入力してください。');
-  if (!Number.isInteger(value.max_applicants) || value.max_applicants < 1 || value.max_applicants > 500) {
-    return fail('定員は1〜500人で入力してください。');
+  // 場所（推奨）は未定なら空でよい。定員（任意）は空なら上限なし
+  if (value.max_applicants !== null
+    && (!Number.isInteger(value.max_applicants) || value.max_applicants < 1 || value.max_applicants > 500)) {
+    return fail('定員は1〜500人で入力してください（上限を設けない場合は空欄）。');
   }
   if (!value.participation_fee) return fail('参加費を入力してください（かからない場合は「無料」）。');
   if (!value.belongings) return fail('持ち物・服装を入力してください（無い場合は「手ぶらで可」）。');
 
-  if (value.schedule.length === 0) return fail('当日の流れを1行以上入力してください。');
+  // 当日の流れ（推奨）。時刻は未定なら空でよい
   for (const r of value.schedule) {
-    if (!TIME_RE.test(r.time) || !r.content) return fail('当日の流れは、時刻と内容を両方入力してください。');
+    if (!r.content) return fail('当日の流れの内容を入力してください（使わない行は削除してください）。');
+    if (r.time && !TIME_RE.test(r.time)) return fail('当日の流れの時刻の形式が正しくありません。');
   }
 
   if (!value.requirements) return fail('参加条件を入力してください（無い場合は「誰でも」）。');
   if (!value.preferred_contact) return fail('九大生からの問い合わせ先を入力してください。');
   if (!value.org_intro) return fail('団体の紹介を入力してください。');
 
-  // 申込の締切 = この日まで掲示する日。最初の日程より後にはできない。
-  if (!DATE_RE.test(value.listing_end_date)) return fail('申込の締切を入力してください。');
-  if (value.listing_end_date < today) return fail('申込の締切が過去の日付になっています。');
-  const firstDate = value.sessions[0].date;
-  if (value.listing_end_date > firstDate) return fail('申込の締切は、最初の日程の日付以前にしてください。');
-  const limit = new Date(); limit.setMonth(limit.getMonth() + 6);
-  if (value.listing_end_date > limit.toISOString().slice(0, 10)) return fail('申込の締切は半年以内にしてください。');
+  // 申込の締切 = この日まで掲載する日（通常のクエストだけ。常設クエストは締切なし）。
+  // 日程が未定でも、掲載を終える日は決めてもらう（掲示板に残り続けないように）
+  if (!value.is_ongoing) {
+    if (!DATE_RE.test(value.listing_end_date)) return fail('申込の締切を入力してください（日程が未定でも、掲載を終える日を決めてください）。');
+    if (value.listing_end_date < today) return fail('申込の締切が過去の日付になっています。');
+    const firstDate = value.sessions[0]?.date;
+    if (firstDate && value.listing_end_date > firstDate) return fail('申込の締切は、最初の日程の日付以前にしてください。');
+    const limit = new Date(); limit.setMonth(limit.getMonth() + 6);
+    if (value.listing_end_date > limit.toISOString().slice(0, 10)) return fail('申込の締切は半年以内にしてください。');
+  }
 
   if (!value.receiver_name || !value.receiver_contact) {
     return fail('当日の受け入れ担当者のお名前と連絡先を入力してください（掲示はしません）。');
@@ -210,6 +227,33 @@ export function fmtSessionsShort(sessions: QuestSession[] | null | undefined): s
   if (list.length === 0) return null;
   const head = fmtSession(list[0]);
   return list.length > 1 ? `${head} ほか${list.length - 1}回` : head;
+}
+
+/** 日程・場所が未定のときの表示 */
+export const TBD_TEXT = '未定（応募後にトークで調整）';
+
+/**
+ * 日程の短い表示（カード・通知用）。
+ *   日程あり → 「10月20日(火) 10:00〜12:00 ほか1回」
+ *   常設     → 「常設・毎週水曜 19時〜」/「常設（随時募集）」
+ *   未定     → 「未定（10月中の平日夕方）」/「未定（応募後にトークで調整）」
+ */
+export function fmtWhen(q: { is_ongoing?: boolean | null; sessions?: QuestSession[] | null; schedule_note?: string | null }): string {
+  const when = fmtSessionsShort(q.sessions);
+  if (when) return when;
+  if (q.is_ongoing) return q.schedule_note ? `常設・${q.schedule_note}` : '常設（随時募集）';
+  return q.schedule_note ? `未定（${q.schedule_note}）` : TBD_TEXT;
+}
+
+/**
+ * 掲載が終わったか。申込の締切の日が終わったら（日本時間）終わり。常設クエストは終わらない。
+ * 締切は日付だけなので、new Date() で比べると UTC の0時（日本の9時）に終わってしまう点に注意
+ */
+export function isListingClosed(q: { is_ongoing?: boolean | null; listing_end_date?: string | null; effective_end_date?: string | null }): boolean {
+  if (q.is_ongoing) return false;
+  const end = q.effective_end_date || q.listing_end_date;
+  const d = daysUntil(end ? end.slice(0, 10) : null);
+  return d !== null && d < 0;
 }
 
 /** Storage 上のパスから公開URLを作る */

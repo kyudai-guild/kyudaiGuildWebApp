@@ -2,12 +2,12 @@
 
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search, Plus, X, AlertCircle, CheckCircle2, Send, Calendar, MapPin, Wallet, Clock, Building2 } from 'lucide-react';
+import { Search, Plus, X, AlertCircle, CheckCircle2, Send, Calendar, MapPin, Wallet, Clock, Building2, Repeat, ChevronRight, ChevronUp } from 'lucide-react';
 import { useGuild, Quest } from '@/contexts/GuildContext';
 import CreateQuestModal from './CreateQuestModal';
 import OrgBadge from './OrgBadge';
 import QuestDetails from './QuestDetails';
-import { fmtSessionsShort, daysUntil, fmtDateJa } from '@/lib/quest-form';
+import { daysUntil, fmtDateJa, fmtWhen, isListingClosed, TBD_TEXT } from '@/lib/quest-form';
 import { QUEST_TYPES, questTypeStyle, questFields } from '@/lib/quest-types';
 
 /* 種別の絞り込み。スマホでは折り返さず横にスクロールさせる（種別が多く、何行にもなるため） */
@@ -20,6 +20,13 @@ const FILTER_STYLES = `
     .qb-search-row > .qb-search, .qb-search-row > .qb-org { max-width: none; flex: 1 1 auto; }
   }
   .qb-cats { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  /* 常設クエストの列。画面の端まで流して「まだ続く」ことを見せる */
+  .qb-ongoing-rail { display: flex; gap: 0.75rem; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: 0.5rem; scrollbar-width: thin; }
+  .qb-ongoing-rail > * { flex: 0 0 auto; width: 260px; scroll-snap-align: start; }
+  @media (max-width: 640px) {
+    .qb-ongoing-rail { margin: 0 -1rem; padding-left: 1rem; padding-right: 1rem; }
+    .qb-ongoing-rail > * { width: 230px; }
+  }
   .qb-cats > button { flex-shrink: 0; white-space: nowrap; }
   @media (max-width: 640px) {
     .qb-cats { flex-wrap: nowrap; overflow-x: auto; margin: 0 -1rem; padding: 0 1rem 0.25rem; scrollbar-width: none; }
@@ -74,8 +81,8 @@ function QuestDetailModal({ quest, onClose }: { quest: Quest; onClose: () => voi
 
   const isCreator = member.id === quest.creator_id;
   // 定員は「承認した人数」で数える（見送った応募は枠を消費しない）
-  const isFull = (quest.accepted_count ?? 0) >= quest.max_applicants;
-  const isExpired = quest.effective_end_date && new Date(quest.effective_end_date) < new Date();
+  const isFull = quest.max_applicants != null && (quest.accepted_count ?? 0) >= quest.max_applicants;
+  const isExpired = isListingClosed(quest);
   const canApply = isLoggedIn && !isCreator && !isFull && !isExpired;
   const catStyle = questTypeStyle(quest.quest_type);
 
@@ -208,7 +215,8 @@ const QuestBoard: React.FC = () => {
   const [category, setCategory] = useState('すべて');
   const [orgFilter, setOrgFilter] = useState('');   // 空 = すべての団体
 
-  const approved = quests.filter(q => q.status === 'approved');
+  const approved = quests.filter(q => q.status === 'approved' && !isListingClosed(q));
+  const [showAllOngoing, setShowAllOngoing] = useState(false);
   const orgOf = (q: Quest) => q.organization_name ?? q.organization?.name ?? '';
   const matchField = (q: Quest) => category === 'すべて' || questFields(q).includes(category);
   const matchOrg = (q: Quest) => !orgFilter || orgOf(q) === orgFilter;
@@ -239,6 +247,120 @@ const QuestBoard: React.FC = () => {
   });
   const filtering = !!search || category !== 'すべて' || !!orgFilter;
   const resetFilters = () => { setSearch(''); setCategory('すべて'); setOrgFilter(''); };
+
+  // クエストのカード（通常の一覧と、常設クエストを「すべて見る」ときの一覧で使う）
+  const renderCard = (quest: Quest, i: number) => {
+    const catStyle = questTypeStyle(quest.quest_type);
+    const isFull = quest.max_applicants != null && (quest.accepted_count ?? 0) >= quest.max_applicants;
+    const when = fmtWhen(quest);
+    const deadline = quest.is_ongoing ? null : deadlineLabel(quest.listing_end_date);
+    return (
+        <article
+          key={quest.id}
+          onClick={() => setSelectedQuest(quest)}
+          className="animate-fade-in-up"
+          style={{
+            // 件数が多いと下の方のカードが何秒も透明のままになるので、遅らせるのは最初の数枚だけ
+            animationDelay: `${Math.min(i, 6) * 60}ms`,
+            borderRadius: '1rem',
+            padding: '1.25rem 1.5rem',
+            cursor: 'pointer',
+            position: 'relative',
+            overflow: 'hidden',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--color-border)',
+            boxShadow: 'var(--shadow-card)',
+            transition: 'box-shadow 0.3s, transform 0.3s, border-color 0.3s',
+          }}
+          // ホバーの演出はマウスのときだけ。タッチではタップ後に浮いたまま残ってしまう
+          onPointerEnter={e => {
+            if (e.pointerType !== 'mouse') return;
+            const el = e.currentTarget as HTMLElement;
+            el.style.boxShadow = 'var(--shadow-card-hover)';
+            el.style.transform = 'translateY(-2px)';
+            el.style.borderColor = 'var(--color-border-strong)';
+            const line = el.querySelector('.hover-line') as HTMLElement;
+            if (line) line.style.transform = 'scaleX(1)';
+            const title = el.querySelector('.card-title') as HTMLElement;
+            if (title) title.style.color = 'var(--color-primary)';
+          }}
+          onPointerLeave={e => {
+            if (e.pointerType !== 'mouse') return;
+            const el = e.currentTarget as HTMLElement;
+            el.style.boxShadow = 'var(--shadow-card)';
+            el.style.transform = 'translateY(0)';
+            el.style.borderColor = 'var(--color-border)';
+            const line = el.querySelector('.hover-line') as HTMLElement;
+            if (line) line.style.transform = 'scaleX(0)';
+            const title = el.querySelector('.card-title') as HTMLElement;
+            if (title) title.style.color = 'var(--color-text-primary)';
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+            <FieldBadges quest={quest} size="sm" />
+            <span style={{ fontSize: '0.75rem', fontWeight: 500, whiteSpace: 'nowrap', color: isFull ? 'var(--color-text-tertiary)' : catStyle.color }}>
+              {quest.is_ongoing ? '随時募集' : quest.max_applicants ? `定員 ${quest.accepted_count ?? 0}/${quest.max_applicants}人` : '定員なし'}
+            </span>
+          </div>
+
+          <h3 className="card-title" style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem', lineHeight: 1.4, color: 'var(--color-text-primary)', transition: 'color 0.2s' }}>
+            {quest.title}
+          </h3>
+
+          {/* 一日体験の判断材料になる日時・場所・参加費を先に出す。日程・場所が未定なら「未定」と出す */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Calendar size={12} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />{when}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}><MapPin size={12} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />{quest.location || TBD_TEXT}</span>
+              {quest.participation_fee && <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Wallet size={12} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />参加費 {quest.participation_fee}</span>}
+              {deadline && !isFull && <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontWeight: 600, color: deadline.color }}><Clock size={12} style={{ flexShrink: 0 }} />{deadline.text}</span>}
+            </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: '0.625rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.125rem', color: 'var(--color-text-tertiary)' }}>主催</p>
+              {(quest.organization_name || quest.organization?.name) ? (
+                <div style={{ marginTop: '0.25rem' }}>
+                  <OrgBadge name={quest.organization_name ?? quest.organization?.name} />
+                </div>
+              ) : (
+                // 団体必須化より前の旧形式のクエストは掲示者名を出す
+                <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-secondary)' }}>{quest.creator?.display_name || '不明'}</p>
+              )}
+            </div>
+          </div>
+
+          {isFull && (
+            <div style={{ marginTop: '0.75rem', padding: '0.375rem', textAlign: 'center', fontSize: '0.75rem', fontWeight: 500, borderRadius: '0.5rem', background: 'var(--bg-secondary)', color: 'var(--color-text-tertiary)' }}>
+              定員に達しました
+            </div>
+          )}
+
+          <div className="hover-line" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: catStyle.color, transform: 'scaleX(0)', transformOrigin: 'left', transition: 'transform 0.5s cubic-bezier(0.4,0,0,1)' }} />
+        </article>
+    );
+  };
+
+  // 常設クエストの小さなカード（横スクロールの列用）
+  const renderOngoingCard = (quest: Quest) => {
+    const c = questTypeStyle(quest.quest_type);
+    return (
+      <button key={quest.id} onClick={() => setSelectedQuest(quest)}
+        style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', textAlign: 'left', padding: '0.875rem 1rem', borderRadius: '0.875rem', cursor: 'pointer', background: 'var(--bg-card)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)', borderTop: `3px solid ${c.color}` }}>
+        <FieldBadges quest={quest} size="sm" />
+        <span style={{ fontSize: '0.9375rem', fontWeight: 700, lineHeight: 1.4, color: 'var(--color-text-primary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{quest.title}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+          <Repeat size={12} style={{ color: c.color, flexShrink: 0 }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{quest.schedule_note || '随時募集'}</span>
+        </span>
+        {(quest.organization_name || quest.organization?.name) && <OrgBadge name={quest.organization_name ?? quest.organization?.name} />}
+      </button>
+    );
+  };
+
+  const ongoing = filtered.filter(q => q.is_ongoing);
+  const dated = filtered.filter(q => !q.is_ongoing);
+  const sectionTitle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: 700, color: 'var(--color-text-primary)', fontFamily: 'var(--font-display)' };
+  const countBadge: React.CSSProperties = { fontSize: '0.75rem', fontWeight: 700, padding: '0.125rem 0.5rem', borderRadius: 9999, background: 'var(--bg-secondary)', color: 'var(--color-text-secondary)' };
 
   return (
     <section id="quest-board">
@@ -346,107 +468,45 @@ const QuestBoard: React.FC = () => {
         </div>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-            {filtered.map((quest, i) => {
-              const catStyle = questTypeStyle(quest.quest_type);
-              const isFull = (quest.accepted_count ?? 0) >= quest.max_applicants;
-              const when = fmtSessionsShort(quest.sessions);
-              const deadline = deadlineLabel(quest.listing_end_date);
-              return (
-                <article
-                  key={quest.id}
-                  onClick={() => setSelectedQuest(quest)}
-                  className="animate-fade-in-up"
-                  style={{
-                    // 件数が多いと下の方のカードが何秒も透明のままになるので、遅らせるのは最初の数枚だけ
-                    animationDelay: `${Math.min(i, 6) * 60}ms`,
-                    borderRadius: '1rem',
-                    padding: '1.25rem 1.5rem',
-                    cursor: 'pointer',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--color-border)',
-                    boxShadow: 'var(--shadow-card)',
-                    transition: 'box-shadow 0.3s, transform 0.3s, border-color 0.3s',
-                  }}
-                  // ホバーの演出はマウスのときだけ。タッチではタップ後に浮いたまま残ってしまう
-                  onPointerEnter={e => {
-                    if (e.pointerType !== 'mouse') return;
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.boxShadow = 'var(--shadow-card-hover)';
-                    el.style.transform = 'translateY(-2px)';
-                    el.style.borderColor = 'var(--color-border-strong)';
-                    const line = el.querySelector('.hover-line') as HTMLElement;
-                    if (line) line.style.transform = 'scaleX(1)';
-                    const title = el.querySelector('.card-title') as HTMLElement;
-                    if (title) title.style.color = 'var(--color-primary)';
-                  }}
-                  onPointerLeave={e => {
-                    if (e.pointerType !== 'mouse') return;
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.boxShadow = 'var(--shadow-card)';
-                    el.style.transform = 'translateY(0)';
-                    el.style.borderColor = 'var(--color-border)';
-                    const line = el.querySelector('.hover-line') as HTMLElement;
-                    if (line) line.style.transform = 'scaleX(0)';
-                    const title = el.querySelector('.card-title') as HTMLElement;
-                    if (title) title.style.color = 'var(--color-text-primary)';
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                    <FieldBadges quest={quest} size="sm" />
-                    <span style={{ fontSize: '0.75rem', fontWeight: 500, color: isFull ? 'var(--color-text-tertiary)' : catStyle.color }}>
-                      定員 {quest.accepted_count ?? 0}/{quest.max_applicants}人
-                    </span>
-                  </div>
+          {/* 常設クエスト（期限なし・随時募集）。通常の一覧と混ぜると、ずっと上に残り続けて
+              期間限定のクエストが埋もれるので別の枠にする。横に流す1列にして縦の場所を取らず、
+              「すべて見る」で一覧に広げられるようにする */}
+          {ongoing.length > 0 && (
+            <section aria-label="常設クエスト" style={{ marginBottom: '2rem', padding: '1rem 1rem 0.75rem', borderRadius: '1rem', background: 'var(--bg-secondary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                <div>
+                  <h3 style={sectionTitle}><Repeat size={16} style={{ color: 'var(--color-primary)' }} />いつでも参加できる常設クエスト<span style={{ ...countBadge, background: 'var(--bg-card)' }}>{ongoing.length}</span></h3>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.125rem' }}>締切がなく、継続して参加者を募集しています</p>
+                </div>
+                {ongoing.length > 1 && (
+                  <button onClick={() => setShowAllOngoing(v => !v)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0' }}>
+                    {showAllOngoing ? <>たたむ<ChevronUp size={14} /></> : <>すべて見る<ChevronRight size={14} /></>}
+                  </button>
+                )}
+              </div>
+              {showAllOngoing ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem', paddingBottom: '0.5rem' }}>
+                  {ongoing.map((q, i) => renderCard(q, i))}
+                </div>
+              ) : (
+                <div className="qb-ongoing-rail">{ongoing.map(renderOngoingCard)}</div>
+              )}
+            </section>
+          )}
 
-                  <h3 className="card-title" style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem', lineHeight: 1.4, color: 'var(--color-text-primary)', transition: 'color 0.2s' }}>
-                    {quest.title}
-                  </h3>
-
-                  {/* 一日体験の判断材料になる日時・場所・参加費を先に出す。
-                      旧形式（日程の無い）クエストは従来どおり説明文を出す */}
-                  {when ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Calendar size={12} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />{when}</span>
-                      {quest.location && <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}><MapPin size={12} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />{quest.location}</span>}
-                      {quest.participation_fee && <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Wallet size={12} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />参加費 {quest.participation_fee}</span>}
-                      {deadline && !isFull && <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontWeight: 600, color: deadline.color }}><Clock size={12} style={{ flexShrink: 0 }} />{deadline.text}</span>}
-                    </div>
-                  ) : quest.description ? (
-                    <p style={{ fontSize: '0.875rem', marginBottom: '1rem', color: 'var(--color-text-secondary)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {quest.description}
-                    </p>
-                  ) : null}
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: '1rem', borderTop: '1px solid var(--color-border)' }}>
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{ fontSize: '0.625rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.125rem', color: 'var(--color-text-tertiary)' }}>主催</p>
-                      {(quest.organization_name || quest.organization?.name) ? (
-                        <div style={{ marginTop: '0.25rem' }}>
-                          <OrgBadge name={quest.organization_name ?? quest.organization?.name} />
-                        </div>
-                      ) : (
-                        // 団体必須化より前の旧形式のクエストは掲示者名を出す
-                        <p style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-secondary)' }}>{quest.creator?.display_name || '不明'}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {isFull && (
-                    <div style={{ marginTop: '0.75rem', padding: '0.375rem', textAlign: 'center', fontSize: '0.75rem', fontWeight: 500, borderRadius: '0.5rem', background: 'var(--bg-secondary)', color: 'var(--color-text-tertiary)' }}>
-                      定員に達しました
-                    </div>
-                  )}
-
-                  <div className="hover-line" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: catStyle.color, transform: 'scaleX(0)', transformOrigin: 'left', transition: 'transform 0.5s cubic-bezier(0.4,0,0,1)' }} />
-                </article>
-              );
-            })}
-          </div>
+          {dated.length > 0 && (
+            <>
+              {ongoing.length > 0 && (
+                <h3 style={{ ...sectionTitle, marginBottom: '1rem' }}><Calendar size={16} style={{ color: 'var(--color-primary)' }} />日程のあるクエスト<span style={countBadge}>{dated.length}</span></h3>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                {dated.map((q, i) => renderCard(q, i))}
+              </div>
+            </>
+          )}
           <p style={{ marginTop: '1.5rem', textAlign: 'right', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-tertiary)' }}>
-            {filtered.length} 件のクエスト
+            {filtered.length} 件のクエスト{ongoing.length > 0 && `（うち常設 ${ongoing.length}件）`}
             {filtering && <button onClick={resetFilters} style={{ marginLeft: '0.75rem', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>絞り込みを解除</button>}
           </p>
         </>

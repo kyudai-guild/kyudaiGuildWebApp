@@ -30,7 +30,8 @@ interface MyQuest {
   creator_id: string;
   // 「自団体の掲示クエスト」でだけ返る。誰が掲示したか
   creator?: { display_name: string } | null;
-  max_applicants: number; tags: string[]; status: string;
+  max_applicants: number | null; tags: string[]; status: string;
+  is_ongoing?: boolean | null; schedule_note?: string | null;  // 常設クエスト（v27）
   rejection_reason: string | null; reviewed_at: string | null;
   reviewer: { display_name: string } | null;
   effective_end_date: string | null; created_at: string;
@@ -191,8 +192,11 @@ export default function MyQuestsPage() {
     }
   };
 
-  const completeQuest = async (questId: string) => {
-    if (!confirm('このクエストの完了を報告しますか？\n完了すると、掲示板から外れて新しい応募を受け付けなくなります。')) return;
+  const completeQuest = async (questId: string, ongoing = false) => {
+    const msg = ongoing
+      ? 'この常設クエストの募集を終了しますか？\n終了すると、掲示板から外れて新しい応募を受け付けなくなります。'
+      : 'このクエストの完了を報告しますか？\n完了すると、掲示板から外れて新しい応募を受け付けなくなります。';
+    if (!confirm(msg)) return;
     setBusy(true); setActionError(null);
     try {
       const res = await fetch(`/api/quests/${questId}/complete`, { method: 'POST' });
@@ -282,6 +286,9 @@ export default function MyQuestsPage() {
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.625rem', borderRadius: '9999px', color: st.color, background: st.bg }}>
                                 <StIcon size={10} />{st.label}
                               </span>
+                              {quest.is_ongoing && (
+                                <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '0.1875rem 0.5rem', borderRadius: '9999px', color: 'var(--color-primary)', background: '#f2f7f4', border: '1px solid #cfe3d8' }}>常設</span>
+                              )}
                               <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{questFields(quest).join('・')}</span>
                               <OrgBadge
                                 name={quest.organization_name ?? quest.organization?.name}
@@ -320,7 +327,7 @@ export default function MyQuestsPage() {
                                 contactPreviewForCreator
                               />
                               <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', margin: '0.75rem 0 0' }}>
-                                応募 {appCount}件{quest.effective_end_date ? ` ・ 掲示は${new Date(quest.effective_end_date).toLocaleDateString('ja-JP')}まで` : ''}
+                                応募 {appCount}件{quest.is_ongoing ? ' ・ 常設（締切なし）' : quest.effective_end_date ? ` ・ 掲示は${new Date(quest.effective_end_date + 'T00:00:00').toLocaleDateString('ja-JP')}まで` : ''}
                               </p>
                               {quest.status === 'rejected' && quest.rejection_reason && (
                                 <div style={S.rejectionBox}>
@@ -385,11 +392,13 @@ export default function MyQuestsPage() {
                               {quest.status === 'approved' && (
                                 <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: '0.75rem', background: '#f2f7f4', border: '1px solid #cfe3d8' }}>
                                   <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', marginBottom: '0.625rem' }}>
-                                    依頼が終わったら完了報告をしてください。完了すると感謝の言葉を送り合えます。
-                                    {acceptedApps.length === 0 && ' （マッチ成立前でも完了・取り下げできます）'}
+                                    {quest.is_ongoing
+                                      ? '常設クエストは、団体が募集を終えるまで掲載されます。募集を終えるときは「募集を終了する」を押してください。終了すると感謝の言葉を送り合えます。'
+                                      : '依頼が終わったら完了報告をしてください。完了すると感謝の言葉を送り合えます。'}
+                                    {!quest.is_ongoing && acceptedApps.length === 0 && ' （マッチ成立前でも完了・取り下げできます）'}
                                   </p>
-                                  <button style={S.primarySmallBtn} disabled={busy} onClick={() => completeQuest(quest.id)}>
-                                    <CheckCircle2 size={12} />完了報告する
+                                  <button style={S.primarySmallBtn} disabled={busy} onClick={() => completeQuest(quest.id, !!quest.is_ongoing)}>
+                                    <CheckCircle2 size={12} />{quest.is_ongoing ? '募集を終了する' : '完了報告する'}
                                   </button>
                                 </div>
                               )}

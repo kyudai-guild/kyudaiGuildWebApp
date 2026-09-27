@@ -31,7 +31,9 @@ export interface Quest {
   description: string | null;   // 補足の自由記述（任意）
   quest_type: string;             // 主な分野（fields の1つ目）
   fields?: string[] | null;       // 分野（複数。v26）。それより前のクエストは空
-  max_applicants: number;       // 定員（承認した人数で数える）
+  max_applicants: number | null; // 定員（承認した人数で数える）。空 = 上限なし
+  is_ongoing?: boolean | null;    // 常設クエスト（締切・定員・日程なし。v27）
+  schedule_note?: string | null;  // 日程についての補足（v27）
   tags: string[];
   listing_duration_type: string;
   listing_end_date: string | null;   // 申込の締切（この日まで掲示）

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Calendar, MapPin, Users, Wallet, Backpack, UserCheck, Clock, Building2, MessageCircle, Lock, Sparkles } from 'lucide-react';
-import { fmtSession, fmtDateJa, sortSessions, photoUrl, type QuestSession, type ScheduleRow } from '@/lib/quest-form';
+import { fmtSession, fmtDateJa, sortSessions, photoUrl, TBD_TEXT, type QuestSession, type ScheduleRow } from '@/lib/quest-form';
 
 /**
  * クエスト依頼書の内容を表示する部品。
@@ -14,7 +14,9 @@ export type QuestDetailData = {
   title: string;
   description?: string | null;
   tags?: string[] | null;
-  max_applicants: number;
+  max_applicants: number | null;
+  is_ongoing?: boolean | null;
+  schedule_note?: string | null;
   accepted_count?: number;
   listing_end_date?: string | null;
   organization_name?: string | null;
@@ -89,20 +91,36 @@ export default function QuestDetails({
           style={{ width: '100%', maxHeight: 280, objectFit: 'cover', borderRadius: '0.875rem', border: '1px solid var(--color-border)' }} />
       )}
 
-      {sessions.length > 0 && (
+      {/* 日程。常設クエストは頻度の目安、未定なら「未定」と補足 */}
+      {sessions.length > 0 ? (
         <Row icon={Calendar} label={sessions.length > 1 ? `日程（全${sessions.length}回）` : '日時'}>
           {sessions.map((s, i) => <div key={i}>{fmtSession(s)}</div>)}
+          {quest.schedule_note && <div style={{ color: 'var(--color-text-secondary)' }}>{quest.schedule_note}</div>}
+        </Row>
+      ) : quest.is_ongoing ? (
+        <Row icon={Calendar} label="日時">
+          <div>常設（随時募集）</div>
+          {quest.schedule_note && <div style={{ color: 'var(--color-text-secondary)' }}>{quest.schedule_note}</div>}
+        </Row>
+      ) : (
+        <Row icon={Calendar} label="日時">
+          <div>{TBD_TEXT}</div>
+          {quest.schedule_note && <div style={{ color: 'var(--color-text-secondary)' }}>{quest.schedule_note}</div>}
         </Row>
       )}
 
-      {quest.location && <Row icon={MapPin} label="場所・集合場所">{quest.location}</Row>}
+      <Row icon={MapPin} label="場所・集合場所">{quest.location || TBD_TEXT}</Row>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.875rem' }}>
         <Row icon={Users} label="定員">
-          {typeof quest.accepted_count === 'number' ? `${quest.accepted_count} / ${quest.max_applicants}人` : `${quest.max_applicants}人`}
+          {quest.max_applicants
+            ? (typeof quest.accepted_count === 'number' ? `${quest.accepted_count} / ${quest.max_applicants}人` : `${quest.max_applicants}人`)
+            : (typeof quest.accepted_count === 'number' && quest.accepted_count > 0 ? `上限なし（${quest.accepted_count}人が参加予定）` : '上限なし')}
         </Row>
         {quest.participation_fee && <Row icon={Wallet} label="参加費">{quest.participation_fee}</Row>}
-        {quest.listing_end_date && <Row icon={Clock} label="申込の締切">{fmtDateJa(quest.listing_end_date)}まで</Row>}
+        {quest.is_ongoing
+          ? <Row icon={Clock} label="申込の締切">なし（随時募集）</Row>
+          : quest.listing_end_date && <Row icon={Clock} label="申込の締切">{fmtDateJa(quest.listing_end_date)}まで</Row>}
       </div>
 
       {quest.belongings && <Row icon={Backpack} label="持ち物・服装">{quest.belongings}</Row>}
@@ -114,7 +132,7 @@ export default function QuestDetails({
           <div style={{ ...box, padding: '0.5rem 0.875rem' }}>
             {schedule.map((r, i) => (
               <div key={i} style={{ display: 'flex', gap: '0.875rem', padding: '0.375rem 0', borderTop: i === 0 ? 'none' : '1px solid var(--color-border)' }}>
-                <span style={{ flexShrink: 0, width: '3.25rem', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-primary)', fontVariantNumeric: 'tabular-nums' }}>{r.time}</span>
+                <span style={{ flexShrink: 0, width: '3.25rem', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-primary)', fontVariantNumeric: 'tabular-nums' }}>{r.time || '—'}</span>
                 <span style={{ fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--color-text-primary)', wordBreak: 'break-word' }}>{r.content}</span>
               </div>
             ))}

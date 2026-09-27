@@ -17,6 +17,8 @@ type NotifiableQuest = {
   quest_type: string;
   fields?: string[] | null;
   tags?: string[] | null;
+  is_ongoing?: boolean | null;
+  schedule_note?: string | null;
   sessions?: QuestSession[] | null;
   location?: string | null;
   max_applicants?: number | null;
@@ -99,7 +101,7 @@ async function runDigest(siteUrl: string): Promise<DigestResult> {
   const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const { data: quests, error: questError } = await admin
     .from('quests')
-    .select('id, title, quest_type, fields, tags, sessions, location, max_applicants, effective_end_date, creator_id')
+    .select('id, title, quest_type, fields, tags, sessions, location, max_applicants, effective_end_date, creator_id, is_ongoing, schedule_note')
     .eq('status', 'approved')
     .is('line_notified_at', null)
     .gte('reviewed_at', since)
