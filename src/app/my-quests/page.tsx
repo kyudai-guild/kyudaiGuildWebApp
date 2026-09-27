@@ -32,6 +32,7 @@ interface MyQuest {
   creator?: { display_name: string } | null;
   max_applicants: number | null; tags: string[]; status: string;
   is_ongoing?: boolean | null; schedule_note?: string | null;  // 常設クエスト（v27）
+  talk_per_applicant?: boolean | null;                           // トークを応募者ごとに分ける（v27）
   rejection_reason: string | null; reviewed_at: string | null;
   reviewer: { display_name: string } | null;
   effective_end_date: string | null; created_at: string;
@@ -328,6 +329,7 @@ export default function MyQuestsPage() {
                               />
                               <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', margin: '0.75rem 0 0' }}>
                                 応募 {appCount}件{quest.is_ongoing ? ' ・ 常設（締切なし）' : quest.effective_end_date ? ` ・ 掲示は${new Date(quest.effective_end_date + 'T00:00:00').toLocaleDateString('ja-JP')}まで` : ''}
+                                {quest.talk_per_applicant ? ' ・ トークは応募者ごと' : ' ・ トークは参加者全員で1つ'}
                               </p>
                               {quest.status === 'rejected' && quest.rejection_reason && (
                                 <div style={S.rejectionBox}>

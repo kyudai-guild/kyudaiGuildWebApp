@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, Send, AlertCircle, FileText, Calendar, Users, Tag, Building2, Plus, Trash2, Lock, ImagePlus, Mail, Clock, Repeat } from 'lucide-react';
+import { X, Send, AlertCircle, FileText, Calendar, Users, Tag, Building2, Plus, Trash2, Lock, ImagePlus, Mail, Clock, Repeat, MessageCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useGuild } from '@/contexts/GuildContext';
 import { createClient } from '@/lib/supabase-client';
@@ -194,6 +194,7 @@ type FormState = {
   confirmations: boolean[];
   is_ongoing: boolean;           // 常設クエスト
   schedule_note: string;         // 日程についての補足（常設なら頻度の目安）
+  talk_per_applicant: boolean;   // トークを応募者ごとに分ける
 };
 
 const emptyForm = (): FormState => ({
@@ -218,6 +219,7 @@ const emptyForm = (): FormState => ({
   confirmations: CONFIRMATIONS.map(() => false),
   is_ongoing: false,
   schedule_note: '',
+  talk_per_applicant: false,
 });
 
 /* ── 下書き ──
@@ -277,6 +279,9 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
   const [counts, setCounts] = useState<OpenCounts | null>(null);
   // 団体の紹介・問い合わせ先を本人が書き換えたか。書き換えていなければ、団体を選び直したときに団体の登録情報で入れ直す
   const touched = useRef(draft?.touched ?? { intro: false, contact: false });
+  // トークの分け方を本人が変えたか。変えていなければ、掲載の形式に合わせて初期値を切り替える
+  // 下書きで初期値と違う値になっていれば、本人が選んだものとして扱う
+  const talkTouched = useRef(!!draft && typeof draft.f?.talk_per_applicant === 'boolean' && draft.f.talk_per_applicant !== !!draft.f.is_ongoing);
 
   const [photoPath, setPhotoPath] = useState<string | null>(draft?.photoPath ?? null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -535,7 +540,8 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                   const on = f.is_ongoing === o.ongoing;
                   const Icon = o.icon;
                   return (
-                    <button key={o.title} type="button" role="radio" aria-checked={on} onClick={() => set('is_ongoing', o.ongoing)}
+                    <button key={o.title} type="button" role="radio" aria-checked={on}
+                      onClick={() => setF(prev => ({ ...prev, is_ongoing: o.ongoing, talk_per_applicant: talkTouched.current ? prev.talk_per_applicant : o.ongoing }))}
                       style={{ textAlign: 'left', padding: '0.75rem 0.875rem', borderRadius: '0.75rem', cursor: 'pointer',
                         background: on ? '#f2f7f4' : 'var(--bg-card)', border: `${on ? 2 : 1}px solid ${on ? 'var(--color-primary)' : 'var(--color-border)'}` }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 700, color: on ? 'var(--color-primary)' : 'var(--color-text-primary)' }}>
@@ -546,6 +552,24 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                   );
                 })}
               </div>
+
+              {/* トークの分け方（申請後は変えられない） */}
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', padding: '0.75rem 0.875rem', borderRadius: '0.75rem', cursor: 'pointer', background: 'var(--bg-base)', border: '1px solid var(--color-border)' }}>
+                <input type="checkbox" checked={f.talk_per_applicant}
+                  onChange={e => { talkTouched.current = true; set('talk_per_applicant', e.target.checked); }}
+                  style={{ width: 18, height: 18, marginTop: 2, accentColor: 'var(--color-primary)', cursor: 'pointer', flexShrink: 0 }} />
+                <span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                    <MessageCircle size={14} style={{ color: 'var(--color-primary)' }} />トークを応募者ごとに分ける
+                  </span>
+                  <span style={{ display: 'block', marginTop: '0.25rem', fontSize: '0.75rem', lineHeight: 1.6, color: 'var(--color-text-secondary)' }}>
+                    {f.talk_per_applicant
+                      ? 'ON：承認した学生ごとに、別々のトークを作ります。学生どうしは、ほかの学生とのやり取りを見られません。'
+                      : 'OFF：このクエストの参加者全員で、1つのトークを使います。'}
+                    申請後は変更できません。
+                  </span>
+                </span>
+              </label>
 
               {/* ── クエストの内容 ── */}
               <SectionTitle icon={FileText}>クエストの内容</SectionTitle>

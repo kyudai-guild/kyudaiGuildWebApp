@@ -31,7 +31,7 @@ export async function PATCH(
 
     const { data: application } = await admin
       .from('quest_applications')
-      .select('id, status, applicant_id, quest:quest_id (id, creator_id, status, max_applicants, organization_id, is_ongoing)')
+      .select('id, status, applicant_id, quest:quest_id (id, creator_id, status, max_applicants, organization_id, is_ongoing, talk_per_applicant)')
       .eq('id', id)
       .maybeSingle();
     if (!application) {
@@ -39,7 +39,8 @@ export async function PATCH(
     }
 
     const quest = application.quest as unknown as {
-      id: string; creator_id: string; status: string; max_applicants: number | null; organization_id: string | null; is_ongoing: boolean | null;
+      id: string; creator_id: string; status: string; max_applicants: number | null; organization_id: string | null;
+      is_ongoing: boolean | null; talk_per_applicant: boolean | null;
     };
     const allowed = quest.creator_id === user.id || await isMemberOf(supabase, user.id, quest.organization_id);
     if (!allowed) {
@@ -103,16 +104,16 @@ export async function PATCH(
  * 掲示した本人や他のメンバーは、トーク一覧の「（未参加）」から自分で参加できる。
  * すでに参加している人（一意制約違反 23505）は成功とみなす。
  *
- * 通常のクエストは 1クエスト1トーク（参加者みんなで1つ）。
- * 常設クエストは応募者ごとに分ける（参加する時期が違う学生どうしを同じトークに入れない。v27）。
+ * 掲示者が依頼書で「トークを応募者ごとに分ける」を選んだクエストは、学生ごとに別のトークにする。
+ * 選んでいないクエストは 1クエスト1トーク（参加者みんなで1つ）。v27
  */
 async function setupTalkRoom(
   admin: SupabaseClient,
-  quest: { id: string; organization_id: string | null; is_ongoing: boolean | null },
+  quest: { id: string; organization_id: string | null; is_ongoing: boolean | null; talk_per_applicant: boolean | null },
   approverId: string,
   applicantId: string,
 ) {
-  const perApplicant = !!quest.is_ongoing;
+  const perApplicant = quest.talk_per_applicant ?? !!quest.is_ongoing;
   let lookup = admin.from('talk_rooms').select('id').eq('quest_id', quest.id);
   lookup = perApplicant ? lookup.eq('applicant_id', applicantId) : lookup.is('applicant_id', null);
   let { data: room } = await lookup.maybeSingle();

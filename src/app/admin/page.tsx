@@ -20,6 +20,7 @@ interface AdminQuest {
   id: string; title: string; description: string | null; quest_type: string;
   fields?: string[] | null;
   is_ongoing?: boolean | null;   // 常設クエスト（v27）
+  talk_per_applicant?: boolean | null;
   max_applicants: number; tags: string[]; status: string;
   listing_duration_type: string; listing_duration_weeks: number | null;
   listing_end_date: string | null; effective_end_date: string | null;
@@ -485,6 +486,9 @@ export default function AdminPage() {
                               <span style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>{questFields(quest).join('・')}</span>
                               {quest.is_ongoing && (
                                 <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '0.125rem 0.5rem', borderRadius: '9999px', color: 'var(--color-primary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>常設</span>
+                              )}
+                              {quest.talk_per_applicant && (
+                                <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '0.125rem 0.5rem', borderRadius: '9999px', color: 'var(--color-text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--color-border)' }}>トーク応募者ごと</span>
                               )}
                               {/* どの団体からの申請か。団体未設定は『個人申請』と明示する */}
                               <OrgBadge

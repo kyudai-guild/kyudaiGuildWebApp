@@ -33,6 +33,7 @@ export type QuestInput = {
   title: string;
   is_ongoing: boolean;          // 常設クエスト（締切・定員・日程なし。団体が募集を終了するまで掲載）
   schedule_note: string;        // 日程についての補足（任意。常設なら頻度の目安、未定なら見込み）
+  talk_per_applicant: boolean;  // トークを応募者ごとに分けるか（申請後は変えない）
   fields: string[];             // 分野（1〜3つ。プロフィールの「興味のある分野」と同じ一覧）
   quest_type: string;           // 主な分野（fields の1つ目）。表示の色などに使う
   description: string;          // 任意（補足の自由記述）
@@ -113,6 +114,8 @@ export function validateQuestInput(
     title: str(raw?.title, 100),
     is_ongoing: raw?.is_ongoing === true,
     schedule_note: str(raw?.schedule_note, 300),
+    // 送られてこなければ、常設クエストは分ける・日程のあるクエストは分けない
+    talk_per_applicant: typeof raw?.talk_per_applicant === 'boolean' ? raw.talk_per_applicant : raw?.is_ongoing === true,
     fields,
     quest_type: fields[0] ?? '',
     description: str(raw?.description, 4000),

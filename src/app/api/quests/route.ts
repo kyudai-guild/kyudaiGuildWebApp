@@ -17,7 +17,7 @@ const BOARD_LIMIT = 300;
 //     「問い合わせ先」（preferred_contact）だけを出す
 //   - 当日の受け入れ担当者は別の表（quest_private_details）にあり、ここでは読まない
 const BOARD_COLUMNS = `
-  id, title, description, quest_type, fields, max_applicants, tags, status, is_ongoing, schedule_note,
+  id, title, description, quest_type, fields, max_applicants, tags, status, is_ongoing, schedule_note, talk_per_applicant,
   listing_duration_type, listing_end_date, effective_end_date,
   rejection_reason, reviewed_at, created_at, creator_id,
   preferred_contact, organization_id, organization_name,
@@ -170,6 +170,7 @@ export async function POST(request: Request) {
         // 常設クエスト・日程や場所が未定のクエストに対応（v27）。定員が空なら上限なし
         is_ongoing: input.is_ongoing,
         schedule_note: input.schedule_note || null,
+        talk_per_applicant: input.talk_per_applicant,
         max_applicants: input.max_applicants,
         sessions: input.sessions,
         location: input.location || null,
