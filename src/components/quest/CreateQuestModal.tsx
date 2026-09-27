@@ -56,78 +56,114 @@ function GuidelineSection({ title, children }: { title: string; children: React.
   );
 }
 
-const ul: React.CSSProperties = { margin: 0, paddingLeft: '1.125rem' };
+/* 箇条書き。アプリ全体のスタイルで ul/ol の印が消えているので、中黒・番号は自分で描く */
+function Items({ children }: { children: React.ReactNode }) {
+  return <ul style={{ margin: '0.375rem 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>{children}</ul>;
+}
+function Item({ label, children }: { label?: string; children: React.ReactNode }) {
+  return (
+    <li style={{ display: 'flex', gap: '0.125rem' }}>
+      <span aria-hidden="true" style={{ flexShrink: 0 }}>・</span>
+      <span>{label && <b>{label}：</b>}{children}</span>
+    </li>
+  );
+}
+function Steps({ children }: { children: React.ReactNode }) {
+  return <ol style={{ margin: '0.375rem 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>{children}</ol>;
+}
+function Step({ n, label, children }: { n: number; label?: string; children: React.ReactNode }) {
+  return (
+    <li style={{ display: 'flex', gap: '0.375rem' }}>
+      <span aria-hidden="true" style={{ flexShrink: 0, fontWeight: 700, color: 'var(--color-primary)' }}>{n}.</span>
+      <span>{label && <b>{label}：</b>}{children}</span>
+    </li>
+  );
+}
 
 function Guidelines() {
   return (
     <>
       <GuidelineSection title="クエストとは">
-        九大ギルドが掲示する、<b>九大生が一日だけ参加できる体験</b>です。
-        九大生にとっては、やったことのない活動に一度だけ触れてみる入り口になります。
-        団体の皆さまにとっては、活動そのものを知ってもらう機会になります。
+        「クエスト」とは、九大ギルドが掲載する、<b>九大生が1日だけ参加できる体験型アクティビティ</b>です。
+        <Items>
+          <Item label="九大生にとって">やったことのない活動に、まずは一度だけ触れてみるきっかけになります。</Item>
+          <Item label="団体の皆さまにとって">普段の活動そのものを広く知ってもらう機会になります。</Item>
+        </Items>
       </GuidelineSection>
 
-      <GuidelineSection title="こういうものを出していただけます">
-        次の3つを満たすものを、クエストとして掲示しています。
-        <ol style={ul}>
-          <li>参加する本人が、手を動かす・体を使う体験があること（見るだけ・聞くだけのものは、クエストではなくイベント告知として扱っています）</li>
-          <li>参加することが、入部や入会の条件になっていないこと</li>
-          <li>やってみた後に「自分はどう感じたか」が言える形になっていること</li>
-        </ol>
-        複数回にわたるクエストも出していただけます。<br />
-        入部のお誘いは歓迎です。興味を持った九大生が入れる道は、ぜひ示してあげてください。
-        お願いしているのは、<b>断られた後も続けないこと</b>、それだけです。
+      <GuidelineSection title="掲載できるクエスト（3つの基準）">
+        次の3つの条件を<b>すべて</b>満たすものを、クエストとして掲載いただけます。
+        <Steps>
+          <Step n={1}>
+            参加する本人が、手を動かす・体を使う体験があること
+            <br />
+            <span style={{ color: 'var(--color-text-tertiary)' }}>※ 見るだけ・聞くだけの企画は、クエストではなく「イベント告知」として扱っています。</span>
+          </Step>
+          <Step n={2}>参加することが、入部や入会の条件になっていないこと</Step>
+          <Step n={3}>やってみた後に「自分はどう感じたか」を振り返れる形になっていること</Step>
+        </Steps>
+        <Items>
+          <Item label="複数日程の開催">複数回にわたる日程のクエストも掲載可能です。</Item>
+          <Item label="入部の案内について">
+            体験後の入部のお誘いは歓迎です。興味を持った九大生が入れる道はぜひ示してあげてください。
+            ただし、<b>一度断られた後に勧誘を続ける行為はお控えください。</b>
+          </Item>
+        </Items>
       </GuidelineSection>
 
       <GuidelineSection title="参加費と報酬について">
-        <ul style={ul}>
-          <li><b>参加者に報酬が出るものは、当面お受けしていません。</b></li>
-          <li>参加費は<b>必要経費の範囲</b>でお願いします。必要経費を超えて団体の収入になるものはお受けできません。</li>
-          <li>参加費は必ずフォームに書いてください。当日その場で現金を求めることはできません。</li>
-        </ul>
+        <Items>
+          <Item label="報酬"><b>参加者に報酬（謝礼・給与など）が出るクエストは、当面の間お受けしていません。</b></Item>
+          <Item label="参加費">必要な実費の範囲内で設定をお願いします。必要経費を超えて団体の収入・利益になるものはお受けできません。</Item>
+          <Item label="集金方法">参加費が発生する場合は、必ず申請フォームに明記してください。当日その場で現金を直接請求することはできません。</Item>
+        </Items>
       </GuidelineSection>
 
-      <GuidelineSection title="団体として出すものです">
-        <ul style={ul}>
-          <li>クエストは<b>団体として</b>掲示するものです。団体のメンバーが個人的に人を集めたい依頼は出せません。</li>
-          <li>同じ団体から似た内容のクエストが重ならないよう、出す前に団体内でご相談ください。</li>
-          <li><b>1団体あたり、未完了（審査中・掲示中）のクエストは{MAX_OPEN_QUESTS_PER_ORG}件まで</b>です。終わったクエストは完了報告をしてください。</li>
-        </ul>
+      <GuidelineSection title="団体としての掲載ルール">
+        クエストは、サークルや団体として掲載するものです。
+        <Items>
+          <Item label="個人での募集は不可">団体のメンバーが個人的に人を集めるための依頼は掲載できません。</Item>
+          <Item label="団体内での事前共有">同じ団体から似た内容のクエストが重複しないよう、申請前に団体内でご相談ください。</Item>
+          <Item label="掲載件数の上限">
+            <b>1団体につき、未完了（審査中・掲載中）のクエストは最大{MAX_OPEN_QUESTS_PER_ORG}件まで</b>です。終了したクエストは速やかに完了報告を行ってください。
+          </Item>
+        </Items>
       </GuidelineSection>
 
-      <GuidelineSection title="書き方のお願い">
-        <ul style={ul}>
-          <li>「絶対に〜できる」「必ず友達ができる」のような言い切りは避けてください</li>
-          <li>「九大No.1」のような、根拠を示せない表現は使えません</li>
-          <li>参加できる人を限る場合は、活動の内容から理由が説明できる範囲でお願いします</li>
-          <li>その団体を知らない九大生が読んで、何をするか分かる言葉で書いてください</li>
-        </ul>
+      <GuidelineSection title="募集文の書き方について">
+        <Items>
+          <Item label="断定表現の回避">「絶対に〜できる」「必ず友達ができる」といった過度な言い切りは避けてください。</Item>
+          <Item label="客観的な記述">「九大No.1」など、根拠を示せない誇大表現は使用できません。</Item>
+          <Item label="参加対象の限定">参加できる対象者を限る場合は、活動内容から理由が説明できる範囲で設定をお願いします。</Item>
+          <Item label="伝わりやすい言葉遣い">その団体を知らない九大生が読んでも、当日に何をするのかが具体的に伝わる言葉で書いてください。</Item>
+        </Items>
       </GuidelineSection>
 
-      <GuidelineSection title="お受けできないもの">
-        <ul style={ul}>
-          <li>特定の思想・宗教・政治への勧誘を目的とするもの</li>
-          <li>商品・サービスの販売、入会・契約の勧誘が主目的のもの</li>
-          <li>断られた後も続く勧誘、参加後に繰り返し連絡するもの</li>
-          <li>書いてある活動と、実際にやることが違うもの</li>
-          <li>お酒を伴うもの、夜間の屋外・水辺・高所など事故のリスクが高いもの、激しい運動を伴うもの</li>
-          <li>参加者に車・バイクを運転させるもの</li>
-          <li>当日の受け入れ担当者が決まっていないもの</li>
-          <li>参加費が書かれていないもの、当日その場で現金を求めるもの</li>
-          <li>参加者に報酬が出るもの（当面、報酬が出るクエストは扱っていません）</li>
-          <li>参加費が必要経費を超えて、団体の収入になっているもの</li>
-          <li>法令や公序良俗に反するもの、性的な内容、差別的な内容</li>
-          <li>個人情報の収集が目的と思われるもの</li>
-          <li>事実と違う内容、他の方の著作物・写真を無断で使っているもの</li>
-        </ul>
+      <GuidelineSection title="お受けできないクエスト（禁止事項）">
+        以下のいずれかに該当するものは掲載できません。
+        <Items>
+          <Item>特定の思想・宗教・政治への勧誘を目的とするもの</Item>
+          <Item>商品・サービスの販売、または入会・契約の勧誘が主目的のもの</Item>
+          <Item>一度断られた後も続く勧誘や、参加後に繰り返し連絡を取る行為</Item>
+          <Item>募集内容に記載された活動と、実際の体験内容が異なるもの</Item>
+          <Item>飲酒を伴うもの、夜間の屋外・水辺・高所など事故のリスクが高いもの、激しい運動を伴うもの</Item>
+          <Item>参加者に車やバイクを運転させるもの</Item>
+          <Item>当日の受け入れ担当者が決まっていないもの</Item>
+          <Item>参加費の記載がないもの、または当日その場で現金を求めるもの</Item>
+          <Item>参加者に報酬が出るもの（当面の間はお取り扱いしていません）</Item>
+          <Item>参加費が必要経費を超え、団体の収入になっているもの</Item>
+          <Item>法令や公序良俗に反するもの、性的な内容、差別的な内容</Item>
+          <Item>個人情報の収集が目的と思われるもの</Item>
+          <Item>事実と異なる内容、他者の著作物や写真を無断で使用しているもの</Item>
+        </Items>
       </GuidelineSection>
 
-      <GuidelineSection title="申請したあと">
-        <ul style={ul}>
-          <li>運営が内容を確認し、結果はメールでお知らせします（掲載できない場合は理由を添えます）</li>
-          <li>九大生からの申し込みはこのアプリで受け付けます。団体側で募集の告知をしていただく必要はありません</li>
-          <li>応募があると、クエストを出した方にメールでお知らせが届きます。応募した九大生とはアプリ内のトークでやりとりできます</li>
-        </ul>
+      <GuidelineSection title="申請した後の流れ">
+        <Steps>
+          <Step n={1} label="運営による確認">申請後、運営が内容を確認し、掲載の可否をメールでお知らせします（掲載できない場合は理由を添えてご連絡します）。</Step>
+          <Step n={2} label="申し込みの受付">九大生からの参加申し込みは本アプリ内で受け付けます。団体側で個別に募集告知を行っていただく必要はありません。</Step>
+          <Step n={3} label="応募通知と連絡">応募があると、クエストを出した担当者にメールで通知が届きます。応募した九大生とは、アプリ内のトーク機能で直接やりとりが可能です。</Step>
+        </Steps>
       </GuidelineSection>
     </>
   );
@@ -472,9 +508,9 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                   </>
                 )}
                 <div style={{ padding: '0.625rem 0.875rem', borderRadius: '0.625rem', marginTop: '0.625rem', background: '#fffbeb', border: '1px solid #fde68a', fontSize: '0.75rem', lineHeight: 1.7, color: '#92400e' }}>
-                  クエストは<b>団体として</b>掲示するものです。団体のメンバーが個人的に人を集めたい依頼は出せません。
-                  同じ団体から似た内容のクエストが重ならないよう、出す前に団体内でご相談ください。
-                  <b>1団体あたり未完了のクエストは{MAX_OPEN_QUESTS_PER_ORG}件まで</b>です。
+                  クエストは<b>団体として</b>掲載するものです。団体のメンバーが個人的に人を集めるための依頼は掲載できません。
+                  同じ団体から似た内容のクエストが重複しないよう、申請前に団体内でご相談ください。
+                  <b>1団体につき、未完了のクエストは最大{MAX_OPEN_QUESTS_PER_ORG}件まで</b>です。
                 </div>
               </div>
 
@@ -492,7 +528,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                   <option value="" disabled>活動のジャンルを選んでください</option>
                   {QUEST_TYPES.map(t => <option key={t.label} value={t.label}>{t.label}（{t.examples}）</option>)}
                 </select>
-                <p style={hintS}>いちばん近いジャンルを選んでください。九大生は、興味のあるジャンルの新着をLINEで受け取れます。</p>
+                <p style={hintS}>最も当てはまるジャンルを選択してください。九大生は、興味のあるジャンルの新着情報をLINEで受け取ることができます。</p>
               </div>
               <div>
                 <label style={labelS}>当日の流れ {req}</label>
@@ -511,7 +547,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                 <button type="button" onClick={() => set('schedule', [...f.schedule, { time: '', content: '' }])} style={{ ...smallBtn, marginTop: '0.5rem' }}>
                   <Plus size={12} />行を追加
                 </button>
-                <p style={hintS}>何をするかが、順を追って分かるように書いてください。</p>
+                <p style={hintS}>当日の活動内容が、順を追って分かるように記入してください。</p>
               </div>
               <div>
                 <label style={labelS}>この活動で体験してほしいこと（任意）</label>
@@ -581,7 +617,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                 <div>
                   <label style={labelS}>定員 {req}</label>
                   <input type="number" min={1} max={500} value={f.max_applicants} onChange={e => set('max_applicants', e.target.value)} placeholder="例: 10" style={iStyle} onFocus={focusI} onBlur={blurI} />
-                  <p style={hintS}>承認した人数で数えます。見送った応募は枠を使いません。</p>
+                  <p style={hintS}>承認した人数でカウントします。見送った応募は定員枠を消費しません。</p>
                 </div>
                 <div>
                   <label style={labelS}>参加費 {req}</label>
@@ -618,11 +654,11 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                     <Mail size={12} />自分の九大メールアドレスを入れる（おすすめ）
                   </button>
                 )}
-                <p style={hintS}>掲示されます。九大メールアドレスは確実に連絡がつくので、あわせて載せることをおすすめします。</p>
+                <p style={hintS}>公開されます。九大メールアドレスは確実に連絡が取れるため、併記することをおすすめします。</p>
               </div>
 
               {/* ── 当日の受け入れ担当者（掲示しない） ── */}
-              <SectionTitle icon={Lock} note="掲示しません。運営と、この依頼を出したあなたにだけ見えます。">
+              <SectionTitle icon={Lock} note="公開されません。運営と、依頼を提出した方のみが閲覧できます。">
                 当日の受け入れ担当者
               </SectionTitle>
               <div className="cq-grid-2">
@@ -688,7 +724,7 @@ export default function CreateQuestModal({ isOpen, onClose }: CreateQuestModalPr
                 ><Send size={15} />{loading ? '申請中...' : 'クエストを申請する'}</button>
               </div>
               <p style={{ fontSize: '0.75rem', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>
-                運営が内容を確認し、結果をメールでお知らせします。
+                運営にて内容を確認後、結果をメールでお知らせいたします。
               </p>
             </form>
           )}
